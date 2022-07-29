@@ -1,0 +1,6 @@
+.vs/
+.vscode/
+dist/
+node_modules/
+*.tgz
+*.rpl
