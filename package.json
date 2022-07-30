@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc -p .",
     "watch": "tsc -p . -w",
-    "start": "node .",
+    "start": "node . --es-module-specifier-resolution=node",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "license": "UNLICENSED",
@@ -17,6 +17,7 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
-    "@chronodivide/game-api": "file:chronodivide-game-api-0.24.0.tgz"
+    "@chronodivide/game-api": "file:chronodivide-game-api-0.24.0.tgz",
+    "priority-queue-typescript": "^1.0.1"
   }
 }
