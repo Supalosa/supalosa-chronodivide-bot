@@ -2,8 +2,9 @@ import { BuildingPlacementData, GameApi, PlayerData, Point2D, TechnoRules } from
 import { GlobalThreat } from "../threat/threat.js";
 import { AntiGroundStaticDefence } from "./antiGroundStaticDefence.js";
 import { ArtilleryUnit } from "./ArtilleryUnit.js";
+import { BasicAirUnit } from "./basicAirUnit.js";
 import { BasicBuilding } from "./basicBuilding.js";
-import { MassedAntiGroundUnit } from "./massedAntiGroundUnit.js";
+import { BasicGroundUnit } from "./basicGroundUnit.js";
 import { PowerPlant } from "./powerPlant.js";
 import { ResourceCollectionBuilding } from "./resourceCollectionBuilding.js";
 
@@ -52,11 +53,17 @@ export const buildingNameToAiBuildingRules = new Map<string, AiBuildingRules>([
     ["GAWEAP", new BasicBuilding(10, 1)], // War Factory 
     ["GAPILE", new BasicBuilding(10, 1)], // Barracks 
     ["CMIN", new BasicBuilding(20, 3)], // Chrono Miner 
-    ["E1", new BasicBuilding(20, 3)], // GI
-    ["AENGINEER", new BasicBuilding(1, 1, 10000)], // Engineer
-    ["GADEPT", new BasicBuilding(1, 1, 10000)], // Engineer
+    ["ENGINEER", new BasicBuilding(1, 1, 10000)], // Engineer
+    ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["GAAIRC", new BasicBuilding(10, 1, 6000)], // Airforce Command
-    ["MTNK", new MassedAntiGroundUnit(10, 3)], // Grizzly Tank
-    ["SREF", new ArtilleryUnit(9, 1)], // Prism Tank
+    
     ["GAPILL", new AntiGroundStaticDefence(5, 1)], // Pillbox
+    
+    ["E1", new BasicGroundUnit(5, 3, 0.25, 0)], // GI
+    ["MTNK", new BasicGroundUnit(10, 3, 2, 0)], // Grizzly Tank
+    ["FV", new BasicGroundUnit(5, 2, 0.5, 1)], // IFV
+    ["JUMPJET", new BasicAirUnit(10, 1, 1, 1)], // Rocketeer
+    ["SREF", new ArtilleryUnit(9, 1)], // Prism Tank
+    ["CLEG", new BasicGroundUnit(0, 0)], // Chrono Legionnaire (Disabled)
+    ["SHAD", new BasicGroundUnit(0, 0)], // Nighthawk (Disabled)
 ]);
