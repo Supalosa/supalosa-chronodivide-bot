@@ -1,5 +1,6 @@
 import { GameApi, PlayerData, TechnoRules, UnitData } from "@chronodivide/game-api";
-import { SquadAction, SquadBehaviour } from "./squadBehaviour";
+import { GlobalThreat } from "../threat/threat.js";
+import { SquadAction, SquadBehaviour } from "./squadBehaviour.js";
 
 export enum SquadLiveness {
     SquadDead,
@@ -28,9 +29,9 @@ export class Squad {
         return this.name;
     }
 
-    public onAiUpdate(gameApi: GameApi, playerData: PlayerData): SquadAction {
+    public onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | undefined): SquadAction {
         this.updateLiveness(gameApi);
-        let outcome = this.behaviour.onAiUpdate(gameApi, playerData, this);
+        let outcome = this.behaviour.onAiUpdate(gameApi, playerData, this, threatData);
         return outcome;
     }
 

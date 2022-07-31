@@ -1,17 +1,18 @@
 // Meta-controller for forming and controlling squads.
 
 import { GameApi, PlayerData } from "@chronodivide/game-api";
-import { Squad, SquadLiveness } from "./squad";
-import { SquadAction, SquadActionDisband, SquadActionMergeInto } from "./squadBehaviour";
+import { GlobalThreat } from "../threat/threat.js";
+import { Squad, SquadLiveness } from "./squad.js";
+import { SquadAction, SquadActionDisband, SquadActionMergeInto } from "./squadBehaviour.js";
 
 export class SquadController {
     
     constructor(
-        private squads: Squad[],
-        private unitIdToSquad: Map<number, Squad>,
+        private squads: Squad[] = [],
+        private unitIdToSquad: Map<number, Squad> = new Map(),
     ) {}
 
-    public onAiUpdate(gameApi: GameApi, playerData: PlayerData) {
+    public onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | undefined) {
         // Remove dead squads.
         this.squads = this.squads.filter(squad => squad.getLiveness() == SquadLiveness.SquadDead);
         this.squads.sort((a, b) => a.getName().localeCompare(b.getName()));
@@ -28,7 +29,7 @@ export class SquadController {
             }); 
         });
 
-        let squadActions = this.squads.map(squad => {return {squad, action: squad.onAiUpdate(gameApi, playerData)}});
+        let squadActions = this.squads.map(squad => {return {squad, action: squad.onAiUpdate(gameApi, playerData, threatData)}});
         // Handle disbands and merges.
         const isDisband = (a: SquadAction): a is SquadActionDisband => a.type == 'disband';
         const isMerge = (a: SquadAction): a is SquadActionMergeInto => a.type == 'mergeInto';
@@ -55,5 +56,7 @@ export class SquadController {
             });
         // remove disbanded and merged squads.
         this.squads.filter(squad => !disbandedSquads.has(squad.getName()));
+
+        // Form squads.
     }
 }

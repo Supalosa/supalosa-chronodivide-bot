@@ -8,8 +8,10 @@ export class PowerPlant implements AiBuildingRules {
     }
 
     getPriority(game: GameApi, playerData: PlayerData, technoRules: TechnoRules): number {
-        if (playerData.power.total < playerData.power.drain + 20) {
+        if (playerData.power.total < playerData.power.drain) {
             return 100;
+        } else if (playerData.power.total < playerData.power.drain + (technoRules.power / 2)) {
+            return 20;
         } else {
             return 0;
         }        

@@ -22,7 +22,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
                 continue;
             }
             let enemyPlayer = game.getPlayerData(playerName);
-            enemyFacingLocationCandidates.push(getPointTowardsOtherPoint(startLocation, enemyPlayer.startLocation, 4, 10, 1.0));
+            enemyFacingLocationCandidates.push(getPointTowardsOtherPoint(startLocation, enemyPlayer.startLocation, 4, 16, 1.5));
         }
         let selectedLocation = enemyFacingLocationCandidates[Math.floor(Math.random() * enemyFacingLocationCandidates.length)];
         return getDefaultPlacementLocation(game, playerData, selectedLocation, technoRules);

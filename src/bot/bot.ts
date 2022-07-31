@@ -3,6 +3,7 @@ import PriorityQueue from "priority-queue-typescript";
 import { buildingNameToAiBuildingRules, defaultBuildingPriority, getDefaultPlacementLocation, TechnoRulesWithPriority } from "./logic/building/building.js";
 import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
+import { SquadController } from "./logic/squad/squadController.js";
 import { GlobalThreat } from "./logic/threat/threat.js";
 import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
 
@@ -22,7 +23,13 @@ export class ExampleBot extends Bot {
     private knownMapBounds: Point2D | undefined;
     private sectorCache: SectorCache | undefined;
     private threatCache: GlobalThreat | undefined;
+    private squadController: SquadController;
     private tickOfLastAttackOrder: number = 0;
+
+    constructor(name: string, country: string) {
+        super(name, country);
+        this.squadController = new SquadController()
+    }
 
     override onGameStart(game: GameApi) {
         const gameRate = game.getTickRate();
@@ -47,16 +54,30 @@ export class ExampleBot extends Bot {
         return game.getVisibleUnits(this.name, "self", rule).length;
     }
 
-    private checkBuildQueue(game: GameApi, queueType: QueueType) {
-        // do something
+    private updateBuildQueues(game: GameApi) {
+        const queues = [QueueType.Structures, QueueType.Armory, QueueType.Infantry, QueueType.Vehicles, QueueType.Aircrafts, QueueType.Ships];
+        
+        const decisions = queues.map(queueType => {
+            const options = this.productionApi.getAvailableObjects(queueType);
+            return {
+                queue: queueType,
+                decision: this.getBestOptionForBuilding(game, options, this.threatCache, false)
+            };
+        }).filter(decision => decision.decision != null);
+        let totalWeightAcrossQueues = decisions.map(decision => decision.decision?.priority!).reduce((pV, cV) => (pV + cV), 0);
+
+        decisions.forEach(decision => {
+            this.updateBuildQueue(game, decision.queue, decision.decision, totalWeightAcrossQueues);
+        });
+    }
+
+    private updateBuildQueue(game: GameApi, queueType: QueueType, decision: TechnoRulesWithPriority | undefined, totalWeightAcrossQueues: number): void {
         let queueData = this.productionApi.getQueueData(queueType);
         if (queueData.status == QueueStatus.Idle) {
-            // Consider building something.
-            const options = this.productionApi.getAvailableObjects(queueType);
-            let decision = this.getBestOptionForBuilding(game, options, this.threatCache, true);
+            // Start building the decided item.
             if (decision !== undefined) {
-                this.logBotStatus(`Decided to build a ${decision.name}`);
-                this.actionsApi.queueForProduction(queueType, decision.name, decision.type, 1);
+                this.logBotStatus(`Decided to build a ${decision.unit.name}`);
+                this.actionsApi.queueForProduction(queueType, decision.unit.name, decision.unit.type, 1);
             }
         } else if (queueData.status == QueueStatus.Ready && queueData.items.length > 0) {
             // Consider placing it.
@@ -67,24 +88,36 @@ export class ExampleBot extends Bot {
                     this.actionsApi.placeBuilding(objectReady.name, location.rx, location.ry);
                 }
             }
-        } else if (queueData.status == QueueStatus.Active && queueData.items.length > 0) {
+        } else if (queueData.status == QueueStatus.Active && queueData.items.length > 0 && decision != null) {
             // Consider cancelling if something else is significantly higher priority.
             const playerStatus = this.gameApi.getPlayerData(this.name);
             const current = queueData.items[0].rules;
             const options = this.productionApi.getAvailableObjects(queueType);
-            let decision = this.getBestOptionForBuilding(game, options, this.threatCache);
-            if (decision && decision != current) {
+            if (decision.unit != current) {
+                // Changing our mind.
                 let currentItemPriority = this.getPriorityForBuildingOption(current, this.gameApi, playerStatus, this.threatCache);
-                let newItemPriority = this.getPriorityForBuildingOption(decision, this.gameApi, playerStatus, this.threatCache);
+                let newItemPriority = decision.priority;
                 if (newItemPriority > currentItemPriority * 2) {
-                    this.logBotStatus(`Unqueueing ${current.name} because ${decision.name} has 2x higher priority.`);
+                    this.logBotStatus(`Unqueueing ${current.name} because ${decision.unit.name} has 2x higher priority.`);
                     this.actionsApi.unqueueFromProduction(queueData.type, current.name, current.type, 1);
                 }
+            } else {
+                // Not changing our mind, but maybe other queues are more important for now.
+                if (decision.priority < totalWeightAcrossQueues * 0.25) {
+                    this.logBotStatus(`Pausing queue ${queueData.type} because weight is low (${decision.priority}/${totalWeightAcrossQueues})`);
+                    this.actionsApi.pauseProduction(queueData.type);
+                }
+            }
+        } else if (queueData.status == QueueStatus.OnHold) {
+            // Consider resuming queue if priority is high relative to other queues.
+            if (decision && decision.priority >= totalWeightAcrossQueues * 0.25) {
+                this.logBotStatus(`Resuming queue ${queueData.type} because weight is high (${decision.priority}/${totalWeightAcrossQueues})`);
+                this.actionsApi.resumeProduction(queueData.type);
             }
         }
     }
     
-    private getBestOptionForBuilding(game: GameApi, options: TechnoRules[], threatCache: GlobalThreat | undefined, debug: boolean = false): TechnoRules | undefined {
+    private getBestOptionForBuilding(game: GameApi, options: TechnoRules[], threatCache: GlobalThreat | undefined, debug: boolean = false): TechnoRulesWithPriority | undefined {
         const playerStatus = this.gameApi.getPlayerData(this.name);
         let priorityQueue: TechnoRulesWithPriority[] = [];
         options.forEach(option => {
@@ -103,8 +136,7 @@ export class ExampleBot extends Bot {
             }
         }
 
-        return priorityQueue.pop()?.unit;
-        //return priorityQueue.poll()?.unit || undefined;
+        return priorityQueue.pop();
     }
 
     private getPriorityForBuildingOption(option: TechnoRules, game: GameApi, playerStatus: PlayerData, threatCache: GlobalThreat | undefined) {
@@ -140,14 +172,14 @@ export class ExampleBot extends Bot {
             // Threat decays over time if we haven't killed anything
             let boredomFactor = 1.0 - Math.min(1.0, Math.max(0.0, (this.gameApi.getCurrentTick() - this.tickOfLastAttackOrder) / (1600.0)));
             let shouldAttack = (this.threatCache ? this.isWorthAttacking(this.threatCache, boredomFactor) : false);
-            if (game.getCurrentTick() % (this.tickRatio * 100) == 0) {
+            if (game.getCurrentTick() % (this.tickRatio * 150) == 0) {
                 let visibility = this.sectorCache?.getOverallVisibility();
                 if (visibility) {
                     this.logBotStatus(`${visibility*100.0}% of tiles visible. Calculating threat.`);
                     this.threatCache = calculateGlobalThreat(game, myPlayer, visibility);
-                    this.logBotStatus(`We think the enemy has ${this.threatCache.totalOffensiveLandThreat} land threat vs our ${this.threatCache.totalAvailableAntiGroundFirepower}.`);
-                    this.logBotStatus(`We think the enemy has ${this.threatCache.totalDefensiveThreat} defensive power vs our ${this.threatCache.totalDefensivePower}.`);
-                    this.logBotStatus(`We think the enemy has ${this.threatCache.totalOffensiveAirThreat} air threat vs our ${this.threatCache.totalAvailableAntiAirFirepower}.`);
+                    this.logBotStatus(`Threat LAND: Them ${this.threatCache.totalOffensiveLandThreat}, us: ${this.threatCache.totalAvailableAntiGroundFirepower}.`);
+                    this.logBotStatus(`Threat DEFENSIVE: Them ${this.threatCache.totalDefensiveThreat}, us: ${this.threatCache.totalDefensivePower}.`);
+                    this.logBotStatus(`Threat AIR: Them ${this.threatCache.totalOffensiveAirThreat}, us: ${this.threatCache.totalAvailableAntiAirFirepower}.`);
                     this.logBotStatus(`Boredom: ${boredomFactor}`);
                 }
             }
@@ -166,11 +198,16 @@ export class ExampleBot extends Bot {
                 this.actionsApi.quitGame();
             }
             
+            // Build logic.
             if (myPlayer.credits > 0) {
-                [QueueType.Structures, QueueType.Armory, QueueType.Infantry, QueueType.Vehicles, QueueType.Aircrafts, QueueType.Ships].forEach(queueType => {
-                    this.checkBuildQueue(game, queueType);
-                });
+                this.updateBuildQueues(game);
             }
+
+            // Squad logic.
+            this.squadController.onAiUpdate(game, myPlayer, this.threatCache);
+
+
+
 
             switch (this.botState) {
                 case BotState.Initial: {
@@ -210,7 +247,7 @@ export class ExampleBot extends Bot {
                                 return {
                                     unit,
                                     unitId: unitId,
-                                    weight: getDistanceBetweenPoints(myPlayer.startLocation, {x: unit!.tile.rx, y: unit!.tile.rx}),
+                                    weight: getDistanceBetweenPoints(myPlayer.startLocation, {x: unit!.tile.rx, y: unit!.tile.rx})
                                 }
                             })
                             .filter(unit => unit.unit != null);
@@ -225,11 +262,14 @@ export class ExampleBot extends Bot {
                                 const unit = game.getUnitData(unitId);
                                 foundTarget = true;
                                 if (shouldAttack && unit?.isIdle) {
+                                    let orderType: OrderType = OrderType.AttackMove;
                                     if (targetData?.type == ObjectType.Building) {
-                                        this.actionsApi.orderUnits([unitId], OrderType.Attack, target.unitId);
-                                    } else {
-                                        this.actionsApi.orderUnits([unitId], OrderType.AttackMove, target.unitId);
+                                        orderType = OrderType.Attack;
+                                    } else if (targetData?.rules.canDisguise) {
+                                        // Special case for mirage tank/spy as otherwise they just sit next to it.
+                                        orderType = OrderType.Attack;
                                     }
+                                    this.actionsApi.orderUnits([unitId], orderType, target.unitId);
                                 }
                             }
                         }
@@ -247,7 +287,7 @@ export class ExampleBot extends Bot {
 
                     armyUnits.forEach(armyUnitId => {
                         let unit = game.getUnitData(armyUnitId);
-                        if (unit) {
+                        if (unit && !unit.guardMode) {
                             let distanceToFallback = getDistanceBetweenPoints({x: unit.tile.rx, y: unit.tile.ry}, fallbackPoint);
                             if (distanceToFallback > 10) {
                                 this.actionsApi.orderUnits([armyUnitId], OrderType.GuardArea, fallbackPoint.x, fallbackPoint.y);
@@ -299,7 +339,16 @@ export class ExampleBot extends Bot {
 
     private isWorthAttacking(threatCache: GlobalThreat, threatFactor: number) {
         //  * Math.sqrt(threatCache.certainty)
-        return (Math.pow(threatCache.totalAvailableAntiGroundFirepower, 1.125) > (threatFactor * threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat) * 1.1);
+        let scaledGroundPower = Math.pow(threatCache.totalAvailableAntiGroundFirepower, 1.125);
+        let scaledGroundThreat = (threatFactor * threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat) * 1.1;
+
+        let scaledAirPower = Math.pow(threatCache.totalAvailableAirPower, 1.125);
+        let scaledAirThreat = (threatFactor * threatCache.totalOffensiveAntiAirThreat + threatCache.totalDefensiveThreat) * 1.1;
+
+        return (
+            scaledGroundPower > scaledGroundThreat ||
+            scaledAirPower > scaledAirThreat
+        );
     }
     
 
