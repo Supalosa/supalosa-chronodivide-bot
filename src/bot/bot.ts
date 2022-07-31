@@ -54,9 +54,10 @@ export class ExampleBot extends Bot {
         return game.getVisibleUnits(this.name, "self", rule).length;
     }
 
-    private updateBuildQueues(game: GameApi) {
+    private updateBuildQueues(game: GameApi, playerData: PlayerData) {
         const queues = [QueueType.Structures, QueueType.Armory, QueueType.Infantry, QueueType.Vehicles, QueueType.Aircrafts, QueueType.Ships];
-        
+        const myCredits = playerData.credits;
+
         const decisions = queues.map(queueType => {
             const options = this.productionApi.getAvailableObjects(queueType);
             return {
@@ -65,13 +66,16 @@ export class ExampleBot extends Bot {
             };
         }).filter(decision => decision.decision != null);
         let totalWeightAcrossQueues = decisions.map(decision => decision.decision?.priority!).reduce((pV, cV) => (pV + cV), 0);
+        let totalCostAcrossQueues = decisions.map(decision => decision.decision?.unit.cost!).reduce((pV, cV) => (pV + cV), 0);
 
         decisions.forEach(decision => {
-            this.updateBuildQueue(game, decision.queue, decision.decision, totalWeightAcrossQueues);
+            this.updateBuildQueue(game, decision.queue, decision.decision, totalWeightAcrossQueues, totalCostAcrossQueues, myCredits);
         });
     }
 
-    private updateBuildQueue(game: GameApi, queueType: QueueType, decision: TechnoRulesWithPriority | undefined, totalWeightAcrossQueues: number): void {
+    private updateBuildQueue(
+            game: GameApi, queueType: QueueType, decision: TechnoRulesWithPriority | undefined,
+            totalWeightAcrossQueues: number, totalCostAcrossQueues: number, myCredits: number): void {
         let queueData = this.productionApi.getQueueData(queueType);
         if (queueData.status == QueueStatus.Idle) {
             // Start building the decided item.
@@ -103,14 +107,17 @@ export class ExampleBot extends Bot {
                 }
             } else {
                 // Not changing our mind, but maybe other queues are more important for now.
-                if (decision.priority < totalWeightAcrossQueues * 0.25) {
+                if (totalCostAcrossQueues > myCredits && decision.priority < totalWeightAcrossQueues * 0.25) {
                     this.logBotStatus(`Pausing queue ${queueData.type} because weight is low (${decision.priority}/${totalWeightAcrossQueues})`);
                     this.actionsApi.pauseProduction(queueData.type);
                 }
             }
         } else if (queueData.status == QueueStatus.OnHold) {
             // Consider resuming queue if priority is high relative to other queues.
-            if (decision && decision.priority >= totalWeightAcrossQueues * 0.25) {
+            if (myCredits >= totalCostAcrossQueues) {
+                this.logBotStatus(`Resuming queue ${queueData.type} because credits are high`);
+                this.actionsApi.resumeProduction(queueData.type);
+            } else if (decision && decision.priority >= totalWeightAcrossQueues * 0.25) {
                 this.logBotStatus(`Resuming queue ${queueData.type} because weight is high (${decision.priority}/${totalWeightAcrossQueues})`);
                 this.actionsApi.resumeProduction(queueData.type);
             }
@@ -199,9 +206,7 @@ export class ExampleBot extends Bot {
             }
             
             // Build logic.
-            if (myPlayer.credits > 0) {
-                this.updateBuildQueues(game);
-            }
+            this.updateBuildQueues(game, myPlayer);
 
             // Squad logic.
             this.squadController.onAiUpdate(game, myPlayer, this.threatCache);
