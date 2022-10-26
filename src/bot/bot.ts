@@ -3,6 +3,8 @@ import PriorityQueue from "priority-queue-typescript";
 import { buildingNameToAiBuildingRules, defaultBuildingPriority, getDefaultPlacementLocation, TechnoRulesWithPriority } from "./logic/building/building.js";
 import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
+import { missionFactories } from "./logic/mission/mission.js";
+import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
 import { GlobalThreat } from "./logic/threat/threat.js";
 import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
@@ -23,12 +25,14 @@ export class ExampleBot extends Bot {
     private knownMapBounds: Point2D | undefined;
     private sectorCache: SectorCache | undefined;
     private threatCache: GlobalThreat | undefined;
+    private missionController: MissionController;
     private squadController: SquadController;
     private tickOfLastAttackOrder: number = 0;
 
     constructor(name: string, country: string) {
         super(name, country);
         this.squadController = new SquadController()
+        this.missionController = new MissionController();
     }
 
     override onGameStart(game: GameApi) {
@@ -207,6 +211,9 @@ export class ExampleBot extends Bot {
             
             // Build logic.
             this.updateBuildQueues(game, myPlayer);
+
+            // Mission logic.
+            this.missionController.onAiUpdate(game, myPlayer, this.threatCache);
 
             // Squad logic.
             this.squadController.onAiUpdate(game, myPlayer, this.threatCache);
