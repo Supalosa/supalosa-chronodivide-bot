@@ -9,13 +9,16 @@ async function main() {
 
     await cdapi.init(process.env.MIX_DIR || "./");
 
+    console.log("Server URL: " + process.env.SERVER_URL!);
+    console.log("Client URL: " + process.env.CLIENT_URL!);
+
     const game = await cdapi.createGame({
         // Uncomment the following lines to play in real time versus the bot
-        // online: true,
-        // serverUrl: process.env.SERVER_URL!,
-        // clientUrl: process.env.CLIENT_URL!,
-        // agents: [new ExampleBot(botName, "Americans"), { name: otherBotName, country: "French" }],
-        agents: [new ExampleBot(botName, "Alliance"), new ExampleBot(otherBotName, "Germans")],
+        //online: true,
+        //serverUrl: process.env.SERVER_URL!,
+        //clientUrl: process.env.CLIENT_URL!,
+        //agents: [new ExampleBot(botName, "Alliance"), {name: "Supalosa", country: "French"}],
+        agents: [new ExampleBot(botName, "Americans"), new ExampleBot(otherBotName, "French")],
         buildOffAlly: false,
         cratesAppear: false,
         credits: 10000,
@@ -27,7 +30,6 @@ async function main() {
         superWeapons: false,
         unitCount: 1
     });
-
     while (!game.isFinished()) {
         await game.update();
     }

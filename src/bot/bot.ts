@@ -295,7 +295,7 @@ export class ExampleBot extends Bot {
                 case BotState.Defending: {
                     const armyUnits = game.getVisibleUnits(this.name, "self", r => (r.isSelectableCombatant));
                     const enemy = game.getPlayerData(this.enemyPlayers[0]);
-                    const fallbackPoint = getPointTowardsOtherPoint(myPlayer.startLocation, enemy.startLocation, 10, 10, 0);
+                    const fallbackPoint = getPointTowardsOtherPoint(game, myPlayer.startLocation, enemy.startLocation, 10, 10, 0);
 
                     armyUnits.forEach(armyUnitId => {
                         let unit = game.getUnitData(armyUnitId);

@@ -29,7 +29,7 @@ npx cross-env MIX_DIR="C:\path_to_ra2_install_dir" npm start
 This will create a replay (`.rpl`) file that can be [imported into the live game](https://game.chronodivide.com/).
 
 ## Playing against the bot
-
+Contact the developer of Chrono Divide for details if you are seriously interested in playing against a bot (this one or your own).
 
 ## Debugging
 

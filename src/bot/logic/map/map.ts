@@ -49,10 +49,10 @@ export function calculateAreaVisibility(mapApi: MapApi, playerData: PlayerData, 
     return result;
 }
 
-export function getPointTowardsOtherPoint(startLocation: Point2D, endLocation: Point2D, minRadius: number, maxRadius: number, randomAngle: number): Point2D {
-    let radius = minRadius + Math.round(Math.random() * (maxRadius - minRadius));
+export function getPointTowardsOtherPoint(gameApi: GameApi, startLocation: Point2D, endLocation: Point2D, minRadius: number, maxRadius: number, randomAngle: number): Point2D {
+    let radius = minRadius + Math.round(gameApi.generateRandom() * (maxRadius - minRadius));
     let directionToSpawn = Math.atan2(endLocation.y - startLocation.y, endLocation.x - startLocation.x);
-    let randomisedDirection = directionToSpawn - ((randomAngle * (Math.PI / 12)) + (2 * randomAngle * Math.random() * (Math.PI / 12)));
+    let randomisedDirection = directionToSpawn - ((randomAngle * (Math.PI / 12)) + (2 * randomAngle * gameApi.generateRandom() * (Math.PI / 12)));
     let candidatePointX = Math.round(startLocation.x + Math.cos(randomisedDirection) * radius);
     let candidatePointY = Math.round(startLocation.y + Math.sin(randomisedDirection) * radius);
     return {x: candidatePointX, y: candidatePointY};

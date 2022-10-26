@@ -1,5 +1,4 @@
 import { GameApi, PlayerData, Point2D, TechnoRules, Tile } from "@chronodivide/game-api";
-import { randomBytes } from "crypto";
 import { GlobalThreat } from "../threat/threat.js";
 import { BasicBuilding } from "./basicBuilding.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./building.js";

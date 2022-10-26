@@ -1,5 +1,4 @@
 import { GameApi, PlayerData, Point2D, TechnoRules } from "@chronodivide/game-api";
-import { randomBytes } from "crypto";
 import { getPointTowardsOtherPoint } from "../map/map.js";
 import { GlobalThreat } from "../threat/threat.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./building.js";
@@ -22,9 +21,9 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
                 continue;
             }
             let enemyPlayer = game.getPlayerData(playerName);
-            enemyFacingLocationCandidates.push(getPointTowardsOtherPoint(startLocation, enemyPlayer.startLocation, 4, 16, 1.5));
+            enemyFacingLocationCandidates.push(getPointTowardsOtherPoint(game, startLocation, enemyPlayer.startLocation, 4, 16, 1.5));
         }
-        let selectedLocation = enemyFacingLocationCandidates[Math.floor(Math.random() * enemyFacingLocationCandidates.length)];
+        let selectedLocation = enemyFacingLocationCandidates[Math.floor(game.generateRandom() * enemyFacingLocationCandidates.length)];
         return getDefaultPlacementLocation(game, playerData, selectedLocation, technoRules);
     }
 
