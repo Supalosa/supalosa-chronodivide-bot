@@ -3,7 +3,7 @@
 [Chrono Divide](https://chronodivide.com/) is a ground-up rebuild of Red Alert 2 in the browser. It is feature-complete and allows for online skirmish play against other players.
 It also provides [an API to build bots](https://discord.com/channels/771701199812558848/842700851520339988), as there is no built-in AI yet.
 
-This repository is one such implementation of a bot. As of writing, the framework only allows bot-vs-bot matches, i.e. no bot-vs-human play yet.
+This repository is one such implementation of a bot.
 
 ## Development State
 Development on this is paused as I'm currently focusing on a Starcraft 2 bot instead.
@@ -27,6 +27,9 @@ npx cross-env MIX_DIR="C:\path_to_ra2_install_dir" npm start
 ```
 
 This will create a replay (`.rpl`) file that can be [imported into the live game](https://game.chronodivide.com/).
+
+## Playing against the bot
+
 
 ## Debugging
 
