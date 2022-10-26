@@ -39,7 +39,7 @@ export class BasicMission implements Mission {
         return {} as MissionActionNoop;
     }
 
-    onSquadAdded(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThret): void {
+    onSquadAdded(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat): void {
         
     }
 }
