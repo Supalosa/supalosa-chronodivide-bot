@@ -13,13 +13,13 @@ export interface AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined,
+        threatCache: GlobalThreat | undefined
     ): number;
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules,
+        technoRules: TechnoRules
     ): { rx: number; ry: number } | undefined;
 }
 
@@ -32,7 +32,7 @@ export function getDefaultPlacementLocation(
     playerData: PlayerData,
     startPoint: Point2D,
     technoRules: TechnoRules,
-    space: number = 1,
+    space: number = 1
 ): { rx: number; ry: number } | undefined {
     // Random location, preferably near start location.
     let startX = startPoint.x;
@@ -59,9 +59,9 @@ export function getDefaultPlacementLocation(
 // Priority 0 = don't build.
 export type TechnoRulesWithPriority = { unit: TechnoRules; priority: number };
 
-export const defaultBuildingPriority = 1;
+export const DEFAULT_BUILDING_PRIORITY = 1;
 
-export const buildingNameToAiBuildingRules = new Map<string, AiBuildingRules>([
+export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GAPOWR", new PowerPlant()],
     ["GAREFN", new ResourceCollectionBuilding(9, 3)], // Refinery
     ["GAWEAP", new BasicBuilding(10, 1)], // War Factory

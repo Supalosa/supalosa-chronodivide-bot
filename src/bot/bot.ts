@@ -18,12 +18,6 @@ import PriorityQueue from "priority-queue-typescript";
 
 import { Duration } from "luxon";
 
-import {
-    buildingNameToAiBuildingRules,
-    defaultBuildingPriority,
-    getDefaultPlacementLocation,
-    TechnoRulesWithPriority,
-} from "./logic/building/building.js";
 import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
 import { missionFactories } from "./logic/mission/mission.js";
@@ -31,7 +25,7 @@ import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
 import { GlobalThreat } from "./logic/threat/threat.js";
 import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
-import { queueTypeToName } from "./logic/building/queues.js";
+import { QueueController, queueTypeToName } from "./logic/building/queueController.js";
 
 enum BotState {
     Initial = "init",
@@ -54,6 +48,7 @@ export class ExampleBot extends Bot {
     private threatCache: GlobalThreat | undefined;
     private missionController: MissionController;
     private squadController: SquadController;
+    private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
 
     private enableLogging: boolean;
@@ -62,6 +57,7 @@ export class ExampleBot extends Bot {
         super(name, country);
         this.squadController = new SquadController();
         this.missionController = new MissionController();
+        this.queueController = new QueueController();
         this.enableLogging = enableLogging;
     }
 
@@ -78,182 +74,6 @@ export class ExampleBot extends Bot {
         this.threatCache = undefined;
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);
-    }
-
-    private numBuildingsOwnedOfType(game: GameApi, rule: (r: TechnoRules) => boolean): number {
-        return game.getVisibleUnits(this.name, "self", rule).length;
-    }
-
-    private updateBuildQueues(game: GameApi, playerData: PlayerData) {
-        const queues = [
-            QueueType.Structures,
-            QueueType.Armory,
-            QueueType.Infantry,
-            QueueType.Vehicles,
-            QueueType.Aircrafts,
-            QueueType.Ships,
-        ];
-        const myCredits = playerData.credits;
-
-        const decisions = queues
-            .map((queueType) => {
-                const options = this.productionApi.getAvailableObjects(queueType);
-                return {
-                    queue: queueType,
-                    decision: this.getBestOptionForBuilding(game, options, this.threatCache, false),
-                };
-            })
-            .filter((decision) => decision.decision != null);
-        let totalWeightAcrossQueues = decisions
-            .map((decision) => decision.decision?.priority!)
-            .reduce((pV, cV) => pV + cV, 0);
-        let totalCostAcrossQueues = decisions
-            .map((decision) => decision.decision?.unit.cost!)
-            .reduce((pV, cV) => pV + cV, 0);
-
-        decisions.forEach((decision) => {
-            this.updateBuildQueue(
-                game,
-                decision.queue,
-                decision.decision,
-                totalWeightAcrossQueues,
-                totalCostAcrossQueues,
-                myCredits
-            );
-        });
-    }
-
-    private updateBuildQueue(
-        game: GameApi,
-        queueType: QueueType,
-        decision: TechnoRulesWithPriority | undefined,
-        totalWeightAcrossQueues: number,
-        totalCostAcrossQueues: number,
-        myCredits: number
-    ): void {
-        let queueData = this.productionApi.getQueueData(queueType);
-        if (queueData.status == QueueStatus.Idle) {
-            // Start building the decided item.
-            if (decision !== undefined) {
-                this.logBotStatus(`Decision (${queueTypeToName(queueType)}): ${decision.unit.name}`);
-                this.actionsApi.queueForProduction(queueType, decision.unit.name, decision.unit.type, 1);
-            }
-        } else if (queueData.status == QueueStatus.Ready && queueData.items.length > 0) {
-            // Consider placing it.
-            const objectReady: TechnoRules = queueData.items[0].rules;
-            if (queueType == QueueType.Structures || queueType == QueueType.Armory) {
-                let location: { rx: number; ry: number } | undefined = this.getBestLocationForStructure(
-                    game,
-                    objectReady
-                );
-                if (location !== undefined) {
-                    this.actionsApi.placeBuilding(objectReady.name, location.rx, location.ry);
-                }
-            }
-        } else if (queueData.status == QueueStatus.Active && queueData.items.length > 0 && decision != null) {
-            // Consider cancelling if something else is significantly higher priority.
-            const playerStatus = this.gameApi.getPlayerData(this.name);
-            const current = queueData.items[0].rules;
-            const options = this.productionApi.getAvailableObjects(queueType);
-            if (decision.unit != current) {
-                // Changing our mind.
-                let currentItemPriority = this.getPriorityForBuildingOption(
-                    current,
-                    this.gameApi,
-                    playerStatus,
-                    this.threatCache
-                );
-                let newItemPriority = decision.priority;
-                if (newItemPriority > currentItemPriority * 2) {
-                    this.logBotStatus(
-                        `Dequeueing queue ${queueTypeToName(queueData.type)} unit ${current.name} because ${
-                            decision.unit.name
-                        } has 2x higher priority.`
-                    );
-                    this.actionsApi.unqueueFromProduction(queueData.type, current.name, current.type, 1);
-                }
-            } else {
-                // Not changing our mind, but maybe other queues are more important for now.
-                if (totalCostAcrossQueues > myCredits && decision.priority < totalWeightAcrossQueues * 0.25) {
-                    this.logBotStatus(
-                        `Pausing queue ${queueTypeToName(queueData.type)} because weight is low (${
-                            decision.priority
-                        }/${totalWeightAcrossQueues})`
-                    );
-                    this.actionsApi.pauseProduction(queueData.type);
-                }
-            }
-        } else if (queueData.status == QueueStatus.OnHold) {
-            // Consider resuming queue if priority is high relative to other queues.
-            if (myCredits >= totalCostAcrossQueues) {
-                this.logBotStatus(`Resuming queue ${queueTypeToName(queueData.type)} because credits are high`);
-                this.actionsApi.resumeProduction(queueData.type);
-            } else if (decision && decision.priority >= totalWeightAcrossQueues * 0.25) {
-                this.logBotStatus(
-                    `Resuming queue ${queueTypeToName(queueData.type)} because weight is high (${
-                        decision.priority
-                    }/${totalWeightAcrossQueues})`
-                );
-                this.actionsApi.resumeProduction(queueData.type);
-            }
-        }
-    }
-
-    private getBestOptionForBuilding(
-        game: GameApi,
-        options: TechnoRules[],
-        threatCache: GlobalThreat | undefined,
-        debug: boolean = false
-    ): TechnoRulesWithPriority | undefined {
-        const playerStatus = this.gameApi.getPlayerData(this.name);
-        let priorityQueue: TechnoRulesWithPriority[] = [];
-        options.forEach((option) => {
-            let priority = this.getPriorityForBuildingOption(option, game, playerStatus, threatCache);
-            if (priority > 0) {
-                priorityQueue.push({ unit: option, priority: priority });
-            }
-        });
-
-        priorityQueue = priorityQueue.sort((a, b) => {
-            return a.priority - b.priority;
-        });
-        if (priorityQueue.length > 0) {
-            const lastItem = priorityQueue[priorityQueue.length - 1];
-            if (debug) {
-                let queueString = priorityQueue.map((item) => item.unit.name + "(" + item.priority + ")").join(", ");
-                this.logBotStatus(`Build priority currently: ${queueString}`);
-            }
-        }
-
-        return priorityQueue.pop();
-    }
-
-    private getPriorityForBuildingOption(
-        option: TechnoRules,
-        game: GameApi,
-        playerStatus: PlayerData,
-        threatCache: GlobalThreat | undefined
-    ) {
-        if (buildingNameToAiBuildingRules.has(option.name)) {
-            let logic = buildingNameToAiBuildingRules.get(option.name)!;
-            return logic.getPriority(game, playerStatus, option, threatCache);
-        } else {
-            return defaultBuildingPriority - this.numBuildingsOwnedOfType(game, (r) => r == option);
-        }
-    }
-
-    private getBestLocationForStructure(
-        game: GameApi,
-        objectReady: TechnoRules
-    ): { rx: number; ry: number } | undefined {
-        const playerStatus = this.gameApi.getPlayerData(this.name);
-        if (buildingNameToAiBuildingRules.has(objectReady.name)) {
-            let logic = buildingNameToAiBuildingRules.get(objectReady.name)!;
-            return logic.getPlacementLocation(game, playerStatus, objectReady);
-        } else {
-            // fallback placement logic
-            return getDefaultPlacementLocation(game, playerStatus, playerStatus.startLocation, objectReady);
-        }
     }
 
     override onGameTick(game: GameApi) {
@@ -317,7 +137,14 @@ export class ExampleBot extends Bot {
             }
 
             // Build logic.
-            this.updateBuildQueues(game, myPlayer);
+            this.queueController.onAiUpdate(
+                game,
+                this.productionApi,
+                this.actionsApi,
+                myPlayer,
+                this.threatCache,
+                (message) => this.logBotStatus(message)
+            );
 
             // Mission logic.
             this.missionController.onAiUpdate(game, myPlayer, this.threatCache);
