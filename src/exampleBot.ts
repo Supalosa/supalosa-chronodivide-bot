@@ -1,5 +1,5 @@
 import { cdapi } from "@chronodivide/game-api";
-import { ExampleBot } from "./bot/bot.js";
+import { SupalosaBot } from "./bot/bot.js";
 
 async function main() {
     const mapName = "mp03t4.map";
@@ -14,11 +14,11 @@ async function main() {
 
     const game = await cdapi.createGame({
         // Uncomment the following lines to play in real time versus the bot
-        //online: true,
-        //serverUrl: process.env.SERVER_URL!,
-        //clientUrl: process.env.CLIENT_URL!,
-        //agents: [new ExampleBot(botName, "Alliance"), {name: "Supalosa", country: "French"}],
-        agents: [new ExampleBot(botName, "Russians", false), new ExampleBot(otherBotName, "Americans", true)],
+        /*online: true,
+        serverUrl: process.env.SERVER_URL!,
+        clientUrl: process.env.CLIENT_URL!,
+        agents: [new SupalosaBot(botName, "Americans"), { name: otherBotName, country: "French" }],*/
+        agents: [new SupalosaBot(botName, "Russians", false), new SupalosaBot(otherBotName, "Americans", true)],
         buildOffAlly: false,
         cratesAppear: false,
         credits: 10000,

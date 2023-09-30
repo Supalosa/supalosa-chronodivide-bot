@@ -52,10 +52,7 @@ const REPAIR_COOLDOWN_TICKS = 15;
 const DEBUG_BUILD_QUEUES = true;
 
 export class QueueController {
-    constructor(
-        private buildingIdToLastHitpoints: Map<number, number> = new Map(),
-        private buildingIdLastRepairedAtTick: Map<number, number> = new Map()
-    ) {}
+    constructor() {}
 
     public onAiUpdate(
         game: GameApi,
@@ -98,21 +95,10 @@ export class QueueController {
         // Unfortunately there doesn't seem to be an API to determine if something is being repaired, so we have to remember it.
         game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
             const unit = game.getUnitData(unitId);
-            if (!unit || !unit.hitPoints || !unit.maxHitPoints) {
+            if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
                 return;
             }
-            const lastKnownHitpoints = this.buildingIdToLastHitpoints.get(unitId) || unit.hitPoints;
-            const buildingLastRepairedAt = this.buildingIdLastRepairedAtTick.get(unitId) || 0;
-            // Only repair if HP is going down and if we haven't recently repaired it
-            if (
-                unit.hitPoints <= lastKnownHitpoints &&
-                game.getCurrentTick() > buildingLastRepairedAt + REPAIR_COOLDOWN_TICKS &&
-                unit.hitPoints < unit.maxHitPoints * REPAIR_HITPOINTS_RATIO
-            ) {
-                actionsApi.toggleRepairWrench(unitId);
-                this.buildingIdLastRepairedAtTick.set(unitId, game.getCurrentTick());
-            }
-            this.buildingIdToLastHitpoints.set(unitId, unit.hitPoints);
+            actionsApi.toggleRepairWrench(unitId);
         });
     }
 
