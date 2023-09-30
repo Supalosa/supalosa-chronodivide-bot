@@ -1,6 +1,6 @@
 {
     "name": "@supalosa/chronodivide-bot",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Example bot for Chrono Divide",
     "main": "dist/exampleBot.js",
     "type": "module",
