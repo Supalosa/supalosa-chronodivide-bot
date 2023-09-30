@@ -14,9 +14,9 @@ The bot only plays Allied, and is not particularly good at the game. Feel free t
 
 I was working on three things at once before I put this on hold:
 
-- Task System - Something to not only follow actual build orders, but manage attacks, harass/attack the enemy, perform scouting, expand to other bases etc.
-- Squad System - Ability to independently control more than one mass of units (i.e. squads), for example a Harass Squad directed by a Harass Task.
-- Map Control System - Ability to analyse the state of the map and decide whether to fight for control over areas. Currently we already divide the map into square regions with individual threat calculations, but don't really do much with that information.
+-   Task System - Something to not only follow actual build orders, but manage attacks, harass/attack the enemy, perform scouting, expand to other bases etc.
+-   Squad System - Ability to independently control more than one mass of units (i.e. squads), for example a Harass Squad directed by a Harass Task.
+-   Map Control System - Ability to analyse the state of the map and decide whether to fight for control over areas. Currently we already divide the map into square regions with individual threat calculations, but don't really do much with that information.
 
 A lot of these concepts are being built into my Starcraft 2 bot, [Supabot](https://github.com/Supalosa/supabot) - maybe I'll come back to this when I'm done there.
 

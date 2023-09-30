@@ -7,48 +7,41 @@ import { ExpansionMissionFactory } from "./expansionMission.js";
 // AI starts Missions based on heuristics, which have one or more squads.
 // Missions can create squads (but squads will disband themselves).
 export interface Mission {
-  onAiUpdate(
-    gameApi: GameApi,
-    playerData: PlayerData,
-    threatData: GlobalThreat | undefined,
-  ): MissionAction;
+    onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | undefined): MissionAction;
 
-  isActive(): boolean;
+    isActive(): boolean;
 
-  removeSquad(squad: Squad): void;
+    removeSquad(squad: Squad): void;
 
-  addSquad(squad: Squad): void;
+    addSquad(squad: Squad): void;
 
-  getSquads(): Squad[];
+    getSquads(): Squad[];
 
-  getUniqueName(): string;
+    getUniqueName(): string;
 }
 
 export type MissionActionNoop = {
-  type: "noop";
+    type: "noop";
 };
 export type MissionActionCreateSquad = {
-  type: "createSquad";
-  name: string;
-  behaviour: SquadBehaviour;
+    type: "createSquad";
+    name: string;
+    behaviour: SquadBehaviour;
 };
 export type MissionActionDisband = {
-  type: "disband";
+    type: "disband";
 };
 
-export type MissionAction =
-  | MissionActionNoop
-  | MissionActionCreateSquad
-  | MissionActionDisband;
+export type MissionAction = MissionActionNoop | MissionActionCreateSquad | MissionActionDisband;
 
 export interface MissionFactory {
-  // Potentially return a new mission.
-  maybeCreateMission(
-    gameApi: GameApi,
-    playerData: PlayerData,
-    threatData: GlobalThreat,
-    existingMissions: Mission[],
-  ): Mission | undefined;
+    // Potentially return a new mission.
+    maybeCreateMission(
+        gameApi: GameApi,
+        playerData: PlayerData,
+        threatData: GlobalThreat,
+        existingMissions: Mission[],
+    ): Mission | undefined;
 }
 
 export const missionFactories = [new ExpansionMissionFactory()];
