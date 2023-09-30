@@ -1,8 +1,7 @@
 {
-    "name": "@chronodivide/game-api-playground",
-    "version": "1.0.0",
-    "description": "",
-    "private": true,
+    "name": "@supalosa/chronodivide-bot",
+    "version": "0.1.0",
+    "description": "Example bot for Chrono Divide",
     "main": "dist/exampleBot.js",
     "type": "module",
     "scripts": {
