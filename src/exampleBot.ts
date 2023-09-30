@@ -18,7 +18,7 @@ async function main() {
         //serverUrl: process.env.SERVER_URL!,
         //clientUrl: process.env.CLIENT_URL!,
         //agents: [new ExampleBot(botName, "Alliance"), {name: "Supalosa", country: "French"}],
-        agents: [new ExampleBot(botName, "Americans"), new ExampleBot(otherBotName, "French")],
+        agents: [new ExampleBot(botName, "Americans"), new ExampleBot(otherBotName, "French", false)],
         buildOffAlly: false,
         cratesAppear: false,
         credits: 10000,

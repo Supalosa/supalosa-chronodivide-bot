@@ -49,10 +49,13 @@ export class ExampleBot extends Bot {
     private squadController: SquadController;
     private tickOfLastAttackOrder: number = 0;
 
-    constructor(name: string, country: string) {
+    private enableLogging: boolean;
+
+    constructor(name: string, country: string, enableLogging = true) {
         super(name, country);
         this.squadController = new SquadController();
         this.missionController = new MissionController();
+        this.enableLogging = enableLogging;
     }
 
     override onGameStart(game: GameApi) {
@@ -71,6 +74,9 @@ export class ExampleBot extends Bot {
     }
 
     private logBotStatus(message: string) {
+        if (!this.enableLogging) {
+            return;
+        }
         console.log(`[${this.name} - ${this.botState}] ${message}`);
     }
 
@@ -112,7 +118,7 @@ export class ExampleBot extends Bot {
                 decision.decision,
                 totalWeightAcrossQueues,
                 totalCostAcrossQueues,
-                myCredits,
+                myCredits
             );
         });
     }
@@ -123,7 +129,7 @@ export class ExampleBot extends Bot {
         decision: TechnoRulesWithPriority | undefined,
         totalWeightAcrossQueues: number,
         totalCostAcrossQueues: number,
-        myCredits: number,
+        myCredits: number
     ): void {
         let queueData = this.productionApi.getQueueData(queueType);
         if (queueData.status == QueueStatus.Idle) {
@@ -138,7 +144,7 @@ export class ExampleBot extends Bot {
             if (queueType == QueueType.Structures || queueType == QueueType.Armory) {
                 let location: { rx: number; ry: number } | undefined = this.getBestLocationForStructure(
                     game,
-                    objectReady,
+                    objectReady
                 );
                 if (location !== undefined) {
                     this.actionsApi.placeBuilding(objectReady.name, location.rx, location.ry);
@@ -155,12 +161,12 @@ export class ExampleBot extends Bot {
                     current,
                     this.gameApi,
                     playerStatus,
-                    this.threatCache,
+                    this.threatCache
                 );
                 let newItemPriority = decision.priority;
                 if (newItemPriority > currentItemPriority * 2) {
                     this.logBotStatus(
-                        `Unqueueing ${current.name} because ${decision.unit.name} has 2x higher priority.`,
+                        `Unqueueing ${current.name} because ${decision.unit.name} has 2x higher priority.`
                     );
                     this.actionsApi.unqueueFromProduction(queueData.type, current.name, current.type, 1);
                 }
@@ -168,7 +174,7 @@ export class ExampleBot extends Bot {
                 // Not changing our mind, but maybe other queues are more important for now.
                 if (totalCostAcrossQueues > myCredits && decision.priority < totalWeightAcrossQueues * 0.25) {
                     this.logBotStatus(
-                        `Pausing queue ${queueData.type} because weight is low (${decision.priority}/${totalWeightAcrossQueues})`,
+                        `Pausing queue ${queueData.type} because weight is low (${decision.priority}/${totalWeightAcrossQueues})`
                     );
                     this.actionsApi.pauseProduction(queueData.type);
                 }
@@ -180,7 +186,7 @@ export class ExampleBot extends Bot {
                 this.actionsApi.resumeProduction(queueData.type);
             } else if (decision && decision.priority >= totalWeightAcrossQueues * 0.25) {
                 this.logBotStatus(
-                    `Resuming queue ${queueData.type} because weight is high (${decision.priority}/${totalWeightAcrossQueues})`,
+                    `Resuming queue ${queueData.type} because weight is high (${decision.priority}/${totalWeightAcrossQueues})`
                 );
                 this.actionsApi.resumeProduction(queueData.type);
             }
@@ -191,7 +197,7 @@ export class ExampleBot extends Bot {
         game: GameApi,
         options: TechnoRules[],
         threatCache: GlobalThreat | undefined,
-        debug: boolean = false,
+        debug: boolean = false
     ): TechnoRulesWithPriority | undefined {
         const playerStatus = this.gameApi.getPlayerData(this.name);
         let priorityQueue: TechnoRulesWithPriority[] = [];
@@ -220,7 +226,7 @@ export class ExampleBot extends Bot {
         option: TechnoRules,
         game: GameApi,
         playerStatus: PlayerData,
-        threatCache: GlobalThreat | undefined,
+        threatCache: GlobalThreat | undefined
     ) {
         if (buildingNameToAiBuildingRules.has(option.name)) {
             let logic = buildingNameToAiBuildingRules.get(option.name)!;
@@ -232,7 +238,7 @@ export class ExampleBot extends Bot {
 
     private getBestLocationForStructure(
         game: GameApi,
-        objectReady: TechnoRules,
+        objectReady: TechnoRules
     ): { rx: number; ry: number } | undefined {
         const playerStatus = this.gameApi.getPlayerData(this.name);
         if (buildingNameToAiBuildingRules.has(objectReady.name)) {
@@ -265,13 +271,13 @@ export class ExampleBot extends Bot {
                     this.logBotStatus(`${visibility * 100.0}% of tiles visible. Calculating threat.`);
                     this.threatCache = calculateGlobalThreat(game, myPlayer, visibility);
                     this.logBotStatus(
-                        `Threat LAND: Them ${this.threatCache.totalOffensiveLandThreat}, us: ${this.threatCache.totalAvailableAntiGroundFirepower}.`,
+                        `Threat LAND: Them ${this.threatCache.totalOffensiveLandThreat}, us: ${this.threatCache.totalAvailableAntiGroundFirepower}.`
                     );
                     this.logBotStatus(
-                        `Threat DEFENSIVE: Them ${this.threatCache.totalDefensiveThreat}, us: ${this.threatCache.totalDefensivePower}.`,
+                        `Threat DEFENSIVE: Them ${this.threatCache.totalDefensiveThreat}, us: ${this.threatCache.totalDefensivePower}.`
                     );
                     this.logBotStatus(
-                        `Threat AIR: Them ${this.threatCache.totalOffensiveAirThreat}, us: ${this.threatCache.totalAvailableAntiAirFirepower}.`,
+                        `Threat AIR: Them ${this.threatCache.totalOffensiveAirThreat}, us: ${this.threatCache.totalAvailableAntiAirFirepower}.`
                     );
                     this.logBotStatus(`Boredom: ${boredomFactor}`);
                 }
@@ -285,12 +291,17 @@ export class ExampleBot extends Bot {
 
             // hacky resign condition
             const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
+            const mcvUnits = game.getVisibleUnits(
+                this.name,
+                "self",
+                (r) => !!r.deploysInto && game.getGeneralRules().baseUnit.includes(r.name)
+            );
             const productionBuildings = game.getVisibleUnits(
                 this.name,
                 "self",
-                (r) => r.type == ObjectType.Building && r.factory != FactoryType.None,
+                (r) => r.type == ObjectType.Building && r.factory != FactoryType.None
             );
-            if (armyUnits.length == 0 && productionBuildings.length == 0) {
+            if (armyUnits.length == 0 && productionBuildings.length == 0 && mcvUnits.length == 0) {
                 this.logBotStatus(`No army or production left, quitting.`);
                 this.botState = BotState.Defeated;
                 this.actionsApi.quitGame();
@@ -321,9 +332,6 @@ export class ExampleBot extends Bot {
                 }
 
                 case BotState.Deployed: {
-                    /*const armyUnits = game.getVisibleUnits(this.name, "self", r => r.isSelectableCombatant);
-                    const { x: rx, y: ry } = game.getPlayerData(this.enemyPlayers[0]).startLocation;
-                    this.actionsApi.orderUnits(armyUnits, OrderType.AttackMove, rx, ry);*/
                     this.botState = BotState.Attacking;
                     break;
                 }
@@ -388,7 +396,7 @@ export class ExampleBot extends Bot {
                         enemy.startLocation,
                         10,
                         10,
-                        0,
+                        0
                     );
 
                     armyUnits.forEach((armyUnitId) => {
@@ -396,14 +404,14 @@ export class ExampleBot extends Bot {
                         if (unit && !unit.guardMode) {
                             let distanceToFallback = getDistanceBetweenPoints(
                                 { x: unit.tile.rx, y: unit.tile.ry },
-                                fallbackPoint,
+                                fallbackPoint
                             );
                             if (distanceToFallback > 10) {
                                 this.actionsApi.orderUnits(
                                     [armyUnitId],
                                     OrderType.GuardArea,
                                     fallbackPoint.x,
-                                    fallbackPoint.y,
+                                    fallbackPoint.y
                                 );
                             }
                         }
@@ -432,13 +440,14 @@ export class ExampleBot extends Bot {
                         if (candidatePoints.length > 0) {
                             const unit = game.getUnitData(unitId);
                             if (unit?.isIdle) {
+                                // TODO: replace random
                                 const scoutLocation =
                                     candidatePoints[Math.floor(Math.random() * candidatePoints.length)];
                                 this.actionsApi.orderUnits(
                                     [unitId],
                                     OrderType.AttackMove,
                                     scoutLocation.x,
-                                    scoutLocation.y,
+                                    scoutLocation.y
                                 );
                             }
                         }
