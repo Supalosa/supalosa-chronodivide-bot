@@ -3,15 +3,12 @@ import { GlobalThreat } from "../threat/threat.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./building.js";
 
 export class ArtilleryUnit implements AiBuildingRules {
-    constructor(
-        private basePriority: number,
-        private baseAmount: number,
-    ) {}
+    constructor(private basePriority: number, private baseAmount: number) {}
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules,
+        technoRules: TechnoRules
     ): { rx: number; ry: number } | undefined {
         return undefined;
     }
@@ -20,7 +17,7 @@ export class ArtilleryUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined,
+        threatCache: GlobalThreat | undefined
     ): number {
         // If the enemy's defensive power is increasing we will start to build these.
         if (threatCache) {
@@ -33,5 +30,14 @@ export class ArtilleryUnit implements AiBuildingRules {
         }
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         return this.basePriority * (1.0 - numOwned / this.baseAmount);
+    }
+
+    getMaxCount(
+        game: GameApi,
+        playerData: PlayerData,
+        technoRules: TechnoRules,
+        threatCache: GlobalThreat | undefined
+    ): number | null {
+        return null;
     }
 }

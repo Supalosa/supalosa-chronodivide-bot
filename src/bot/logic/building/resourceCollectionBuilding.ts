@@ -1,7 +1,12 @@
 import { GameApi, PlayerData, Point2D, TechnoRules, Tile } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { BasicBuilding } from "./basicBuilding.js";
-import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./building.js";
+import {
+    AiBuildingRules,
+    getDefaultPlacementLocation,
+    numBuildingsOwnedOfName,
+    numBuildingsOwnedOfType,
+} from "./building.js";
 
 export class ResourceCollectionBuilding extends BasicBuilding {
     constructor(basePriority: number, maxNeeded: number, onlyBuildWhenFloatingCreditsAmount?: number) {
@@ -11,7 +16,7 @@ export class ResourceCollectionBuilding extends BasicBuilding {
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules,
+        technoRules: TechnoRules
     ): { rx: number; ry: number } | undefined {
         // Prefer spawning close to ore.
         let selectedLocation = playerData.startLocation;
@@ -24,7 +29,7 @@ export class ResourceCollectionBuilding extends BasicBuilding {
             if (tileResourceData.spawnsOre) {
                 let dist = Math.sqrt(
                     (selectedLocation.x - tileResourceData.tile.rx) ** 2 +
-                        (selectedLocation.y - tileResourceData.tile.ry) ** 2,
+                        (selectedLocation.y - tileResourceData.tile.ry) ** 2
                 );
                 if (closeOreDist == undefined || dist < closeOreDist) {
                     closeOreDist = dist;
@@ -36,5 +41,16 @@ export class ResourceCollectionBuilding extends BasicBuilding {
             selectedLocation = { x: closeOre.rx, y: closeOre.ry };
         }
         return getDefaultPlacementLocation(game, playerData, selectedLocation, technoRules);
+    }
+
+    // Don't build/start selling these if we don't have any harvesters
+    getMaxCount(
+        game: GameApi,
+        playerData: PlayerData,
+        technoRules: TechnoRules,
+        threatCache: GlobalThreat | undefined
+    ): number | null {
+        const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;
+        return Math.max(1, harvesters * 2);
     }
 }

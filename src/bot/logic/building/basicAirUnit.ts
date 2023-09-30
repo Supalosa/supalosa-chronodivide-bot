@@ -7,13 +7,13 @@ export class BasicAirUnit implements AiBuildingRules {
         private basePriority: number,
         private baseAmount: number,
         private antiGroundPower: number = 1, // boolean for now, but will eventually be used in weighting.
-        private antiAirPower: number = 0,
+        private antiAirPower: number = 0
     ) {}
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules,
+        technoRules: TechnoRules
     ): { rx: number; ry: number } | undefined {
         return undefined;
     }
@@ -22,7 +22,7 @@ export class BasicAirUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined,
+        threatCache: GlobalThreat | undefined
     ): number {
         // If the enemy's anti-air power is low we might build more.
         if (threatCache) {
@@ -48,14 +48,21 @@ export class BasicAirUnit implements AiBuildingRules {
                 1.0,
                 Math.max(
                     1,
-                    Math.sqrt(
-                        threatCache.totalAvailableAirPower / Math.max(1, threatCache.totalOffensiveAntiAirThreat),
-                    ),
-                ),
+                    Math.sqrt(threatCache.totalAvailableAirPower / Math.max(1, threatCache.totalOffensiveAntiAirThreat))
+                )
             );
             return this.baseAmount * priority;
         }
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         return this.basePriority * (1.0 - numOwned / this.baseAmount);
+    }
+
+    getMaxCount(
+        game: GameApi,
+        playerData: PlayerData,
+        technoRules: TechnoRules,
+        threatCache: GlobalThreat | undefined
+    ): number | null {
+        return null;
     }
 }

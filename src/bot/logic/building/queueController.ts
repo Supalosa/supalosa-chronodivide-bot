@@ -15,6 +15,15 @@ import {
     getDefaultPlacementLocation,
 } from "./building.js";
 
+export const QUEUES = [
+    QueueType.Structures,
+    QueueType.Armory,
+    QueueType.Infantry,
+    QueueType.Vehicles,
+    QueueType.Aircrafts,
+    QueueType.Ships,
+];
+
 export const queueTypeToName = (queue: QueueType) => {
     switch (queue) {
         case QueueType.Structures:
@@ -34,7 +43,20 @@ export const queueTypeToName = (queue: QueueType) => {
     }
 };
 
+// Repair buildings at this ratio of the maxHitpoints.
+const REPAIR_HITPOINTS_RATIO = 0.9;
+
+// Don't repair buildings more often than this.
+const REPAIR_COOLDOWN_TICKS = 15;
+
+const DEBUG_BUILD_QUEUES = false;
+
 export class QueueController {
+    constructor(
+        private buildingIdToLastHitpoints: Map<number, number> = new Map(),
+        private buildingIdLastRepairedAtTick: Map<number, number> = new Map()
+    ) {}
+
     public onAiUpdate(
         game: GameApi,
         productionApi: ProductionApi,
@@ -43,23 +65,13 @@ export class QueueController {
         threatCache: GlobalThreat | undefined,
         logger: (message: string) => void
     ) {
-        const queues = [
-            QueueType.Structures,
-            QueueType.Armory,
-            QueueType.Infantry,
-            QueueType.Vehicles,
-            QueueType.Aircrafts,
-            QueueType.Ships,
-        ];
-        const decisions = queues
-            .map((queueType) => {
-                const options = productionApi.getAvailableObjects(queueType);
-                return {
-                    queue: queueType,
-                    decision: this.getBestOptionForBuilding(game, options, threatCache, playerData, false, logger),
-                };
-            })
-            .filter((decision) => decision.decision != null);
+        const decisions = QUEUES.map((queueType) => {
+            const options = productionApi.getAvailableObjects(queueType);
+            return {
+                queue: queueType,
+                decision: this.getBestOptionForBuilding(game, options, threatCache, playerData, logger),
+            };
+        }).filter((decision) => decision.decision != null);
         let totalWeightAcrossQueues = decisions
             .map((decision) => decision.decision?.priority!)
             .reduce((pV, cV) => pV + cV, 0);
@@ -80,6 +92,27 @@ export class QueueController {
                 totalCostAcrossQueues,
                 logger
             );
+        });
+
+        // Repair is simple - just repair everything that's damaged.
+        // Unfortunately there doesn't seem to be an API to determine if something is being repaired, so we have to remember it.
+        game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
+            const unit = game.getUnitData(unitId);
+            if (!unit || !unit.hitPoints || !unit.maxHitPoints) {
+                return;
+            }
+            const lastKnownHitpoints = this.buildingIdToLastHitpoints.get(unitId) || unit.hitPoints;
+            const buildingLastRepairedAt = this.buildingIdLastRepairedAtTick.get(unitId) || 0;
+            // Only repair if HP is going down and if we haven't recently repaired it
+            if (
+                unit.hitPoints <= lastKnownHitpoints &&
+                game.getCurrentTick() > buildingLastRepairedAt + REPAIR_COOLDOWN_TICKS &&
+                unit.hitPoints < unit.maxHitPoints * REPAIR_HITPOINTS_RATIO
+            ) {
+                actionsApi.toggleRepairWrench(unitId);
+                this.buildingIdLastRepairedAtTick.set(unitId, game.getCurrentTick());
+            }
+            this.buildingIdToLastHitpoints.set(unitId, unit.hitPoints);
         });
     }
 
@@ -165,7 +198,6 @@ export class QueueController {
         options: TechnoRules[],
         threatCache: GlobalThreat | undefined,
         playerData: PlayerData,
-        debug: boolean = false,
         logger: (message: string) => void
     ): TechnoRulesWithPriority | undefined {
         let priorityQueue: TechnoRulesWithPriority[] = [];
@@ -180,8 +212,7 @@ export class QueueController {
             return a.priority - b.priority;
         });
         if (priorityQueue.length > 0) {
-            const lastItem = priorityQueue[priorityQueue.length - 1];
-            if (debug) {
+            if (DEBUG_BUILD_QUEUES) {
                 let queueString = priorityQueue.map((item) => item.unit.name + "(" + item.priority + ")").join(", ");
                 logger(`Build priority currently: ${queueString}`);
             }

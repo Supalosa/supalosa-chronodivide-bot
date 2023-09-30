@@ -25,7 +25,7 @@ import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
 import { GlobalThreat } from "./logic/threat/threat.js";
 import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
-import { QueueController, queueTypeToName } from "./logic/building/queueController.js";
+import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
 
 enum BotState {
     Initial = "init",
@@ -38,6 +38,7 @@ enum BotState {
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 const NATURAL_TICK_RATE = 15;
+const BOT_AUTO_SURRENDER_TIME_SECONDS = 3600; // 1 hour
 
 export class ExampleBot extends Bot {
     private botState = BotState.Initial;
@@ -97,23 +98,28 @@ export class ExampleBot extends Bot {
             if (game.getCurrentTick() % (this.tickRatio * 150) == 0) {
                 let visibility = this.sectorCache?.getOverallVisibility();
                 if (visibility) {
-                    this.logBotStatus(`${visibility * 100.0}% of tiles visible. Calculating threat.`);
+                    this.logBotStatus(`${Math.round(visibility * 1000.0) / 10}% of tiles visible. Calculating threat.`);
                     this.threatCache = calculateGlobalThreat(game, myPlayer, visibility);
                     this.logBotStatus(
-                        `Threat LAND: Them ${this.threatCache.totalOffensiveLandThreat}, us: ${this.threatCache.totalAvailableAntiGroundFirepower}.`
+                        `Threat LAND: Them ${Math.round(this.threatCache.totalOffensiveLandThreat)}, us: ${Math.round(
+                            this.threatCache.totalAvailableAntiGroundFirepower
+                        )}.`
                     );
                     this.logBotStatus(
-                        `Threat DEFENSIVE: Them ${this.threatCache.totalDefensiveThreat}, us: ${this.threatCache.totalDefensivePower}.`
+                        `Threat DEFENSIVE: Them ${Math.round(this.threatCache.totalDefensiveThreat)}, us: ${Math.round(
+                            this.threatCache.totalDefensivePower
+                        )}.`
                     );
                     this.logBotStatus(
-                        `Threat AIR: Them ${this.threatCache.totalOffensiveAirThreat}, us: ${this.threatCache.totalAvailableAntiAirFirepower}.`
+                        `Threat AIR: Them ${Math.round(this.threatCache.totalOffensiveAirThreat)}, us: ${Math.round(
+                            this.threatCache.totalAvailableAntiAirFirepower
+                        )}.`
                     );
                     this.logBotStatus(`Boredom: ${boredomFactor}`);
                 }
             }
-            if (game.getCurrentTick() / game.getTickRate() > 1000) {
-                // 15 minutes
-                this.logBotStatus(`Bored and quitting.`);
+            if (game.getCurrentTick() / NATURAL_TICK_RATE > BOT_AUTO_SURRENDER_TIME_SECONDS) {
+                this.logBotStatus(`Auto-surrendering after ${BOT_AUTO_SURRENDER_TIME_SECONDS} seconds.`);
                 this.botState = BotState.Defeated;
                 this.actionsApi.quitGame();
             }
@@ -314,7 +320,25 @@ export class ExampleBot extends Bot {
 
     private logDebugState(game: GameApi) {
         const myPlayer = game.getPlayerData(this.name);
-        this.logBotStatus(`----- Cash: ${myPlayer.credits} -----`);
+        const queueState = QUEUES.reduce((prev, queueType) => {
+            if (this.productionApi.getQueueData(queueType).size === 0) {
+                return prev;
+            }
+            const paused = this.productionApi.getQueueData(queueType).status === QueueStatus.OnHold;
+            return (
+                prev +
+                " [" +
+                queueTypeToName(queueType) +
+                (paused ? " PAUSED" : "") +
+                ": " +
+                this.productionApi.getQueueData(queueType).items.map((item) => item.rules.name + "x" + item.quantity) +
+                "]"
+            );
+        }, "");
+        this.logBotStatus(`----- Cash: ${myPlayer.credits} ----- | Queues: ${queueState}`);
+        const harvesters = game.getVisibleUnits(this.name, "self", (r) => r.harvester).length;
+        this.logBotStatus(`Harvesters: ${harvesters}`);
+        this.logBotStatus(`----- End -----`);
     }
 
     private isWorthAttacking(threatCache: GlobalThreat, threatFactor: number) {

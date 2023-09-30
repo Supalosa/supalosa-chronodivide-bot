@@ -1,11 +1,12 @@
 import { GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
 import { AiBuildingRules, getDefaultPlacementLocation } from "./building.js";
+import { GlobalThreat } from "../threat/threat.js";
 
 export class PowerPlant implements AiBuildingRules {
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules,
+        technoRules: TechnoRules
     ): { rx: number; ry: number } | undefined {
         return getDefaultPlacementLocation(game, playerData, playerData.startLocation, technoRules);
     }
@@ -18,5 +19,14 @@ export class PowerPlant implements AiBuildingRules {
         } else {
             return 0;
         }
+    }
+
+    getMaxCount(
+        game: GameApi,
+        playerData: PlayerData,
+        technoRules: TechnoRules,
+        threatCache: GlobalThreat | undefined
+    ): number | null {
+        return null;
     }
 }

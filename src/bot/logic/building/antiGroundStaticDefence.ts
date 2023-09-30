@@ -4,15 +4,12 @@ import { GlobalThreat } from "../threat/threat.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./building.js";
 
 export class AntiGroundStaticDefence implements AiBuildingRules {
-    constructor(
-        private basePriority: number,
-        private baseAmount: number,
-    ) {}
+    constructor(private basePriority: number, private baseAmount: number) {}
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules,
+        technoRules: TechnoRules
     ): { rx: number; ry: number } | undefined {
         // Prefer front towards enemy.
         let startLocation = playerData.startLocation;
@@ -25,7 +22,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
             }
             let enemyPlayer = game.getPlayerData(playerName);
             enemyFacingLocationCandidates.push(
-                getPointTowardsOtherPoint(game, startLocation, enemyPlayer.startLocation, 4, 16, 1.5),
+                getPointTowardsOtherPoint(game, startLocation, enemyPlayer.startLocation, 4, 16, 1.5)
             );
         }
         let selectedLocation =
@@ -37,7 +34,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined,
+        threatCache: GlobalThreat | undefined
     ): number {
         // If the enemy's ground power is increasing we should try to keep up.
         if (threatCache) {
@@ -48,5 +45,14 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         }
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         return this.basePriority * (1.0 - numOwned / this.baseAmount);
+    }
+
+    getMaxCount(
+        game: GameApi,
+        playerData: PlayerData,
+        technoRules: TechnoRules,
+        threatCache: GlobalThreat | undefined
+    ): number | null {
+        return null;
     }
 }
