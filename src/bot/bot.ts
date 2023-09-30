@@ -15,6 +15,9 @@ import {
     PlayerData,
 } from "@chronodivide/game-api";
 import PriorityQueue from "priority-queue-typescript";
+
+import { Duration } from "luxon";
+
 import {
     buildingNameToAiBuildingRules,
     defaultBuildingPriority,
@@ -28,15 +31,19 @@ import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
 import { GlobalThreat } from "./logic/threat/threat.js";
 import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
+import { queueTypeToName } from "./logic/building/queues.js";
 
 enum BotState {
-    Initial,
-    Deployed,
-    Attacking,
-    Defending,
-    Scouting,
-    Defeated,
+    Initial = "init",
+    Deployed = "deployed",
+    Attacking = "attack",
+    Defending = "defend",
+    Scouting = "scout",
+    Defeated = "defeat",
 }
+
+const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
+const NATURAL_TICK_RATE = 15;
 
 export class ExampleBot extends Bot {
     private botState = BotState.Initial;
@@ -71,13 +78,6 @@ export class ExampleBot extends Bot {
         this.threatCache = undefined;
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);
-    }
-
-    private logBotStatus(message: string) {
-        if (!this.enableLogging) {
-            return;
-        }
-        console.log(`[${this.name} - ${this.botState}] ${message}`);
     }
 
     private numBuildingsOwnedOfType(game: GameApi, rule: (r: TechnoRules) => boolean): number {
@@ -135,7 +135,7 @@ export class ExampleBot extends Bot {
         if (queueData.status == QueueStatus.Idle) {
             // Start building the decided item.
             if (decision !== undefined) {
-                this.logBotStatus(`Decided to build a ${decision.unit.name}`);
+                this.logBotStatus(`Decision (${queueTypeToName(queueType)}): ${decision.unit.name}`);
                 this.actionsApi.queueForProduction(queueType, decision.unit.name, decision.unit.type, 1);
             }
         } else if (queueData.status == QueueStatus.Ready && queueData.items.length > 0) {
@@ -166,7 +166,9 @@ export class ExampleBot extends Bot {
                 let newItemPriority = decision.priority;
                 if (newItemPriority > currentItemPriority * 2) {
                     this.logBotStatus(
-                        `Unqueueing ${current.name} because ${decision.unit.name} has 2x higher priority.`
+                        `Dequeueing queue ${queueTypeToName(queueData.type)} unit ${current.name} because ${
+                            decision.unit.name
+                        } has 2x higher priority.`
                     );
                     this.actionsApi.unqueueFromProduction(queueData.type, current.name, current.type, 1);
                 }
@@ -174,7 +176,9 @@ export class ExampleBot extends Bot {
                 // Not changing our mind, but maybe other queues are more important for now.
                 if (totalCostAcrossQueues > myCredits && decision.priority < totalWeightAcrossQueues * 0.25) {
                     this.logBotStatus(
-                        `Pausing queue ${queueData.type} because weight is low (${decision.priority}/${totalWeightAcrossQueues})`
+                        `Pausing queue ${queueTypeToName(queueData.type)} because weight is low (${
+                            decision.priority
+                        }/${totalWeightAcrossQueues})`
                     );
                     this.actionsApi.pauseProduction(queueData.type);
                 }
@@ -182,11 +186,13 @@ export class ExampleBot extends Bot {
         } else if (queueData.status == QueueStatus.OnHold) {
             // Consider resuming queue if priority is high relative to other queues.
             if (myCredits >= totalCostAcrossQueues) {
-                this.logBotStatus(`Resuming queue ${queueData.type} because credits are high`);
+                this.logBotStatus(`Resuming queue ${queueTypeToName(queueData.type)} because credits are high`);
                 this.actionsApi.resumeProduction(queueData.type);
             } else if (decision && decision.priority >= totalWeightAcrossQueues * 0.25) {
                 this.logBotStatus(
-                    `Resuming queue ${queueData.type} because weight is high (${decision.priority}/${totalWeightAcrossQueues})`
+                    `Resuming queue ${queueTypeToName(queueData.type)} because weight is high (${
+                        decision.priority
+                    }/${totalWeightAcrossQueues})`
                 );
                 this.actionsApi.resumeProduction(queueData.type);
             }
@@ -251,6 +257,9 @@ export class ExampleBot extends Bot {
     }
 
     override onGameTick(game: GameApi) {
+        if ((game.getCurrentTick() / NATURAL_TICK_RATE) % DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS === 0) {
+            this.logDebugState(game);
+        }
         if (game.getCurrentTick() % this.tickRatio === 0) {
             const myPlayer = game.getPlayerData(this.name);
             const sectorsToUpdatePerCycle = 8; // TODO tune this
@@ -330,7 +339,6 @@ export class ExampleBot extends Bot {
                     }
                     break;
                 }
-
                 case BotState.Deployed: {
                     this.botState = BotState.Attacking;
                     break;
@@ -341,7 +349,7 @@ export class ExampleBot extends Bot {
                         this.logBotStatus(`Not worth attacking, reverting to defence.`);
                         this.botState = BotState.Defending;
                     }
-                    const enemyBuildings = game.getVisibleUnits(this.name, "hostile"); //r.constructionYard);
+                    const enemyBuildings = game.getVisibleUnits(this.name, "hostile");
                     let foundTarget = false;
                     if (enemyBuildings.length) {
                         const weightedTargets = enemyBuildings
@@ -364,7 +372,6 @@ export class ExampleBot extends Bot {
                         const target = weightedTargets.find((_) => true);
                         if (target !== undefined) {
                             let targetData = target.unit;
-                            //this.logBotStatus(`It is time to attack: ${targetData?.name}`)
                             for (const unitId of armyUnits) {
                                 const unit = game.getUnitData(unitId);
                                 foundTarget = true;
@@ -440,9 +447,8 @@ export class ExampleBot extends Bot {
                         if (candidatePoints.length > 0) {
                             const unit = game.getUnitData(unitId);
                             if (unit?.isIdle) {
-                                // TODO: replace random
                                 const scoutLocation =
-                                    candidatePoints[Math.floor(Math.random() * candidatePoints.length)];
+                                    candidatePoints[Math.floor(game.generateRandom() * candidatePoints.length)];
                                 this.actionsApi.orderUnits(
                                     [unitId],
                                     OrderType.AttackMove,
@@ -468,8 +474,23 @@ export class ExampleBot extends Bot {
         }
     }
 
+    private getHumanTimestamp(game: GameApi) {
+        return Duration.fromMillis((game.getCurrentTick() / NATURAL_TICK_RATE) * 1000).toFormat("hh:mm:ss");
+    }
+
+    private logBotStatus(message: string) {
+        if (!this.enableLogging) {
+            return;
+        }
+        console.log(`[${this.getHumanTimestamp(this.gameApi)} ${this.name} ${this.botState}] ${message}`);
+    }
+
+    private logDebugState(game: GameApi) {
+        const myPlayer = game.getPlayerData(this.name);
+        this.logBotStatus(`----- Cash: ${myPlayer.credits} -----`);
+    }
+
     private isWorthAttacking(threatCache: GlobalThreat, threatFactor: number) {
-        //  * Math.sqrt(threatCache.certainty)
         let scaledGroundPower = Math.pow(threatCache.totalAvailableAntiGroundFirepower, 1.125);
         let scaledGroundThreat =
             (threatFactor * threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat) * 1.1;
@@ -492,13 +513,8 @@ export class ExampleBot extends Bot {
 
     override onGameEvent(ev: ApiEvent) {
         switch (ev.type) {
-            case ApiEventType.ObjectOwnerChange: {
-                //this.logBotStatus(`Owner changea: ${ev.prevOwnerName} -> ${ev.newOwnerName}`);
-                break;
-            }
-
             case ApiEventType.ObjectDestroy: {
-                //this.logBotStatus(`Object destroyed: ${ev.target}`);
+                // Add to the stalemate detection.
                 if (ev.attackerInfo?.playerName == this.name) {
                     this.tickOfLastAttackOrder += (this.gameApi.getCurrentTick() - this.tickOfLastAttackOrder) / 2;
                 }

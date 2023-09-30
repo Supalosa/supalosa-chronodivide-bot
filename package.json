@@ -18,6 +18,8 @@
     },
     "dependencies": {
         "@chronodivide/game-api": "^0.43.0",
+        "@types/luxon": "^3.3.2",
+        "luxon": "^3.4.3",
         "priority-queue-typescript": "^1.0.1"
     }
 }
