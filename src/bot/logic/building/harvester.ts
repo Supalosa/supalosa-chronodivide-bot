@@ -6,7 +6,7 @@ import { BasicGroundUnit } from "./basicGroundUnit.js";
 const IDEAL_HARVESTERS_PER_REFINERY = 2;
 
 export class Harvester extends BasicGroundUnit {
-    constructor(basePriority: number, baseAmount: number) {
+    constructor(basePriority: number, baseAmount: number, private minNeeded: number) {
         super(basePriority, baseAmount, 0, 0);
     }
 
@@ -20,6 +20,8 @@ export class Harvester extends BasicGroundUnit {
         const refineries = game.getVisibleUnits(playerData.name, "self", (r) => r.refinery).length;
         const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;
 
-        return this.basePriority * (refineries / Math.max(harvesters / IDEAL_HARVESTERS_PER_REFINERY, 1));
+        const boost = harvesters < this.minNeeded ? 5 : 1;
+
+        return this.basePriority * (refineries / Math.max(harvesters / IDEAL_HARVESTERS_PER_REFINERY, 1)) * boost;
     }
 }
