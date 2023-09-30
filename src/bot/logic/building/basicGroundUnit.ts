@@ -24,28 +24,42 @@ export class BasicGroundUnit implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | undefined
     ): number {
-        // If the enemy's power is increasing we should try to keep up.
         if (threatCache) {
-            let priority = 0;
-            if (
-                this.antiGroundPower > 0 &&
-                threatCache.totalOffensiveLandThreat > threatCache.totalAvailableAntiGroundFirepower
-            ) {
-                let ratio = this.antiGroundPower;
-                priority +=
-                    ratio *
-                    this.basePriority *
-                    (threatCache.totalOffensiveLandThreat / Math.max(1, threatCache.totalAvailableAntiGroundFirepower));
+            let priority = 1;
+            if (this.antiGroundPower > 0) {
+                // If the enemy's power is increasing we should try to keep up.
+                if (threatCache.totalOffensiveLandThreat > threatCache.totalAvailableAntiGroundFirepower) {
+                    priority +=
+                        this.antiGroundPower *
+                        this.basePriority *
+                        (threatCache.totalOffensiveLandThreat /
+                            Math.max(1, threatCache.totalAvailableAntiGroundFirepower));
+                } else {
+                    // But also, if our power dwarfs the enemy, keep pressing the advantage.
+                    priority +=
+                        this.antiGroundPower *
+                        this.basePriority *
+                        Math.sqrt(
+                            threatCache.totalAvailableAntiGroundFirepower /
+                                Math.max(1, threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat)
+                        );
+                }
             }
-            if (
-                this.antiAirPower > 0 &&
-                threatCache.totalOffensiveAirThreat > threatCache.totalAvailableAntiAirFirepower
-            ) {
-                let ratio = this.antiAirPower;
-                priority +=
-                    ratio *
-                    this.basePriority *
-                    (threatCache.totalOffensiveAirThreat / Math.max(1, threatCache.totalAvailableAntiAirFirepower));
+            if (this.antiAirPower > 0) {
+                if (threatCache.totalOffensiveAirThreat > threatCache.totalAvailableAntiAirFirepower) {
+                    priority +=
+                        this.antiAirPower *
+                        this.basePriority *
+                        (threatCache.totalOffensiveAirThreat / Math.max(1, threatCache.totalAvailableAntiAirFirepower));
+                } else {
+                    priority +=
+                        this.antiAirPower *
+                        this.basePriority *
+                        Math.sqrt(
+                            threatCache.totalAvailableAntiAirFirepower /
+                                Math.max(1, threatCache.totalOffensiveAirThreat + threatCache.totalDefensiveThreat)
+                        );
+                }
             }
             return priority;
         }

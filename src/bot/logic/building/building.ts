@@ -77,16 +77,16 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Allied
     ["GAPOWR", new PowerPlant()],
     ["GAREFN", new ResourceCollectionBuilding(10, 3)], // Refinery
-    ["GAWEAP", new BasicBuilding(10, 1)], // War Factory
-    ["GAPILE", new BasicBuilding(10, 1)], // Barracks
+    ["GAWEAP", new BasicBuilding(15, 1)], // War Factory
+    ["GAPILE", new BasicBuilding(12, 1)], // Barracks
     ["CMIN", new Harvester(8, 3)], // Chrono Miner
     ["ENGINEER", new BasicBuilding(1, 1, 10000)], // Engineer
     ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
-    ["GAAIRC", new BasicBuilding(10, 1, 6000)], // Airforce Command
+    ["GAAIRC", new BasicBuilding(8, 1, 6000)], // Airforce Command
 
-    ["GAPILL", new AntiGroundStaticDefence(5, 1)], // Pillbox
-    ["ATESLA", new AntiGroundStaticDefence(5, 1)], // Prism Cannon
-    ["GAWALL", new AntiGroundStaticDefence(0, 0)], // Walls
+    ["GAPILL", new AntiGroundStaticDefence(5, 1, 5)], // Pillbox
+    ["ATESLA", new AntiGroundStaticDefence(5, 1, 10)], // Prism Cannon
+    ["GAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
     ["E1", new BasicGroundUnit(5, 3, 0.25, 0)], // GI
     ["MTNK", new BasicGroundUnit(10, 3, 2, 0)], // Grizzly Tank
@@ -100,16 +100,16 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Soviet
     ["NAPOWR", new PowerPlant()],
     ["NAREFN", new ResourceCollectionBuilding(10, 3)], // Refinery
-    ["NAWEAP", new BasicBuilding(10, 1)], // War Factory
-    ["NAHAND", new BasicBuilding(10, 1)], // Barracks
+    ["NAWEAP", new BasicBuilding(15, 1)], // War Factory
+    ["NAHAND", new BasicBuilding(12, 1)], // Barracks
     ["HARV", new Harvester(8, 3)], // War Miner
     ["SENGINEER", new BasicBuilding(1, 1, 10000)], // Soviet Engineer
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
-    ["NARADR", new BasicBuilding(10, 1, 4000)], // Radar
+    ["NARADR", new BasicBuilding(8, 1, 4000)], // Radar
 
-    ["NALASR", new AntiGroundStaticDefence(5, 1)], // Sentry Gun
-    ["TESLA", new AntiGroundStaticDefence(5, 1)], // Tesla Coil
-    ["NAWALL", new AntiGroundStaticDefence(0, 0)], // Walls
+    ["NALASR", new AntiGroundStaticDefence(5, 1, 5)], // Sentry Gun
+    ["TESLA", new AntiGroundStaticDefence(5, 1, 10)], // Tesla Coil
+    ["NAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
     ["E2", new BasicGroundUnit(5, 3, 0.25, 0)], // Conscript
     ["HTNK", new BasicGroundUnit(10, 3, 3, 0)], // Rhino Tank

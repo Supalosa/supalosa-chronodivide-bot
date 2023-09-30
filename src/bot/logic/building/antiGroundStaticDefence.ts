@@ -4,7 +4,7 @@ import { GlobalThreat } from "../threat/threat.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./building.js";
 
 export class AntiGroundStaticDefence implements AiBuildingRules {
-    constructor(private basePriority: number, private baseAmount: number) {}
+    constructor(private basePriority: number, private baseAmount: number, private strength: number) {}
 
     getPlacementLocation(
         game: GameApi,
@@ -38,13 +38,15 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
     ): number {
         // If the enemy's ground power is increasing we should try to keep up.
         if (threatCache) {
-            let denominator = threatCache.totalAvailableAntiGroundFirepower + threatCache.totalDefensivePower;
-            if (threatCache.totalOffensiveLandThreat > denominator) {
+            let denominator =
+                threatCache.totalAvailableAntiGroundFirepower + threatCache.totalDefensivePower + this.strength;
+            if (threatCache.totalOffensiveLandThreat > denominator * 1.1) {
                 return this.basePriority * (threatCache.totalOffensiveLandThreat / Math.max(1, denominator));
             }
         }
+        const strengthPerCost = (this.strength / technoRules.cost) * 1000;
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
-        return this.basePriority * (1.0 - numOwned / this.baseAmount);
+        return this.basePriority * (1.0 - numOwned / this.baseAmount) * strengthPerCost;
     }
 
     getMaxCount(

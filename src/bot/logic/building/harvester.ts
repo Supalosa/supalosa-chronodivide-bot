@@ -20,10 +20,6 @@ export class Harvester extends BasicGroundUnit {
         const refineries = game.getVisibleUnits(playerData.name, "self", (r) => r.refinery).length;
         const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;
 
-        if (harvesters >= refineries * IDEAL_HARVESTERS_PER_REFINERY) {
-            return this.basePriority;
-        } else {
-            return this.basePriority * (refineries / Math.max(harvesters / IDEAL_HARVESTERS_PER_REFINERY, 1));
-        }
+        return this.basePriority * (refineries / Math.max(harvesters / IDEAL_HARVESTERS_PER_REFINERY, 1));
     }
 }

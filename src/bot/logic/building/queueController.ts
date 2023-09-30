@@ -49,7 +49,7 @@ const REPAIR_HITPOINTS_RATIO = 0.9;
 // Don't repair buildings more often than this.
 const REPAIR_COOLDOWN_TICKS = 15;
 
-const DEBUG_BUILD_QUEUES = false;
+const DEBUG_BUILD_QUEUES = true;
 
 export class QueueController {
     constructor(
@@ -141,6 +141,7 @@ export class QueueController {
             // Consider placing it.
             const objectReady: TechnoRules = queueData.items[0].rules;
             if (queueType == QueueType.Structures || queueType == QueueType.Armory) {
+                logger(`Complete ${queueTypeToName(queueType)}: ${objectReady.name}`);
                 let location: { rx: number; ry: number } | undefined = this.getBestLocationForStructure(
                     game,
                     playerData,
@@ -212,7 +213,7 @@ export class QueueController {
             return a.priority - b.priority;
         });
         if (priorityQueue.length > 0) {
-            if (DEBUG_BUILD_QUEUES) {
+            if (DEBUG_BUILD_QUEUES && game.getCurrentTick() % 100 === 0) {
                 let queueString = priorityQueue.map((item) => item.unit.name + "(" + item.priority + ")").join(", ");
                 logger(`Build priority currently: ${queueString}`);
             }
