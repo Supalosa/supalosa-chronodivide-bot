@@ -48,7 +48,7 @@ export class ResourceCollectionBuilding extends BasicBuilding {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number | null {
         const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;
         return Math.max(1, harvesters * 2);

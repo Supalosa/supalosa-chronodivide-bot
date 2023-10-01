@@ -21,6 +21,8 @@ import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
 import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
 import { ExpansionMission } from "./logic/mission/missions/expansionMission.js";
 import { ScoutingMission } from "./logic/mission/missions/scoutingMission.js";
+import { MatchAwareness as MatchAwareness } from "./logic/awareness.js";
+import { match } from "assert";
 
 enum BotState {
     Initial = "init",
@@ -40,12 +42,12 @@ export class SupalosaBot extends Bot {
     private tickRatio!: number;
     private enemyPlayers!: string[];
     private knownMapBounds: Point2D | undefined;
-    private sectorCache: SectorCache | undefined;
-    private threatCache: GlobalThreat | undefined;
     private missionController: MissionController;
     private squadController: SquadController;
     private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
+
+    private matchAwareness: MatchAwareness | null = null;
 
     private enableLogging: boolean;
 
@@ -66,21 +68,32 @@ export class SupalosaBot extends Bot {
         this.enemyPlayers = game.getPlayers().filter((p) => p !== this.name && !game.areAlliedPlayers(this.name, p));
 
         this.knownMapBounds = determineMapBounds(game.mapApi);
-        this.sectorCache = new SectorCache(game.mapApi, this.knownMapBounds);
-        this.threatCache = undefined;
+
+        this.matchAwareness = {
+            threatCache: null,
+            sectorCache: new SectorCache(game.mapApi, this.knownMapBounds),
+            mainRallyPoint: game.getPlayerData(this.name).startLocation,
+        };
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);
     }
 
     override onGameTick(game: GameApi) {
+        if (!this.matchAwareness) {
+            return;
+        }
+
+        const { sectorCache } = this.matchAwareness;
+        let { threatCache } = this.matchAwareness;
+
         if ((game.getCurrentTick() / NATURAL_TICK_RATE) % DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS === 0) {
             this.logDebugState(game);
         }
         if (game.getCurrentTick() % this.tickRatio === 0) {
             const myPlayer = game.getPlayerData(this.name);
             const sectorsToUpdatePerCycle = 8; // TODO tune this
-            this.sectorCache?.updateSectors(game.getCurrentTick(), sectorsToUpdatePerCycle, game.mapApi, myPlayer);
-            let updateRatio = this.sectorCache?.getSectorUpdateRatio(game.getCurrentTick() - game.getTickRate() * 60);
+            sectorCache.updateSectors(game.getCurrentTick(), sectorsToUpdatePerCycle, game.mapApi, myPlayer);
+            let updateRatio = sectorCache?.getSectorUpdateRatio(game.getCurrentTick() - game.getTickRate() * 60);
             if (updateRatio && updateRatio < 1.0) {
                 this.logBotStatus(`${updateRatio * 100.0}% of sectors updated in last 60 seconds.`);
             }
@@ -89,25 +102,26 @@ export class SupalosaBot extends Bot {
             let boredomFactor =
                 1.0 -
                 Math.min(1.0, Math.max(0.0, (this.gameApi.getCurrentTick() - this.tickOfLastAttackOrder) / 1600.0));
-            let shouldAttack = this.threatCache ? this.isWorthAttacking(this.threatCache, boredomFactor) : false;
+            let shouldAttack = !!threatCache ? this.isWorthAttacking(threatCache, boredomFactor) : false;
             if (game.getCurrentTick() % (this.tickRatio * 150) == 0) {
-                let visibility = this.sectorCache?.getOverallVisibility();
+                let visibility = this.matchAwareness.sectorCache?.getOverallVisibility();
                 if (visibility) {
                     this.logBotStatus(`${Math.round(visibility * 1000.0) / 10}% of tiles visible. Calculating threat.`);
-                    this.threatCache = calculateGlobalThreat(game, myPlayer, visibility);
+                    // Update the global threat cache
+                    threatCache = this.matchAwareness.threatCache = calculateGlobalThreat(game, myPlayer, visibility);
                     this.logBotStatus(
-                        `Threat LAND: Them ${Math.round(this.threatCache.totalOffensiveLandThreat)}, us: ${Math.round(
-                            this.threatCache.totalAvailableAntiGroundFirepower
+                        `Threat LAND: Them ${Math.round(
+                            this.matchAwareness?.threatCache.totalOffensiveLandThreat
+                        )}, us: ${Math.round(threatCache.totalAvailableAntiGroundFirepower)}.`
+                    );
+                    this.logBotStatus(
+                        `Threat DEFENSIVE: Them ${Math.round(threatCache.totalDefensiveThreat)}, us: ${Math.round(
+                            threatCache.totalDefensivePower
                         )}.`
                     );
                     this.logBotStatus(
-                        `Threat DEFENSIVE: Them ${Math.round(this.threatCache.totalDefensiveThreat)}, us: ${Math.round(
-                            this.threatCache.totalDefensivePower
-                        )}.`
-                    );
-                    this.logBotStatus(
-                        `Threat AIR: Them ${Math.round(this.threatCache.totalOffensiveAirThreat)}, us: ${Math.round(
-                            this.threatCache.totalAvailableAntiAirFirepower
+                        `Threat AIR: Them ${Math.round(threatCache.totalOffensiveAirThreat)}, us: ${Math.round(
+                            threatCache.totalAvailableAntiAirFirepower
                         )}.`
                     );
                     this.logBotStatus(`Boredom: ${boredomFactor}`);
@@ -143,15 +157,15 @@ export class SupalosaBot extends Bot {
                 this.productionApi,
                 this.actionsApi,
                 myPlayer,
-                this.threatCache,
+                threatCache,
                 (message) => this.logBotStatus(message)
             );
 
             // Mission logic.
-            this.missionController.onAiUpdate(game, myPlayer, this.threatCache, this.squadController);
+            this.missionController.onAiUpdate(game, myPlayer, threatCache, this.squadController);
 
             // Squad logic.
-            this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.threatCache, (message) =>
+            this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, threatCache, (message) =>
                 this.logBotStatus(message)
             );
 

@@ -20,7 +20,7 @@ export class SquadController {
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
-        threatData: GlobalThreat | undefined,
+        threatData: GlobalThreat | null,
         logger: (message: string) => void
     ) {
         // Remove dead squads.

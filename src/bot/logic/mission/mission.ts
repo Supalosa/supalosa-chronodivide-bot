@@ -7,7 +7,7 @@ import { GlobalThreat } from "../threat/threat.js";
 export abstract class Mission {
     constructor(private uniqueName: string, private priority: number = 1, private squad: Squad | null = null) {}
 
-    abstract onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | undefined): MissionAction;
+    abstract onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | null): MissionAction;
 
     isActive(): boolean {
         return true;

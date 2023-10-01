@@ -59,7 +59,7 @@ export class QueueController {
         productionApi: ProductionApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
-        threatCache: GlobalThreat | undefined,
+        threatCache: GlobalThreat | null,
         logger: (message: string) => void
     ) {
         const decisions = QUEUES.map((queueType) => {
@@ -107,7 +107,7 @@ export class QueueController {
         productionApi: ProductionApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
-        threatCache: GlobalThreat | undefined,
+        threatCache: GlobalThreat | null,
         queueType: QueueType,
         decision: TechnoRulesWithPriority | undefined,
         totalWeightAcrossQueues: number,
@@ -183,7 +183,7 @@ export class QueueController {
     private getBestOptionForBuilding(
         game: GameApi,
         options: TechnoRules[],
-        threatCache: GlobalThreat | undefined,
+        threatCache: GlobalThreat | null,
         playerData: PlayerData,
         logger: (message: string) => void
     ): TechnoRulesWithPriority | undefined {
@@ -212,7 +212,7 @@ export class QueueController {
         option: TechnoRules,
         game: GameApi,
         playerStatus: PlayerData,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ) {
         if (BUILDING_NAME_TO_RULES.has(option.name)) {
             let logic = BUILDING_NAME_TO_RULES.get(option.name)!;

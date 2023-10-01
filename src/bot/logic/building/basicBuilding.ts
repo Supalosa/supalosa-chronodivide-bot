@@ -21,7 +21,7 @@ export class BasicBuilding implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number {
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         const calcMaxCount = this.getMaxCount(game, playerData, technoRules, threatCache);
@@ -40,7 +40,7 @@ export class BasicBuilding implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number | null {
         return this.maxNeeded;
     }

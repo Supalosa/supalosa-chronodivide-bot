@@ -16,10 +16,12 @@ export class ScoutingSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        threatData: GlobalThreat | undefined
+        threatData: GlobalThreat | null
     ): SquadAction {
+        // Use any of these as scouts, but only request dogs to be trained as scouts.
+        const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
         let dogName = playerData.country?.side == SideType.GDI ? "ADOG" : "DOG";
-        const scouts = squad.getUnitsOfType(gameApi, dogName);
+        const scouts = squad.getUnitsOfTypes(gameApi, ...scoutNames);
         if (scouts.length === 0) {
             this.scoutingWith = null;
             return requestUnits(dogName, 100);

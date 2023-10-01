@@ -1,6 +1,5 @@
-import { ActionsApi, GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, PlayerData } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
-import { ExpansionSquad } from "./behaviours/expansionSquad.js";
 import { Squad } from "./squad.js";
 
 export type SquadActionNoop = {
@@ -34,6 +33,6 @@ export interface SquadBehaviour {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        threatData: GlobalThreat | undefined
+        threatData: GlobalThreat | null
     ): SquadAction;
 }

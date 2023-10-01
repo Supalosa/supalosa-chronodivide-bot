@@ -14,7 +14,7 @@ export class MissionController {
     public onAiUpdate(
         gameApi: GameApi,
         playerData: PlayerData,
-        threatData: GlobalThreat | undefined,
+        threatData: GlobalThreat | null,
         squadController: SquadController
     ) {
         // Remove inactive missions.

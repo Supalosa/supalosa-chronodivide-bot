@@ -22,7 +22,7 @@ export class BasicGroundUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number {
         if (threatCache) {
             let priority = 1;
@@ -71,7 +71,7 @@ export class BasicGroundUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number | null {
         return null;
     }

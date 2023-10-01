@@ -17,10 +17,10 @@ export class ExpansionSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        threatData: GlobalThreat | undefined
+        threatData: GlobalThreat | null
     ): SquadAction {
         let myMcvName = playerData.country?.side == SideType.GDI ? "AMCV" : "SMCV";
-        const mcvs = squad.getUnitsOfType(gameApi, myMcvName);
+        const mcvs = squad.getUnitsOfTypes(gameApi, myMcvName);
         if (mcvs.length === 0) {
             // Perhaps we deployed already (or the unit was destroyed), end the mission.
             if (this.hasAttemptedDeployWith !== null) {

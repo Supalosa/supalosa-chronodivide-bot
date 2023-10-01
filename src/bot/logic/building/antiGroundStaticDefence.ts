@@ -34,7 +34,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number {
         // If the enemy's ground power is increasing we should try to keep up.
         if (threatCache) {
@@ -53,7 +53,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number | null {
         return null;
     }

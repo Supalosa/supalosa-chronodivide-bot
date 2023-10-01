@@ -14,7 +14,7 @@ export interface AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number;
 
     getPlacementLocation(
@@ -27,7 +27,7 @@ export interface AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number | null;
 }
 

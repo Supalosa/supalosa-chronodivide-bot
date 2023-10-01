@@ -22,7 +22,7 @@ export class BasicAirUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number {
         // If the enemy's anti-air power is low we might build more.
         if (threatCache) {
@@ -61,7 +61,7 @@ export class BasicAirUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number | null {
         return null;
     }

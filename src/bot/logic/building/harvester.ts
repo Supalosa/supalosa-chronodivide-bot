@@ -15,7 +15,7 @@ export class Harvester extends BasicGroundUnit {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number {
         const refineries = game.getVisibleUnits(playerData.name, "self", (r) => r.refinery).length;
         const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;

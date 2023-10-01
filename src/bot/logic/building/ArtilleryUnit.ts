@@ -17,7 +17,7 @@ export class ArtilleryUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number {
         // If the enemy's defensive power is increasing we will start to build these.
         if (threatCache) {
@@ -36,7 +36,7 @@ export class ArtilleryUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | undefined
+        threatCache: GlobalThreat | null
     ): number | null {
         return null;
     }

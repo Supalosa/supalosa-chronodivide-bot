@@ -34,7 +34,7 @@ export class Squad {
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
-        threatData: GlobalThreat | undefined
+        threatData: GlobalThreat | null
     ): SquadAction {
         this.updateLiveness(gameApi);
         if (this.mission && this.mission.isActive() == false) {
@@ -67,10 +67,10 @@ export class Squad {
             .map((unit) => unit!);
     }
 
-    public getUnitsOfType(gameApi: GameApi, name: string): UnitData[] {
+    public getUnitsOfTypes(gameApi: GameApi, ...names: string[]): UnitData[] {
         return this.unitIds
             .map((unitId) => gameApi.getUnitData(unitId))
-            .filter((unit) => !!unit && unit.name === name)
+            .filter((unit) => !!unit && names.includes(unit.name))
             .map((unit) => unit!);
     }
 
