@@ -18,7 +18,8 @@ async function main() {
         serverUrl: process.env.SERVER_URL!,
         clientUrl: process.env.CLIENT_URL!,
         agents: [new SupalosaBot(botName, "Americans"), { name: otherBotName, country: "French" }],*/
-        agents: [new SupalosaBot(botName, "Russians", false), new SupalosaBot(otherBotName, "Americans", true)],
+        //agents: [new SupalosaBot(botName, "Russians", false), new SupalosaBot(otherBotName, "Americans", true)],
+        agents: [new SupalosaBot(botName, "Americans", false), new SupalosaBot(otherBotName, "Americans", true)],
         buildOffAlly: false,
         cratesAppear: false,
         credits: 10000,

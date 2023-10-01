@@ -1,5 +1,14 @@
 import _ from "lodash";
-import { ActionsApi, AttackState, GameApi, OrderType, PlayerData, Point2D, SideType } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    AttackState,
+    GameApi,
+    OrderType,
+    PlayerData,
+    Point2D,
+    SideType,
+    UnitData,
+} from "@chronodivide/game-api";
 import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, grabCombatants, noop, requestUnits } from "../squadBehaviour.js";
@@ -57,18 +66,28 @@ export class DefenceSquad implements SquadBehaviour {
                         distance: getDistanceBetweenUnits(defender, enemy),
                     })),
                     "distance"
-                )?.enemy;
+                );
                 if (closestEnemy) {
-                    actionsApi.orderUnits(
-                        [defender.id],
-                        OrderType.AttackMove,
-                        closestEnemy.tile.rx,
-                        closestEnemy.tile.ry
-                    );
+                    this.manageMicro(actionsApi, defender, closestEnemy.enemy, closestEnemy.distance);
                 }
             }
         });
 
         return grabCombatants(this.defenceArea, this.radius * GRAB_RADIUS);
+    }
+
+    // Micro methods
+    private manageMicro(actionsApi: ActionsApi, defender: UnitData, closestEnemy: UnitData, distance: number) {
+        if (defender.name === "E1") {
+            // Para (deployed weapon) range is 5.
+            if (defender.canMove && distance <= 4) {
+                console.log("GI: deploying");
+                actionsApi.orderUnits([defender.id], OrderType.DeploySelected);
+            } else if (!defender.canMove && distance >= 5) {
+                console.log("GI: undeploying");
+                actionsApi.orderUnits([defender.id], OrderType.DeploySelected);
+            }
+        }
+        actionsApi.orderUnits([defender.id], OrderType.AttackMove, closestEnemy.tile.rx, closestEnemy.tile.ry);
     }
 }

@@ -114,6 +114,7 @@ export class SquadController {
             .map((unitId) => gameApi.getUnitData(unitId))
             .filter((unit) => !!unit && !this.unitIdToSquad.has(unit.id || 0))
             .map((unit) => unit!);
+
         freeUnits.forEach((freeUnit) => {
             if (unitTypeToHighestRequest.hasOwnProperty(freeUnit.name)) {
                 const { squad: requestingSquad } = unitTypeToHighestRequest[freeUnit.name];
@@ -123,7 +124,10 @@ export class SquadController {
             } else if (grabRequests.length > 0) {
                 grabRequests.some((request) => {
                     const { squad: requestingSquad } = request;
-                    if (getDistanceBetween(freeUnit, request.action.point) < request.action.radius) {
+                    if (
+                        freeUnit.rules.isSelectableCombatant &&
+                        getDistanceBetween(freeUnit, request.action.point) < request.action.radius
+                    ) {
                         logger(
                             `granting unit ${freeUnit.id}#${
                                 freeUnit.name
