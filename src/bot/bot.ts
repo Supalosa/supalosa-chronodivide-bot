@@ -20,12 +20,12 @@ import { Duration } from "luxon";
 
 import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
-import { missionFactories } from "./logic/mission/mission.js";
 import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
 import { GlobalThreat } from "./logic/threat/threat.js";
 import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
 import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
+import { ExpansionMission } from "./logic/mission/expansionMission.js";
 
 enum BotState {
     Initial = "init",
@@ -56,8 +56,8 @@ export class SupalosaBot extends Bot {
 
     constructor(name: string, country: string, enableLogging = true) {
         super(name, country);
+        this.missionController = new MissionController((message) => this.logBotStatus(message));
         this.squadController = new SquadController();
-        this.missionController = new MissionController();
         this.queueController = new QueueController();
         this.enableLogging = enableLogging;
     }
@@ -153,22 +153,20 @@ export class SupalosaBot extends Bot {
             );
 
             // Mission logic.
-            this.missionController.onAiUpdate(game, myPlayer, this.threatCache);
+            this.missionController.onAiUpdate(game, myPlayer, this.threatCache, this.squadController);
 
             // Squad logic.
-            this.squadController.onAiUpdate(game, myPlayer, this.threatCache);
+            this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.threatCache, (message) =>
+                this.logBotStatus(message)
+            );
 
             switch (this.botState) {
                 case BotState.Initial: {
-                    const baseUnits = game.getGeneralRules().baseUnit;
+                    this.missionController.addMission(new ExpansionMission("initialExpand", 100));
                     let conYards = game.getVisibleUnits(this.name, "self", (r) => r.constructionYard);
                     if (conYards.length) {
                         this.botState = BotState.Deployed;
                         break;
-                    }
-                    const units = game.getVisibleUnits(this.name, "self", (r) => baseUnits.includes(r.name));
-                    if (units.length) {
-                        this.actionsApi.orderUnits([units[0]], OrderType.DeploySelected);
                     }
                     break;
                 }

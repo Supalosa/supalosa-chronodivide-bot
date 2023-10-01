@@ -1,4 +1,4 @@
-import { GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { SquadExpansion } from "./behaviours/squadExpansion.js";
 import { Squad } from "./squad.js";
@@ -13,31 +13,27 @@ export type SquadActionMergeInto = {
     type: "mergeInto";
     mergeInto: Squad;
 };
-export type SquadActionClaimUnits = {
-    type: "claimUnit";
-    unitIds: number[];
+export type SquadActionRequestUnits = {
+    type: "request";
+    unitName: string;
+    priority: number;
 };
 
-export type SquadAction = SquadActionNoop | SquadActionDisband | SquadActionMergeInto | SquadActionClaimUnits;
+export const noop = () => ({ type: "noop" } as SquadActionNoop);
+
+export const disband = () => ({ type: "disband" } as SquadActionDisband);
+
+export const requestUnits = (unitName: string, priority: number) =>
+    ({ type: "request", unitName, priority } as SquadActionRequestUnits);
+
+export type SquadAction = SquadActionNoop | SquadActionDisband | SquadActionMergeInto | SquadActionRequestUnits;
 
 export interface SquadBehaviour {
     onAiUpdate(
         gameApi: GameApi,
+        actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        threatData: GlobalThreat | undefined,
+        threatData: GlobalThreat | undefined
     ): SquadAction;
-
-    // State the desired composition of the Squad.
-    getDesiredComposition(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        squad: Squad,
-        threatData: GlobalThreat | undefined,
-    ): { unitName: string; priority: number; amount: number }[];
 }
-
-export const allSquadBehaviours: SquadBehaviour[] = [
-    //new SquadScouters(),
-    new SquadExpansion(),
-];

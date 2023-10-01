@@ -1,47 +1,61 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { Squad } from "../squad/squad.js";
-import { SquadBehaviour } from "../squad/squadBehaviour.js";
 import { GlobalThreat } from "../threat/threat.js";
-import { ExpansionMissionFactory } from "./expansionMission.js";
 
 // AI starts Missions based on heuristics, which have one or more squads.
 // Missions can create squads (but squads will disband themselves).
-export interface Mission {
-    onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | undefined): MissionAction;
+export abstract class Mission {
+    constructor(private uniqueName: string, private priority: number = 1, private squad: Squad | null = null) {}
 
-    isActive(): boolean;
+    abstract onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | undefined): MissionAction;
 
-    removeSquad(squad: Squad): void;
+    isActive(): boolean {
+        return true;
+    }
 
-    addSquad(squad: Squad): void;
+    protected setSquad(squad: Squad): MissionActionRegisterSquad {
+        this.squad = squad;
+        return registerSquad(squad);
+    }
 
-    getSquads(): Squad[];
+    getSquad(): Squad | null {
+        return this.squad;
+    }
 
-    getUniqueName(): string;
+    removeSquad() {
+        // The squad was removed from this mission.
+        this.squad = null;
+    }
+
+    getUniqueName(): string {
+        return this.uniqueName;
+    }
 }
 
 export type MissionActionNoop = {
     type: "noop";
 };
-export type MissionActionCreateSquad = {
-    type: "createSquad";
-    name: string;
-    behaviour: SquadBehaviour;
+
+export type MissionActionRegisterSquad = {
+    type: "registerSquad";
+    squad: Squad;
 };
+
 export type MissionActionDisband = {
     type: "disband";
 };
 
-export type MissionAction = MissionActionNoop | MissionActionCreateSquad | MissionActionDisband;
+export const noop = () =>
+    ({
+        type: "noop",
+    } as MissionActionNoop);
 
-export interface MissionFactory {
-    // Potentially return a new mission.
-    maybeCreateMission(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        threatData: GlobalThreat,
-        existingMissions: Mission[],
-    ): Mission | undefined;
-}
+export const registerSquad = (squad: Squad) =>
+    ({
+        type: "registerSquad",
+        squad,
+    } as MissionActionRegisterSquad);
 
-export const missionFactories = [new ExpansionMissionFactory()];
+export const disbandMission = () => ({ type: "disband" } as MissionActionDisband);
+
+export type MissionAction = MissionActionNoop | MissionActionRegisterSquad | MissionActionDisband;

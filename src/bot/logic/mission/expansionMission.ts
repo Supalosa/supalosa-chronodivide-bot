@@ -1,15 +1,31 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
-import { BasicMission } from "./basicMission.js";
-import { Mission, MissionAction, MissionActionNoop, MissionFactory } from "./mission";
+import { Mission, MissionAction, disbandMission, noop } from "./mission.js";
+import { SquadExpansion } from "../squad/behaviours/squadExpansion.js";
+import { Squad } from "../squad/squad.js";
+import { MissionFactory } from "./missionFactories.js";
 
-export class ExpansionMission extends BasicMission {
+/**
+ * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.
+ */
+export class ExpansionMission extends Mission {
+    private hadSquad = false;
+
     constructor(uniqueName: string, priority: number) {
         super(uniqueName, priority);
     }
 
     onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat): MissionAction {
-        return {} as MissionActionNoop;
+        if (this.getSquad() === null) {
+            if (!this.hadSquad) {
+                this.hadSquad = true;
+                return this.setSquad(new Squad(this.getUniqueName(), new SquadExpansion(), this));
+            } else {
+                return disbandMission();
+            }
+        } else {
+            return noop();
+        }
     }
 }
 
@@ -18,8 +34,9 @@ export class ExpansionMissionFactory implements MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         threatData: GlobalThreat | undefined,
-        existingMissions: Mission[],
-    ): Mission | undefined {
-        return new ExpansionMission("expansion", 10);
+        existingMissions: Mission[]
+    ): Mission | null {
+        // No auto-expansion missions.
+        return null;
     }
 }
