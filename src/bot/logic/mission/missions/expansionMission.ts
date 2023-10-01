@@ -1,9 +1,9 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
-import { GlobalThreat } from "../threat/threat.js";
-import { Mission, MissionAction, disbandMission, noop } from "./mission.js";
-import { SquadExpansion } from "../squad/behaviours/squadExpansion.js";
-import { Squad } from "../squad/squad.js";
-import { MissionFactory } from "./missionFactories.js";
+import { GlobalThreat } from "../../threat/threat.js";
+import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
+import { SquadExpansion } from "../../squad/behaviours/expansionSquad.js";
+import { Squad } from "../../squad/squad.js";
+import { MissionFactory } from "../missionFactories.js";
 
 /**
  * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.

@@ -1,6 +1,6 @@
 import { ActionsApi, GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
-import { SquadExpansion } from "./behaviours/squadExpansion.js";
+import { SquadExpansion } from "./behaviours/expansionSquad.js";
 import { Squad } from "./squad.js";
 
 export type SquadActionNoop = {

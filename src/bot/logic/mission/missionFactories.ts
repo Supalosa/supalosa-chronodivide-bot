@@ -1,6 +1,6 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
-import { ExpansionMissionFactory } from "./expansionMission.js";
+import { ExpansionMissionFactory } from "./missions/expansionMission.js";
 import { Mission } from "./mission.js";
 
 export interface MissionFactory {

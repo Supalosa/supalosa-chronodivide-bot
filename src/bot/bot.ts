@@ -25,7 +25,7 @@ import { SquadController } from "./logic/squad/squadController.js";
 import { GlobalThreat } from "./logic/threat/threat.js";
 import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
 import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
-import { ExpansionMission } from "./logic/mission/expansionMission.js";
+import { ExpansionMission } from "./logic/mission/missions/expansionMission.js";
 
 enum BotState {
     Initial = "init",
