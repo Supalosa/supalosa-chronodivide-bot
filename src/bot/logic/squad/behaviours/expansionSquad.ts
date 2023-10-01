@@ -6,7 +6,7 @@ import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squ
 const DEPLOY_COOLDOWN_TICKS = 30;
 
 // Expansion or initial base.
-export class SquadExpansion implements SquadBehaviour {
+export class ExpansionSquad implements SquadBehaviour {
     private hasAttemptedDeployWith: {
         unitId: number;
         gameTick: number;

@@ -4,11 +4,12 @@ import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
 import { ExpansionSquad } from "../../squad/behaviours/expansionSquad.js";
 import { Squad } from "../../squad/squad.js";
 import { MissionFactory } from "../missionFactories.js";
+import { ScoutingSquad } from "../../squad/behaviours/scoutingSquad.js";
 
 /**
- * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.
+ * A mission that tries to scout around the map with a cheap, fast unit (usually attack dogs)
  */
-export class ExpansionMission extends Mission {
+export class ScoutingMission extends Mission {
     private hadSquad = false;
 
     constructor(uniqueName: string, priority: number) {
@@ -19,7 +20,7 @@ export class ExpansionMission extends Mission {
         if (this.getSquad() === null) {
             if (!this.hadSquad) {
                 this.hadSquad = true;
-                return this.setSquad(new Squad(this.getUniqueName(), new ExpansionSquad(), this));
+                return this.setSquad(new Squad(this.getUniqueName(), new ScoutingSquad(), this));
             } else {
                 return disbandMission();
             }

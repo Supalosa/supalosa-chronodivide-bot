@@ -1,4 +1,4 @@
-import { SquadExpansion } from "./behaviours/expansionSquad.js";
+import { ExpansionSquad } from "./behaviours/expansionSquad.js";
 import { SquadBehaviour } from "./squadBehaviour.js";
 
 /*

@@ -4,17 +4,11 @@ import {
     Bot,
     GameApi,
     ApiEvent,
-    TechnoRules,
-    QueueType,
     QueueStatus,
     Point2D,
-    MapApi,
     ObjectType,
     FactoryType,
-    AttackState,
-    PlayerData,
 } from "@chronodivide/game-api";
-import PriorityQueue from "priority-queue-typescript";
 
 import { Duration } from "luxon";
 
@@ -26,6 +20,7 @@ import { GlobalThreat } from "./logic/threat/threat.js";
 import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
 import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
 import { ExpansionMission } from "./logic/mission/missions/expansionMission.js";
+import { ScoutingMission } from "./logic/mission/missions/scoutingMission.js";
 
 enum BotState {
     Initial = "init",
@@ -261,34 +256,7 @@ export class SupalosaBot extends Bot {
                     break;
                 }
                 case BotState.Scouting: {
-                    const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
-                    let candidatePoints: Point2D[] = [];
-
-                    // Move to an unseen starting location.
-                    const unseenStartingLocations = game.mapApi.getStartingLocations().filter((startingLocation) => {
-                        if (startingLocation == game.getPlayerData(this.name).startLocation) {
-                            return false;
-                        }
-                        let tile = game.mapApi.getTile(startingLocation.x, startingLocation.y);
-                        return tile ? !game.mapApi.isVisibleTile(tile, this.name) : false;
-                    });
-                    candidatePoints.push(...unseenStartingLocations);
-
-                    armyUnits.forEach((unitId) => {
-                        if (candidatePoints.length > 0) {
-                            const unit = game.getUnitData(unitId);
-                            if (unit?.isIdle) {
-                                const scoutLocation =
-                                    candidatePoints[Math.floor(game.generateRandom() * candidatePoints.length)];
-                                this.actionsApi.orderUnits(
-                                    [unitId],
-                                    OrderType.AttackMove,
-                                    scoutLocation.x,
-                                    scoutLocation.y
-                                );
-                            }
-                        }
-                    });
+                    this.missionController.addMission(new ScoutingMission("globalScout", 100));
                     const enemyBuildings = game
                         .getVisibleUnits(this.name, "hostile")
                         .filter((unit) => this.isHostileUnit(game, unit));
