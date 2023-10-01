@@ -24,6 +24,7 @@ import { ScoutingMission } from "./logic/mission/missions/scoutingMission.js";
 import { MatchAwareness as MatchAwareness } from "./logic/awareness.js";
 import { match } from "assert";
 import { DefenceMission } from "./logic/mission/missions/defenceMission.js";
+import { AttackMission, GeneralAttack as GENERAL_ATTACK } from "./logic/mission/missions/attackMission.js";
 
 enum BotState {
     Initial = "init",
@@ -36,7 +37,7 @@ enum BotState {
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 const NATURAL_TICK_RATE = 15;
-const BOT_AUTO_SURRENDER_TIME_SECONDS = 7200; // 2 hours (approx 30 mins in real game)
+const BOT_AUTO_SURRENDER_TIME_SECONDS = 600; // 7200; // 2 hours (approx 30 mins in real game)
 
 const RALLY_POINT_UPDATE_INTERVAL_TICKS = 60;
 
@@ -200,59 +201,21 @@ export class SupalosaBot extends Bot {
                     break;
                 }
                 case BotState.Attacking: {
-                    const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
                     if (!shouldAttack) {
                         this.logBotStatus(`Not worth attacking, reverting to defence.`);
+                        this.missionController.disbandMission("globalAttack");
                         this.botState = BotState.Defending;
-                    }
-                    const enemyBuildings = game.getVisibleUnits(this.name, "hostile");
-                    let foundTarget = false;
-                    if (enemyBuildings.length) {
-                        const weightedTargets = enemyBuildings
-                            .filter((unit) => this.isHostileUnit(game, unit))
-                            .map((unitId) => {
-                                let unit = game.getUnitData(unitId);
-                                return {
-                                    unit,
-                                    unitId: unitId,
-                                    weight: getDistanceBetweenPoints(myPlayer.startLocation, {
-                                        x: unit!.tile.rx,
-                                        y: unit!.tile.rx,
-                                    }),
-                                };
-                            })
-                            .filter((unit) => unit.unit != null);
-                        weightedTargets.sort((targetA, targetB) => {
-                            return targetA.weight - targetB.weight;
-                        });
-                        const target = weightedTargets.find((_) => true);
-                        if (target !== undefined) {
-                            let targetData = target.unit;
-                            for (const unitId of armyUnits) {
-                                const unit = game.getUnitData(unitId);
-                                foundTarget = true;
-                                if (shouldAttack && unit?.isIdle) {
-                                    let orderType: OrderType = OrderType.AttackMove;
-                                    if (targetData?.type == ObjectType.Building) {
-                                        orderType = OrderType.Attack;
-                                    } else if (targetData?.rules.canDisguise) {
-                                        // Special case for mirage tank/spy as otherwise they just sit next to it.
-                                        orderType = OrderType.Attack;
-                                    }
-                                    this.actionsApi.orderUnits([unitId], orderType, target.unitId);
-                                }
-                            }
-                        }
-                    }
-                    if (!foundTarget) {
-                        this.logBotStatus(`Can't see any targets, scouting.`);
-                        this.botState = BotState.Scouting;
+                    } else {
+                        const attackRadius = 15;
+                        this.missionController.addMission(
+                            new AttackMission("globalAttack", 100, mainRallyPoint, GENERAL_ATTACK, attackRadius)
+                        );
                     }
                     break;
                 }
                 case BotState.Defending: {
                     // hacky, improve this
-                    const defenceRadius = 30;
+                    const defenceRadius = 15;
                     this.missionController.addMission(
                         new DefenceMission("globalDefence", 100, mainRallyPoint, defenceRadius)
                     );

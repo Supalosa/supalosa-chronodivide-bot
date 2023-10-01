@@ -30,6 +30,10 @@ export abstract class Mission {
     getUniqueName(): string {
         return this.uniqueName;
     }
+
+    endMission(): void {
+        this.squad = null;
+    }
 }
 
 export type MissionActionNoop = {

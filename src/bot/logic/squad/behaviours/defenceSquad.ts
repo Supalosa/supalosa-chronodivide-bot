@@ -81,10 +81,8 @@ export class DefenceSquad implements SquadBehaviour {
         if (defender.name === "E1") {
             // Para (deployed weapon) range is 5.
             if (defender.canMove && distance <= 4) {
-                console.log("GI: deploying");
                 actionsApi.orderUnits([defender.id], OrderType.DeploySelected);
             } else if (!defender.canMove && distance >= 5) {
-                console.log("GI: undeploying");
                 actionsApi.orderUnits([defender.id], OrderType.DeploySelected);
             }
         }

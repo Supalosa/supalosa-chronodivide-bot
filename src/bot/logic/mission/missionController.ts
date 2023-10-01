@@ -9,6 +9,8 @@ import { missionFactories as MISSION_FACTORIES } from "./missionFactories.js";
 export class MissionController {
     private missions: Mission[] = [];
 
+    private forceDisbandedMissions: string[] = [];
+
     constructor(private logger: (message: string) => void) {}
 
     public onAiUpdate(
@@ -28,16 +30,21 @@ export class MissionController {
 
         // Handle disbands and merges.
         const isDisband = (a: MissionAction) => a.type == "disband";
-        let disbandedMissions: Set<string> = new Set();
+        let disbandedMissions: Set<string> = new Set(this.forceDisbandedMissions);
+        this.forceDisbandedMissions = [];
         missionActions
             .filter((a) => isDisband(a.action))
             .forEach((a) => {
-                this.logger(`mission disbanded: ${a.mission.getUniqueName()}`);
-                a.mission.getSquad()?.setMission(null);
                 disbandedMissions.add(a.mission.getUniqueName());
             });
 
         // Remove disbanded and merged squads.
+        this.missions
+            .filter((missions) => disbandedMissions.has(missions.getUniqueName()))
+            .forEach((disbandedMission) => {
+                this.logger(`mission disbanded: ${disbandedMission.getUniqueName()}`);
+                disbandedMission.getSquad()?.setMission(null);
+            });
         this.missions = this.missions.filter((missions) => !disbandedMissions.has(missions.getUniqueName()));
 
         // Register new squads
@@ -74,5 +81,12 @@ export class MissionController {
         }
         this.logger(`Added mission: ${mission.getUniqueName()}`);
         this.missions.push(mission);
+    }
+
+    /**
+     * Disband the provided mission on the next possible opportunity.
+     */
+    public disbandMission(missionName: string) {
+        this.forceDisbandedMissions.push(missionName);
     }
 }
