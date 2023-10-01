@@ -1,4 +1,4 @@
-import { GameApi, MapApi, PlayerData, Point2D } from "@chronodivide/game-api";
+import { GameApi, MapApi, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
 
 // Expensive one-time call to determine the size of the map.
 // The result is a point just outside the bounds of the map.
@@ -35,7 +35,7 @@ export function calculateAreaVisibility(
     mapApi: MapApi,
     playerData: PlayerData,
     startPoint: Point2D,
-    endPoint: Point2D,
+    endPoint: Point2D
 ): { visibleTiles: number; validTiles: number } {
     let validTiles: number = 0,
         visibleTiles: number = 0;
@@ -60,7 +60,7 @@ export function getPointTowardsOtherPoint(
     endLocation: Point2D,
     minRadius: number,
     maxRadius: number,
-    randomAngle: number,
+    randomAngle: number
 ): Point2D {
     let radius = minRadius + Math.round(gameApi.generateRandom() * (maxRadius - minRadius));
     let directionToSpawn = Math.atan2(endLocation.y - startLocation.y, endLocation.x - startLocation.x);
@@ -73,4 +73,12 @@ export function getPointTowardsOtherPoint(
 
 export function getDistanceBetweenPoints(startLocation: Point2D, endLocation: Point2D): number {
     return Math.sqrt((startLocation.x - endLocation.x) ** 2 + (startLocation.y - endLocation.y) ** 2);
+}
+
+export function getDistanceBetweenUnits(unit1: UnitData, unit2: UnitData): number {
+    return getDistanceBetweenPoints({ x: unit1.tile.rx, y: unit1.tile.ry }, { x: unit2.tile.rx, y: unit2.tile.ry });
+}
+
+export function getDistanceBetween(unit: UnitData, point: Point2D): number {
+    return getDistanceBetweenPoints({ x: unit.tile.rx, y: unit.tile.ry }, point);
 }

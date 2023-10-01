@@ -2,6 +2,7 @@ import { ActionsApi, GameApi, OrderType, PlayerData, SideType } from "@chronodiv
 import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squadBehaviour.js";
+import { MatchAwareness } from "../../awareness.js";
 
 const DEPLOY_COOLDOWN_TICKS = 30;
 
@@ -17,17 +18,17 @@ export class ExpansionSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        threatData: GlobalThreat | null
+        matchAwareness: MatchAwareness
     ): SquadAction {
-        let myMcvName = playerData.country?.side == SideType.GDI ? "AMCV" : "SMCV";
-        const mcvs = squad.getUnitsOfTypes(gameApi, myMcvName);
+        const mcvTypes = ["AMCV", "SMCV"];
+        const mcvs = squad.getUnitsOfTypes(gameApi, ...mcvTypes);
         if (mcvs.length === 0) {
             // Perhaps we deployed already (or the unit was destroyed), end the mission.
             if (this.hasAttemptedDeployWith !== null) {
                 return disband();
             }
             // We need an mcv!
-            return requestUnits(myMcvName, 100);
+            return requestUnits(mcvTypes, 100);
         } else if (
             !this.hasAttemptedDeployWith ||
             gameApi.getCurrentTick() > this.hasAttemptedDeployWith.gameTick + DEPLOY_COOLDOWN_TICKS

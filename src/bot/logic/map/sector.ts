@@ -10,7 +10,7 @@ export class Sector {
         public sectorStartPoint: Point2D,
         public sectorStartTile: Tile | undefined,
         public sectorVisibilityPct: number | undefined,
-        public sectorVisibilityLastCheckTick: number | undefined,
+        public sectorVisibilityLastCheckTick: number | undefined
     ) {}
 }
 
@@ -34,7 +34,7 @@ export class SectorCache {
                     { x: xx * SECTOR_SIZE, y: yy * SECTOR_SIZE },
                     mapApi.getTile(xx * SECTOR_SIZE, yy * SECTOR_SIZE),
                     undefined,
-                    undefined,
+                    undefined
                 );
             }
         }
@@ -96,7 +96,9 @@ export class SectorCache {
         return updated / total;
     }
 
-    // Return % of tiles that are visible. Returns undefined if we haven't scanned the whole map yet.
+    /**
+     * Return the ratio (0-1) of tiles that are visible. Returns undefined if we haven't scanned the whole map yet.
+     */
     public getOverallVisibility(): number | undefined {
         let visible = 0,
             total = 0;

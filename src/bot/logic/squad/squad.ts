@@ -2,6 +2,7 @@ import { ActionsApi, GameApi, PlayerData, TechnoRules, UnitData } from "@chronod
 import { Mission } from "../mission/mission.js";
 import { GlobalThreat } from "../threat/threat.js";
 import { SquadAction, SquadBehaviour } from "./squadBehaviour.js";
+import { MatchAwareness } from "../awareness.js";
 
 export enum SquadLiveness {
     SquadDead,
@@ -34,7 +35,7 @@ export class Squad {
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
-        threatData: GlobalThreat | null
+        matchAwareness: MatchAwareness
     ): SquadAction {
         this.updateLiveness(gameApi);
         if (this.mission && this.mission.isActive() == false) {
@@ -42,7 +43,7 @@ export class Squad {
             this.mission.removeSquad();
             this.mission = null;
         }
-        let outcome = this.behaviour.onAiUpdate(gameApi, actionsApi, playerData, this, threatData);
+        let outcome = this.behaviour.onAiUpdate(gameApi, actionsApi, playerData, this, matchAwareness);
         return outcome;
     }
     public getMission(): Mission | null {
@@ -71,6 +72,13 @@ export class Squad {
         return this.unitIds
             .map((unitId) => gameApi.getUnitData(unitId))
             .filter((unit) => !!unit && names.includes(unit.name))
+            .map((unit) => unit!);
+    }
+
+    public getUnitsMatching(gameApi: GameApi, filter: (r: UnitData) => boolean): UnitData[] {
+        return this.unitIds
+            .map((unitId) => gameApi.getUnitData(unitId))
+            .filter((unit) => !!unit && filter(unit))
             .map((unit) => unit!);
     }
 

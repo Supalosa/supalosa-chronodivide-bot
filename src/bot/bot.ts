@@ -23,6 +23,7 @@ import { ExpansionMission } from "./logic/mission/missions/expansionMission.js";
 import { ScoutingMission } from "./logic/mission/missions/scoutingMission.js";
 import { MatchAwareness as MatchAwareness } from "./logic/awareness.js";
 import { match } from "assert";
+import { DefenceMission } from "./logic/mission/missions/defenceMission.js";
 
 enum BotState {
     Initial = "init",
@@ -36,6 +37,8 @@ enum BotState {
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 const NATURAL_TICK_RATE = 15;
 const BOT_AUTO_SURRENDER_TIME_SECONDS = 7200; // 2 hours (approx 30 mins in real game)
+
+const RALLY_POINT_UPDATE_INTERVAL_TICKS = 60;
 
 export class SupalosaBot extends Bot {
     private botState = BotState.Initial;
@@ -83,7 +86,7 @@ export class SupalosaBot extends Bot {
             return;
         }
 
-        const { sectorCache } = this.matchAwareness;
+        const { sectorCache, mainRallyPoint } = this.matchAwareness;
         let { threatCache } = this.matchAwareness;
 
         if ((game.getCurrentTick() / NATURAL_TICK_RATE) % DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS === 0) {
@@ -165,9 +168,22 @@ export class SupalosaBot extends Bot {
             this.missionController.onAiUpdate(game, myPlayer, threatCache, this.squadController);
 
             // Squad logic.
-            this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, threatCache, (message) =>
+            this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness, (message) =>
                 this.logBotStatus(message)
             );
+
+            // Update rally point every few ticks.
+            if (game.getCurrentTick() % RALLY_POINT_UPDATE_INTERVAL_TICKS === 0) {
+                const enemy = game.getPlayerData(this.enemyPlayers[0]);
+                this.matchAwareness.mainRallyPoint = getPointTowardsOtherPoint(
+                    game,
+                    myPlayer.startLocation,
+                    enemy.startLocation,
+                    10,
+                    10,
+                    0
+                );
+            }
 
             switch (this.botState) {
                 case BotState.Initial: {
@@ -235,34 +251,11 @@ export class SupalosaBot extends Bot {
                     break;
                 }
                 case BotState.Defending: {
-                    const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
-                    const enemy = game.getPlayerData(this.enemyPlayers[0]);
-                    const fallbackPoint = getPointTowardsOtherPoint(
-                        game,
-                        myPlayer.startLocation,
-                        enemy.startLocation,
-                        10,
-                        10,
-                        0
+                    // hacky, improve this
+                    const defenceRadius = 30;
+                    this.missionController.addMission(
+                        new DefenceMission("globalDefence", 100, mainRallyPoint, defenceRadius)
                     );
-
-                    armyUnits.forEach((armyUnitId) => {
-                        let unit = game.getUnitData(armyUnitId);
-                        if (unit && !unit.guardMode) {
-                            let distanceToFallback = getDistanceBetweenPoints(
-                                { x: unit.tile.rx, y: unit.tile.ry },
-                                fallbackPoint
-                            );
-                            if (distanceToFallback > 10) {
-                                this.actionsApi.orderUnits(
-                                    [armyUnitId],
-                                    OrderType.GuardArea,
-                                    fallbackPoint.x,
-                                    fallbackPoint.y
-                                );
-                            }
-                        }
-                    });
                     if (shouldAttack) {
                         this.logBotStatus(`Finished defending, ready to attack.`);
                         this.botState = BotState.Attacking;

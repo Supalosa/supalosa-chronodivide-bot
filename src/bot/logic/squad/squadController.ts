@@ -1,9 +1,17 @@
 // Meta-controller for forming and controlling squads.
 
-import { ActionsApi, GameApi, PlayerData } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, PlayerData, UnitData } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { Squad, SquadLiveness } from "./squad.js";
-import { SquadAction, SquadActionDisband, SquadActionMergeInto, SquadActionRequestUnits } from "./squadBehaviour.js";
+import {
+    SquadAction,
+    SquadActionDisband,
+    SquadActionGrabFreeCombatants,
+    SquadActionMergeInto,
+    SquadActionRequestUnits,
+} from "./squadBehaviour.js";
+import { MatchAwareness } from "../awareness.js";
+import { getDistanceBetween } from "../map/map.js";
 
 type SquadWithAction<T> = {
     squad: Squad;
@@ -20,7 +28,7 @@ export class SquadController {
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
-        threatData: GlobalThreat | null,
+        matchAwareness: MatchAwareness,
         logger: (message: string) => void
     ) {
         // Remove dead squads.
@@ -42,7 +50,7 @@ export class SquadController {
         const squadActions: SquadWithAction<SquadAction>[] = this.squads.map((squad) => {
             return {
                 squad,
-                action: squad.onAiUpdate(gameApi, actionsApi, playerData, threatData),
+                action: squad.onAiUpdate(gameApi, actionsApi, playerData, matchAwareness),
             };
         });
         // Handle disbands and merges.
@@ -82,16 +90,23 @@ export class SquadController {
             .filter((a) => isRequest(a.action))
             .reduce((prev, a) => {
                 const squadWithAction = a as SquadWithAction<SquadActionRequestUnits>;
-                const { unitName } = squadWithAction.action;
-                if (prev.hasOwnProperty(unitName)) {
-                    if (prev[unitName].action.priority > prev[unitName].action.priority) {
+                const { unitNames } = squadWithAction.action;
+                unitNames.forEach((unitName) => {
+                    if (prev.hasOwnProperty(unitName)) {
+                        if (prev[unitName].action.priority > prev[unitName].action.priority) {
+                            prev[unitName] = squadWithAction;
+                        }
+                    } else {
                         prev[unitName] = squadWithAction;
                     }
-                } else {
-                    prev[unitName] = squadWithAction;
-                }
+                });
                 return prev;
             }, {} as Record<string, SquadWithAction<SquadActionRequestUnits>>);
+
+        const isGrab = (a: SquadAction) => a.type == "requestCombatants";
+        const grabRequests = squadActions.filter((a) =>
+            isGrab(a.action)
+        ) as SquadWithAction<SquadActionGrabFreeCombatants>[];
 
         // Find loose units
         const unitIds = gameApi.getVisibleUnits(playerData.name, "self");
@@ -103,11 +118,32 @@ export class SquadController {
             if (unitTypeToHighestRequest.hasOwnProperty(freeUnit.name)) {
                 const { squad: requestingSquad } = unitTypeToHighestRequest[freeUnit.name];
                 logger(`granting unit ${freeUnit.id}#${freeUnit.name} to squad ${requestingSquad.getName()}`);
-                requestingSquad.addUnit(freeUnit.id);
-                this.unitIdToSquad.set(freeUnit.id, requestingSquad);
+                this.addUnitToSquad(requestingSquad, freeUnit);
                 delete unitTypeToHighestRequest[freeUnit.name];
+            } else if (grabRequests.length > 0) {
+                grabRequests.some((request) => {
+                    const { squad: requestingSquad } = request;
+                    if (getDistanceBetween(freeUnit, request.action.point) < request.action.radius) {
+                        logger(
+                            `granting unit ${freeUnit.id}#${
+                                freeUnit.name
+                            } to squad ${requestingSquad.getName()} via grab at ${request.action.point.x},${
+                                request.action.point.y
+                            }`
+                        );
+                        this.addUnitToSquad(requestingSquad, freeUnit);
+                        return true;
+                    } else {
+                        return false;
+                    }
+                });
             }
         });
+    }
+
+    private addUnitToSquad(squad: Squad, unit: UnitData) {
+        squad.addUnit(unit.id);
+        this.unitIdToSquad.set(unit.id, squad);
     }
 
     public registerSquad(squad: Squad) {

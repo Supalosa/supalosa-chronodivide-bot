@@ -2,6 +2,7 @@ import { ActionsApi, GameApi, OrderType, PlayerData, Point2D, SideType } from "@
 import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squadBehaviour.js";
+import { MatchAwareness } from "../../awareness.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -16,15 +17,18 @@ export class ScoutingSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        threatData: GlobalThreat | null
+        matchAwareness: MatchAwareness
     ): SquadAction {
-        // Use any of these as scouts, but only request dogs to be trained as scouts.
         const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
-        let dogName = playerData.country?.side == SideType.GDI ? "ADOG" : "DOG";
         const scouts = squad.getUnitsOfTypes(gameApi, ...scoutNames);
+
+        if ((matchAwareness.sectorCache.getOverallVisibility() || 0) > 0.9) {
+            return disband();
+        }
+
         if (scouts.length === 0) {
             this.scoutingWith = null;
-            return requestUnits(dogName, 100);
+            return requestUnits(scoutNames, 100);
         } else if (
             !this.scoutingWith ||
             gameApi.getCurrentTick() > this.scoutingWith.gameTick + SCOUT_MOVE_COOLDOWN_TICKS
@@ -51,10 +55,6 @@ export class ScoutingSquad implements SquadBehaviour {
                 }
             });
 
-            actionsApi.orderUnits(
-                scouts.map((mcv) => mcv.id),
-                OrderType.DeploySelected
-            );
             // Add a cooldown to scout attempts.
             this.scoutingWith = {
                 unitId: scouts[0].id,
