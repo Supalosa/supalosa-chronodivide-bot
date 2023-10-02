@@ -2,7 +2,7 @@
 
 import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
-import { Mission, MissionAction, MissionActionRegisterSquad } from "./mission.js";
+import { Mission, MissionAction, MissionActionDisband, MissionActionRegisterSquad } from "./mission.js";
 import { SquadController } from "../squad/squadController.js";
 import { missionFactories as MISSION_FACTORIES } from "./missionFactories.js";
 
@@ -30,12 +30,13 @@ export class MissionController {
 
         // Handle disbands and merges.
         const isDisband = (a: MissionAction) => a.type == "disband";
-        let disbandedMissions: Set<string> = new Set(this.forceDisbandedMissions);
+        let disbandedMissions: Map<string, any> = new Map();
+        this.forceDisbandedMissions.forEach((name) => disbandedMissions.set(name, null));
         this.forceDisbandedMissions = [];
         missionActions
             .filter((a) => isDisband(a.action))
             .forEach((a) => {
-                disbandedMissions.add(a.mission.getUniqueName());
+                disbandedMissions.set(a.mission.getUniqueName(), (a.action as MissionActionDisband).reason);
             });
 
         // Remove disbanded and merged squads.
@@ -44,6 +45,7 @@ export class MissionController {
             .forEach((disbandedMission) => {
                 this.logger(`mission disbanded: ${disbandedMission.getUniqueName()}`);
                 disbandedMission.getSquad()?.setMission(null);
+                disbandedMission.endMission(disbandedMissions.get(disbandedMission.getUniqueName()));
             });
         this.missions = this.missions.filter((missions) => !disbandedMissions.has(missions.getUniqueName()));
 
@@ -74,13 +76,14 @@ export class MissionController {
         });
     }
 
-    public addMission(mission: Mission) {
+    public addMission(mission: Mission) : Mission | null {
         if (this.missions.some((m) => m.getUniqueName() === mission.getUniqueName())) {
             // reject non-unique mission names
-            return;
+            return null;
         }
         this.logger(`Added mission: ${mission.getUniqueName()}`);
         this.missions.push(mission);
+        return mission;
     }
 
     /**

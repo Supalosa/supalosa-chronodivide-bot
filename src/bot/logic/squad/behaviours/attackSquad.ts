@@ -36,6 +36,10 @@ export class AttackSquad implements SquadBehaviour {
         return unitData.owner != playerData.name && game.getPlayerData(unitData.owner)?.isCombatant;
     }
 
+    public setAttackArea(attackArea: AttackTarget) {
+        this.attackArea = attackArea;
+    }
+
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
@@ -45,7 +49,7 @@ export class AttackSquad implements SquadBehaviour {
     ): SquadAction {
         const defenders = squad.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
         const enemyUnits = gameApi.getVisibleUnits(playerData.name, "hostile", (r) => r.isSelectableCombatant);
-        let foundTarget = false;
+
         if (enemyUnits.length > 0) {
             const weightedTargets = enemyUnits
                 // TODO is this necessary?
@@ -68,17 +72,12 @@ export class AttackSquad implements SquadBehaviour {
             const target = weightedTargets.find((_) => true);
             if (target !== undefined) {
                 for (const defender of defenders) {
-                    foundTarget = true;
                     if (defender.isIdle) {
                         const distance = getDistanceBetweenUnits(defender, target.unit);
                         this.manageMicro(actionsApi, defender, target.unit, distance);
                     }
                 }
             }
-        }
-        if (!foundTarget) {
-            console.log(`Can't see any targets, disbanding attack.`);
-            return disband();
         }
         return grabCombatants(this.rallyArea, this.radius * GRAB_RADIUS);
     }

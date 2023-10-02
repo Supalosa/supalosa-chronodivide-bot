@@ -49,7 +49,7 @@ const REPAIR_HITPOINTS_RATIO = 0.9;
 // Don't repair buildings more often than this.
 const REPAIR_COOLDOWN_TICKS = 15;
 
-const DEBUG_BUILD_QUEUES = true;
+const DEBUG_BUILD_QUEUES = false;
 
 export class QueueController {
     constructor() {}

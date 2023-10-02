@@ -1,7 +1,7 @@
 import { ActionsApi, GameApi, PlayerData, TechnoRules, UnitData } from "@chronodivide/game-api";
 import { Mission } from "../mission/mission.js";
 import { GlobalThreat } from "../threat/threat.js";
-import { SquadAction, SquadBehaviour } from "./squadBehaviour.js";
+import { SquadAction, SquadBehaviour, disband } from "./squadBehaviour.js";
 import { MatchAwareness } from "../awareness.js";
 
 export enum SquadLiveness {
@@ -42,6 +42,10 @@ export class Squad {
             // Orphaned squad, might get picked up later.
             this.mission.removeSquad();
             this.mission = null;
+            return disband();
+        } else if (!this.mission) {
+            console.log(`squad ${this.name} - disbanding because mission is inactive`)
+            return disband();
         }
         let outcome = this.behaviour.onAiUpdate(gameApi, actionsApi, playerData, this, matchAwareness);
         return outcome;

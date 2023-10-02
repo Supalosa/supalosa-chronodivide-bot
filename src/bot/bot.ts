@@ -24,7 +24,7 @@ import { ScoutingMission } from "./logic/mission/missions/scoutingMission.js";
 import { MatchAwareness as MatchAwareness } from "./logic/awareness.js";
 import { match } from "assert";
 import { DefenceMission } from "./logic/mission/missions/defenceMission.js";
-import { AttackMission, GeneralAttack as GENERAL_ATTACK } from "./logic/mission/missions/attackMission.js";
+import { AttackFailReason, AttackMission, GeneralAttack as GENERAL_ATTACK } from "./logic/mission/missions/attackMission.js";
 
 enum BotState {
     Initial = "init",
@@ -37,7 +37,7 @@ enum BotState {
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 const NATURAL_TICK_RATE = 15;
-const BOT_AUTO_SURRENDER_TIME_SECONDS = 600; // 7200; // 2 hours (approx 30 mins in real game)
+const BOT_AUTO_SURRENDER_TIME_SECONDS = 3600; // 7200; // 2 hours (approx 30 mins in real game)
 
 const RALLY_POINT_UPDATE_INTERVAL_TICKS = 60;
 
@@ -197,7 +197,7 @@ export class SupalosaBot extends Bot {
                     break;
                 }
                 case BotState.Deployed: {
-                    this.botState = BotState.Attacking;
+                    this.botState = BotState.Scouting;
                     break;
                 }
                 case BotState.Attacking: {
@@ -209,7 +209,18 @@ export class SupalosaBot extends Bot {
                         const attackRadius = 15;
                         this.missionController.addMission(
                             new AttackMission("globalAttack", 100, mainRallyPoint, GENERAL_ATTACK, attackRadius)
-                        );
+                        )?.then((reason, squad) => {
+                            this.logBotStatus(`Attack ended, reason ${reason} ${squad?.getName()}`)
+                            if (squad) {
+                                const units = squad.getUnits(game).map((unit) => unit.id);
+                                this.actionsApi.orderUnits(units, OrderType.Move, mainRallyPoint.x, mainRallyPoint.y);
+                            }
+                            if (reason === AttackFailReason.NoTargets) {
+                                this.botState = BotState.Scouting;
+                            } else {
+                                this.botState = BotState.Defending;
+                            }
+                        });
                     }
                     break;
                 }

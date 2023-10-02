@@ -31,7 +31,7 @@ export class SquadController {
         matchAwareness: MatchAwareness,
         logger: (message: string) => void
     ) {
-        // Remove dead squads.
+        // Remove dead squads or those where the mission is dead.
         this.squads = this.squads.filter((squad) => squad.getLiveness() !== SquadLiveness.SquadDead);
         this.squads.sort((a, b) => a.getName().localeCompare(b.getName()));
 
