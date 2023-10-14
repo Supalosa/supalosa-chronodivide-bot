@@ -24,7 +24,7 @@ export class Squad {
         private name: string,
         private behaviour: SquadBehaviour,
         private mission: Mission<any> | null,
-        private killable = false
+        private killable = false,
     ) {}
 
     public getName(): string {
@@ -35,7 +35,7 @@ export class Squad {
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
-        matchAwareness: MatchAwareness
+        matchAwareness: MatchAwareness,
     ): SquadAction {
         this.updateLiveness(gameApi);
         if (this.mission && this.mission.isActive() == false) {
@@ -87,10 +87,6 @@ export class Squad {
 
     public removeUnit(unitIdToRemove: number): void {
         this.unitIds = this.unitIds.filter((unitId) => unitId != unitIdToRemove);
-    }
-
-    public clearUnits(): void {
-        this.unitIds = [];
     }
 
     public addUnit(unitIdToAdd: number): void {

@@ -109,13 +109,17 @@ export class SupalosaBot extends Bot {
                 (message) => this.logBotStatus(message)
             );
 
-            // Mission logic.
-            this.missionController.onAiUpdate(game, myPlayer, this.matchAwareness, this.squadController);
+            // Mission logic every 6 ticks
+            if (this.gameApi.getCurrentTick() % 6 === 0) {
+                this.missionController.onAiUpdate(game, myPlayer, this.matchAwareness, this.squadController);
+            }
 
-            // Squad logic.
-            this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness, (message) =>
-                this.logBotStatus(message)
-            );
+            // Squad logic every 3 ticks
+            if (this.gameApi.getCurrentTick() % 3 === 0) {
+                this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness, (message) =>
+                    this.logBotStatus(message)
+                );
+            }
         }
     }
 

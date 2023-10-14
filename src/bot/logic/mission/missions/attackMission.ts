@@ -9,10 +9,11 @@ import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { match } from "assert";
+import { RetreatMission } from "./retreatMission.js";
 
 export type AttackTarget = Point2D | null;
 
-export const GeneralAttack: AttackTarget = null;
+export const GENERAL_ATTACK: AttackTarget = null;
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -32,7 +33,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         priority: number,
         private rallyArea: Point2D,
         private attackArea: AttackTarget,
-        private radius: number
+        private radius: number,
     ) {
         super(uniqueName, priority);
     }
@@ -49,7 +50,7 @@ export class AttackMission extends Mission<AttackFailReason> {
     onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction {
         if (this.getSquad() === null) {
             return this.setSquad(
-                new Squad(this.getUniqueName(), new AttackSquad(this.rallyArea, this.attackArea, this.radius), this)
+                new Squad(this.getUniqueName(), new AttackSquad(this.rallyArea, this.attackArea, this.radius), this),
             );
         } else {
             // Dispatch missions.
@@ -84,7 +85,7 @@ export class AttackMissionFactory implements MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        missionController: MissionController
+        missionController: MissionController,
     ): void {
         if (!matchAwareness.shouldAttack()) {
             return;
@@ -94,10 +95,15 @@ export class AttackMissionFactory implements MissionFactory {
         }
 
         const attackRadius = 15;
+        // TODO: not using a fixed value here. But performance slows to a crawl when this is unique.
+        const squadName = "globalAttack";
 
-        const tryAttack = missionController.addMission(new AttackMission("globalAttack", 100, matchAwareness.getMainRallyPoint(), GeneralAttack, attackRadius))
+        const tryAttack = missionController
+            .addMission(
+                new AttackMission(squadName, 100, matchAwareness.getMainRallyPoint(), GENERAL_ATTACK, attackRadius),
+            )
             ?.then((reason, squad) => {
-                // TODO: create a "retreat" mission for the squad
+                missionController.addMission(new RetreatMission("retreat-from-" + squadName, 100, matchAwareness.getMainRallyPoint(), squad?.getUnitIds() ?? []));
             });
         if (tryAttack) {
             this.lastAttackAt = gameApi.getCurrentTick();
@@ -111,6 +117,5 @@ export class AttackMissionFactory implements MissionFactory {
         failedMission: Mission,
         failureReason: any,
         missionController: MissionController,
-    ): void {
-    }
+    ): void {}
 }

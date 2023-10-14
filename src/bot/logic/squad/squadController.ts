@@ -66,7 +66,6 @@ export class SquadController {
                 a.squad.getUnitIds().forEach((unitId) => {
                     this.unitIdToSquad.delete(unitId);
                 });
-                a.squad.clearUnits();
                 disbandedSquads.add(a.squad.getName());
             });
         squadActions
@@ -161,7 +160,7 @@ export class SquadController {
                     const { squad: requestingSquad } = request;
                     if (
                         freeUnit.rules.isSelectableCombatant &&
-                        getDistanceBetween(freeUnit, request.action.point) < request.action.radius
+                        getDistanceBetween(freeUnit, request.action.point) <= request.action.radius
                     ) {
                         logger(
                             `granting unit ${freeUnit.id}#${

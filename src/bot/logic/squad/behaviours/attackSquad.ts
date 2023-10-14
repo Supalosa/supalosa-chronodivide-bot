@@ -20,7 +20,7 @@ import { AttackTarget } from "../../mission/missions/attackMission.js";
 const IDLE_CHECK_RADIUS_RATIO = 2;
 const IDLE_COOLDOWN_TICKS = 15 * 30;
 
-const GRAB_RADIUS = 4;
+const GRAB_RADIUS = 30;
 
 export class AttackSquad implements SquadBehaviour {
     private lastIdleCheck: number | null = null;
@@ -47,13 +47,13 @@ export class AttackSquad implements SquadBehaviour {
         squad: Squad,
         matchAwareness: MatchAwareness
     ): SquadAction {
-        const defenders = squad.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
+        const units = squad.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
         const enemyUnits = gameApi.getVisibleUnits(playerData.name, "hostile", (r) => r.isSelectableCombatant);
 
         if (enemyUnits.length > 0) {
             const weightedTargets = enemyUnits
                 // TODO is this necessary?
-                .filter((unit) => this.isHostileUnit(gameApi, unit, playerData))
+                //.filter((unit) => this.isHostileUnit(gameApi, unit, playerData))
                 .map((unitId) => {
                     let unit = gameApi.getUnitData(unitId);
                     return {
@@ -71,12 +71,14 @@ export class AttackSquad implements SquadBehaviour {
             });
             const target = weightedTargets.find((_) => true);
             if (target !== undefined) {
-                for (const defender of defenders) {
+                for (const defender of units) {
                     if (defender.isIdle) {
                         const distance = getDistanceBetweenUnits(defender, target.unit);
                         this.manageMicro(actionsApi, defender, target.unit, distance);
                     }
                 }
+            } else if (this.attackArea) {
+                actionsApi.orderUnits(units.map((unit) => unit.id), OrderType.AttackMove, this.attackArea.x, this.attackArea.y);
             }
         }
         return grabCombatants(this.rallyArea, this.radius * GRAB_RADIUS);
@@ -88,10 +90,11 @@ export class AttackSquad implements SquadBehaviour {
             // Para (deployed weapon) range is 5.
             if (defender.canMove && distance <= 4) {
                 actionsApi.orderUnits([defender.id], OrderType.DeploySelected);
+                return;
             } else if (!defender.canMove && distance >= 5) {
                 actionsApi.orderUnits([defender.id], OrderType.DeploySelected);
+                return;
             }
-            return;
         }
         let targetData = target;
         let orderType: OrderType = OrderType.AttackMove;
