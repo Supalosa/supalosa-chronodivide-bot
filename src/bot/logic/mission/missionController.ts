@@ -5,6 +5,7 @@ import { GlobalThreat } from "../threat/threat.js";
 import { Mission, MissionAction, MissionActionDisband, MissionActionRegisterSquad } from "./mission.js";
 import { SquadController } from "../squad/squadController.js";
 import { missionFactories as MISSION_FACTORIES } from "./missionFactories.js";
+import { MatchAwareness } from "../awareness.js";
 
 export class MissionController {
     private missions: Mission[] = [];
@@ -16,16 +17,17 @@ export class MissionController {
     public onAiUpdate(
         gameApi: GameApi,
         playerData: PlayerData,
-        threatData: GlobalThreat | null,
-        squadController: SquadController
+        matchAwareness: MatchAwareness,
+        squadController: SquadController,
     ) {
+        const { threatCache } = matchAwareness;
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
 
         // Poll missions for requested actions.
         let missionActions = this.missions.map((mission) => ({
             mission,
-            action: mission.onAiUpdate(gameApi, playerData, threatData),
+            action: mission.onAiUpdate(gameApi, playerData, threatCache),
         }));
 
         // Handle disbands and merges.
@@ -60,19 +62,19 @@ export class MissionController {
             });
 
         // Create dynamic missions.
-        let missionNames: Set<String> = new Set();
+        const missionNames: Set<String> = new Set();
         this.missions.forEach((mission) => missionNames.add(mission.getUniqueName()));
         MISSION_FACTORIES.forEach((missionFactory) => {
-            let maybeMission = missionFactory.maybeCreateMission(gameApi, playerData, threatData, this.missions);
-            if (maybeMission) {
-                if (!missionNames.has(maybeMission.getUniqueName())) {
-                    this.logger(`Starting new mission ${maybeMission.getUniqueName()}.`);
-                    this.missions.push(maybeMission);
-                    missionNames.add(maybeMission.getUniqueName());
+            const maybeMissions = missionFactory.maybeCreateMission(gameApi, playerData, matchAwareness, this.missions);
+            maybeMissions.forEach((newMission) => {
+                if (!missionNames.has(newMission.getUniqueName())) {
+                    this.logger(`Starting new mission ${newMission.getUniqueName()}.`);
+                    this.missions.push(newMission);
+                    missionNames.add(newMission.getUniqueName());
                 } else {
                     //this.logger(`Rejecting new mission ${maybeMission.getUniqueName()} as another mission exists.`);
                 }
-            }
+            });
         });
     }
 

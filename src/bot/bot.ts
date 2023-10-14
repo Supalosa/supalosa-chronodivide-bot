@@ -22,7 +22,6 @@ import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queue
 import { ExpansionMission } from "./logic/mission/missions/expansionMission.js";
 import { ScoutingMission } from "./logic/mission/missions/scoutingMission.js";
 import { MatchAwareness as MatchAwareness } from "./logic/awareness.js";
-import { match } from "assert";
 import { DefenceMission } from "./logic/mission/missions/defenceMission.js";
 import { AttackFailReason, AttackMission, GeneralAttack as GENERAL_ATTACK } from "./logic/mission/missions/attackMission.js";
 
@@ -166,7 +165,7 @@ export class SupalosaBot extends Bot {
             );
 
             // Mission logic.
-            this.missionController.onAiUpdate(game, myPlayer, threatCache, this.squadController);
+            this.missionController.onAiUpdate(game, myPlayer, this.matchAwareness, this.squadController);
 
             // Squad logic.
             this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness, (message) =>
@@ -186,9 +185,11 @@ export class SupalosaBot extends Bot {
                 );
             }
 
+            // Dispatch missions.
+
+            // TODO: remove this switch.
             switch (this.botState) {
                 case BotState.Initial: {
-                    this.missionController.addMission(new ExpansionMission("initialExpand", 100));
                     let conYards = game.getVisibleUnits(this.name, "self", (r) => r.constructionYard);
                     if (conYards.length) {
                         this.botState = BotState.Deployed;

@@ -1,4 +1,4 @@
-# Supalosa's Chrono Divine Bot
+# Supalosa's Chrono Divide Bot
 
 [Chrono Divide](https://chronodivide.com/) is a ground-up rebuild of Red Alert 2 in the browser. It is feature-complete and allows for online skirmish play against other players.
 It also provides [an API to build bots](https://discord.com/channels/771701199812558848/842700851520339988), as there is no built-in AI yet.
@@ -40,7 +40,26 @@ Contact the developer of Chrono Divide for details if you are seriously interest
 npx cross-env MIX_DIR="C:\path_to_ra2_install_dir" NODE_OPTIONS="--inspect" npm start
 ```
 
-# G:\Origin\Ra2_YurisRevenge\Command and Conquer Red Alert II
+# ignore me
 
-npx cross-env MIX_DIR="G:\Origin\Ra2_YurisRevenge\Command and Conquer Red Alert II" npm start
-npx cross-env MIX_DIR="G:\Origin\Ra2_YurisRevenge\Command and Conquer Red Alert II" NODE_OPTIONS="--inspect" npm start
+export GAMEPATH="G:\Origin\Ra2_YurisRevenge\Command and Conquer Red Alert II"
+
+export GAMEPATH="D:\EA Games\Command and Conquer Red Alert II"
+
+---
+
+npx cross-env MIX_DIR="${GAMEPATH}" npm start
+npx cross-env MIX_DIR="${GAMEPATH}" NODE_OPTIONS="--inspect" npm start
+
+---
+
+ladder maps: https://github.com/chronodivide/pvpgn-server/blob/26bbbe39613751cff696a73f087ce5b4cd938fc8/conf/bnmaps.conf.in#L321-L328
+
+CDR2            1v1             2_malibu_cliffs_le.map
+CDR2            1v1             4_country_swing_le_v2.map
+CDR2            1v1             mp01t4.map
+CDR2            1v1             tn04t2.map
+CDR2            1v1             mp10s4.map
+CDR2            1v1             heckcorners.map
+CDR2            1v1             4_montana_dmz_le.map
+CDR2            1v1             barrel.map

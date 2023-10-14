@@ -18,6 +18,11 @@ export type SquadActionRequestUnits = {
     unitNames: string[];
     priority: number;
 };
+export type SquadActionRequestSpecificUnits = {
+    type: "requestSpecific";
+    unitIds: number[];
+    priority: number;
+};
 export type SquadActionGrabFreeCombatants = {
     type: "requestCombatants";
     point: Point2D;
@@ -31,6 +36,9 @@ export const disband = () => ({ type: "disband" } as SquadActionDisband);
 export const requestUnits = (unitNames: string[], priority: number) =>
     ({ type: "request", unitNames, priority } as SquadActionRequestUnits);
 
+export const requestSpecificUnits = (unitIds: number[], priority: number) =>
+    ({ type: "requestSpecific", unitIds, priority } as SquadActionRequestSpecificUnits);
+
 export const grabCombatants = (point: Point2D, radius: number) =>
     ({ type: "requestCombatants", point, radius } as SquadActionGrabFreeCombatants);
 
@@ -39,6 +47,7 @@ export type SquadAction =
     | SquadActionDisband
     | SquadActionMergeInto
     | SquadActionRequestUnits
+    | SquadActionRequestSpecificUnits
     | SquadActionGrabFreeCombatants;
 
 export interface SquadBehaviour {
