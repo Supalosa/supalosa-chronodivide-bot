@@ -21,14 +21,13 @@ export class MissionController {
         matchAwareness: MatchAwareness,
         squadController: SquadController
     ) {
-        const { threatCache } = matchAwareness;
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
 
         // Poll missions for requested actions.
         const missionActions = this.missions.map((mission) => ({
             mission,
-            action: mission.onAiUpdate(gameApi, playerData, threatCache),
+            action: mission.onAiUpdate(gameApi, playerData, matchAwareness),
         }));
 
         // Handle disbands and merges.
@@ -66,48 +65,32 @@ export class MissionController {
             });
 
         // Create dynamic missions.
-        const missionNames: Set<String> = new Set();
-        this.missions.forEach((mission) => missionNames.add(mission.getUniqueName()));
         MISSION_FACTORIES.forEach((missionFactory) => {
-            const maybeMissions = missionFactory.maybeCreateMissions(
+            missionFactory.maybeCreateMissions(
                 gameApi,
                 playerData,
                 matchAwareness,
-                this.missions
+                this
             );
-            maybeMissions.forEach((newMission) => {
-                if (!missionNames.has(newMission.getUniqueName())) {
-                    this.logger(`Starting new mission ${newMission.getUniqueName()}.`);
-                    this.missions.push(newMission);
-                    missionNames.add(newMission.getUniqueName());
-                } else {
-                    this.logger(
-                        `Rejecting new mission ${newMission.getUniqueName()} as another mission exists with that name.`
-                    );
-                }
-            });
             disbandedMissionsArray.forEach(({ reason, mission }) => {
-                const newMissions = missionFactory.onMissionFailed(
+                missionFactory.onMissionFailed(
                     gameApi,
                     playerData,
                     matchAwareness,
                     mission,
-                    reason
+                    reason,
+                    this
                 );
-                newMissions.forEach((newMission) => {
-                    if (!missionNames.has(newMission.getUniqueName())) {
-                        this.logger(
-                            `Starting new mission ${newMission.getUniqueName()} because ${mission.getUniqueName()} failed for reason ${reason}`
-                        );
-                        this.missions.push(newMission);
-                        missionNames.add(newMission.getUniqueName());
-                    }
-                });
             });
         });
     }
 
-    public addMission<T>(mission: Mission<T>): Mission<T> | null {
+    /**
+     * Attempts to add a mission to the active set.
+     * @param mission 
+     * @returns The mission if it was accepted, or null if it was not.
+     */
+    public addMission<T>(mission: Mission<T | any>): Mission<T> | null {
         if (this.missions.some((m) => m.getUniqueName() === mission.getUniqueName())) {
             // reject non-unique mission names
             return null;
@@ -125,6 +108,6 @@ export class MissionController {
     }
 
     public logDebugOutput() {
-        this.logger(`Missions (${this.missions.length}): ${this.missions.join(", ")}`);
+        this.logger(`Missions (${this.missions.length}): ${this.missions.map((m) => m.getUniqueName()).join(", ")}`);
     }
 }

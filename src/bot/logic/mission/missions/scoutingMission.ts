@@ -5,7 +5,7 @@ import { OneTimeMission } from "./oneTimeMission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { Mission } from "../mission.js";
 import { AttackMission } from "./attackMission.js";
-import { Squad } from "../../squad/squad.js";
+import { MissionController } from "../missionController.js";
 
 /**
  * A mission that tries to scout around the map with a cheap, fast unit (usually attack dogs)
@@ -18,21 +18,25 @@ export class ScoutingMission extends OneTimeMission {
 
 const SCOUT_COOLDOWN_TICKS = 300;
 
-export class ScoutingMissionFactory implements MissionFactory<ScoutingMission> {
+export class ScoutingMissionFactory implements MissionFactory {
     constructor(private lastScoutAt: number = -SCOUT_COOLDOWN_TICKS) {}
+
+    getName(): string {
+        return "ScoutingMissionFactory";
+    }
 
     maybeCreateMissions(
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        existingMissions: Mission[]
-    ): ScoutingMission[] {
+        missionController: MissionController,
+    ): void {
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
-            return [];
+            return;
         }
-        this.lastScoutAt = gameApi.getCurrentTick();
-        console.log("create scouting mission!");
-        return [new ScoutingMission("globalScout", 100)];
+        if (!missionController.addMission(new ScoutingMission("globalScout", 100))) {
+            this.lastScoutAt = gameApi.getCurrentTick();
+        }
     }
 
     onMissionFailed(
@@ -40,11 +44,11 @@ export class ScoutingMissionFactory implements MissionFactory<ScoutingMission> {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         failedMission: Mission,
-        failureReason: any
-    ): ScoutingMission[] {
+        failureReason: undefined,
+        missionController: MissionController,
+    ): void {
         if (failedMission instanceof AttackMission) {
-            return [new ScoutingMission("globalScout", 100)];
+            missionController.addMission(new ScoutingMission("globalScout", 100));
         }
-        return [];
     }
 }

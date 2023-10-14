@@ -6,6 +6,7 @@ import { MissionFactory } from "../missionFactories.js";
 import { OneTimeMission } from "./oneTimeMission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { AttackFailReason, AttackMission } from "./attackMission.js";
+import { MissionController } from "../missionController.js";
 
 /**
  * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.
@@ -16,19 +17,23 @@ export class ExpansionMission extends OneTimeMission {
     }
 }
 
-export class ExpansionMissionFactory implements MissionFactory<ExpansionMission> {
+export class ExpansionMissionFactory implements MissionFactory {
+    getName(): string {
+        return "ExpansionMissionFactory";
+    }
+
     maybeCreateMissions(
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        existingMissions: Mission[]
-    ): ExpansionMission[] {
+        missionController: MissionController,
+    ): void {
         // At this point, only expand if we have a loose MCV.
         const mcvs = gameApi.getVisibleUnits(playerData.name, "self", (r) =>
             gameApi.getGeneralRules().baseUnit.includes(r.name)
         );
-        return mcvs.map((mcv) => {
-            return new ExpansionMission("expand-with-" + mcv, 100, mcv);
+        mcvs.forEach((mcv) => {
+            missionController.addMission(new ExpansionMission("expand-with-" + mcv, 100, mcv));
         });
     }
 
@@ -37,8 +42,8 @@ export class ExpansionMissionFactory implements MissionFactory<ExpansionMission>
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         failedMission: Mission,
-        failureReason: undefined
-    ): ExpansionMission[] {
-        return [];
+        failureReason: undefined,
+        missionController: MissionController,
+    ): void {
     }
 }

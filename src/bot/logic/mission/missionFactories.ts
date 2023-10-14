@@ -5,23 +5,26 @@ import { Mission } from "./mission.js";
 import { MatchAwareness } from "../awareness.js";
 import { ScoutingMissionFactory } from "./missions/scoutingMission.js";
 import { AttackMissionFactory } from "./missions/attackMission.js";
+import { MissionController } from "./missionController.js";
 
-export interface MissionFactory<T extends Mission<any>> {
+export interface MissionFactory {
+
+    getName(): string;
+
     /**
      * Queries the factory for new missions to be spawned.
      *
      * @param gameApi
      * @param playerData
      * @param matchAwareness
-     * @param existingMissions
-     * @return array of missions that were created by the factory, or an empty array if there are no new missions to create.
+     * @param missionController
      */
     maybeCreateMissions(
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        existingMissions: Mission[]
-    ): T[];
+        missionController: MissionController
+    ): void;
 
     /**
      * Called when any mission fails - can be used to trigger another mission in response.
@@ -31,8 +34,9 @@ export interface MissionFactory<T extends Mission<any>> {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         failedMission: Mission,
-        failureReason: any
-    ): T[];
+        failureReason: any,
+        missionController: MissionController
+    ): void;
 }
 
 export const missionFactories = [

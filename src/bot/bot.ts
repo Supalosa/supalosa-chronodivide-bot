@@ -12,42 +12,19 @@ import {
 
 import { Duration } from "luxon";
 
-import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "./logic/map/map.js";
+import { determineMapBounds } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
 import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
-import { GlobalThreat } from "./logic/threat/threat.js";
-import { calculateGlobalThreat } from "./logic/threat/threatCalculator.js";
 import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
-import { ExpansionMission } from "./logic/mission/missions/expansionMission.js";
-import { ScoutingMission } from "./logic/mission/missions/scoutingMission.js";
-import { MatchAwareness as MatchAwareness } from "./logic/awareness.js";
-import { DefenceMission } from "./logic/mission/missions/defenceMission.js";
-import {
-    AttackFailReason,
-    AttackMission,
-    GeneralAttack as GENERAL_ATTACK,
-} from "./logic/mission/missions/attackMission.js";
-
-enum BotState {
-    Initial = "init",
-    Deployed = "deployed",
-    Attacking = "attack",
-    Defending = "defend",
-    Scouting = "scout",
-    Defeated = "defeat",
-}
+import { MatchAwareness as MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 const NATURAL_TICK_RATE = 15;
 const BOT_AUTO_SURRENDER_TIME_SECONDS = 3600; // 7200; // 2 hours (approx 30 mins in real game)
 
-const RALLY_POINT_UPDATE_INTERVAL_TICKS = 60;
-
 export class SupalosaBot extends Bot {
-    private botState = BotState.Initial;
     private tickRatio!: number;
-    private enemyPlayers!: string[];
     private knownMapBounds: Point2D | undefined;
     private missionController: MissionController;
     private squadController: SquadController;
@@ -72,15 +49,14 @@ export class SupalosaBot extends Bot {
         const botRate = botApm / 60;
         this.tickRatio = Math.ceil(gameRate / botRate);
 
-        this.enemyPlayers = game.getPlayers().filter((p) => p !== this.name && !game.areAlliedPlayers(this.name, p));
-
         this.knownMapBounds = determineMapBounds(game.mapApi);
 
-        this.matchAwareness = {
-            threatCache: null,
-            sectorCache: new SectorCache(game.mapApi, this.knownMapBounds),
-            mainRallyPoint: game.getPlayerData(this.name).startLocation,
-        };
+        this.matchAwareness = new MatchAwarenessImpl(
+            null,
+            new SectorCache(game.mapApi, this.knownMapBounds),
+            game.getPlayerData(this.name).startLocation,
+            this.logBotStatus
+        );
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);
     }
@@ -90,53 +66,19 @@ export class SupalosaBot extends Bot {
             return;
         }
 
-        const { sectorCache, mainRallyPoint } = this.matchAwareness;
-        let { threatCache } = this.matchAwareness;
+        const threatCache = this.matchAwareness.getThreatCache();
 
         if ((game.getCurrentTick() / NATURAL_TICK_RATE) % DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS === 0) {
             this.logDebugState(game);
         }
+
         if (game.getCurrentTick() % this.tickRatio === 0) {
             const myPlayer = game.getPlayerData(this.name);
-            const sectorsToUpdatePerCycle = 8; // TODO tune this
-            sectorCache.updateSectors(game.getCurrentTick(), sectorsToUpdatePerCycle, game.mapApi, myPlayer);
-            let updateRatio = sectorCache?.getSectorUpdateRatio(game.getCurrentTick() - game.getTickRate() * 60);
-            if (updateRatio && updateRatio < 1.0) {
-                this.logBotStatus(`${updateRatio * 100.0}% of sectors updated in last 60 seconds.`);
-            }
 
-            // Threat decays over time if we haven't killed anything
-            let boredomFactor =
-                1.0 -
-                Math.min(1.0, Math.max(0.0, (this.gameApi.getCurrentTick() - this.tickOfLastAttackOrder) / 1600.0));
-            let shouldAttack = !!threatCache ? this.isWorthAttacking(threatCache, boredomFactor) : false;
-            if (game.getCurrentTick() % (this.tickRatio * 150) == 0) {
-                let visibility = this.matchAwareness.sectorCache?.getOverallVisibility();
-                if (visibility) {
-                    this.logBotStatus(`${Math.round(visibility * 1000.0) / 10}% of tiles visible. Calculating threat.`);
-                    // Update the global threat cache
-                    threatCache = this.matchAwareness.threatCache = calculateGlobalThreat(game, myPlayer, visibility);
-                    this.logBotStatus(
-                        `Threat LAND: Them ${Math.round(
-                            this.matchAwareness?.threatCache.totalOffensiveLandThreat
-                        )}, us: ${Math.round(threatCache.totalAvailableAntiGroundFirepower)}.`
-                    );
-                    this.logBotStatus(
-                        `Threat DEFENSIVE: Them ${Math.round(threatCache.totalDefensiveThreat)}, us: ${Math.round(
-                            threatCache.totalDefensivePower
-                        )}.`
-                    );
-                    this.logBotStatus(
-                        `Threat AIR: Them ${Math.round(threatCache.totalOffensiveAirThreat)}, us: ${Math.round(
-                            threatCache.totalAvailableAntiAirFirepower
-                        )}.`
-                    );
-                    this.logBotStatus(`Boredom: ${boredomFactor}`);
-                }
-            }
+            this.matchAwareness.onAiUpdate(game, myPlayer);
+
             if (game.getCurrentTick() / NATURAL_TICK_RATE > BOT_AUTO_SURRENDER_TIME_SECONDS) {
                 this.logBotStatus(`Auto-surrendering after ${BOT_AUTO_SURRENDER_TIME_SECONDS} seconds.`);
-                this.botState = BotState.Defeated;
                 this.actionsApi.quitGame();
             }
 
@@ -154,7 +96,6 @@ export class SupalosaBot extends Bot {
             );
             if (armyUnits.length == 0 && productionBuildings.length == 0 && mcvUnits.length == 0) {
                 this.logBotStatus(`No army or production left, quitting.`);
-                this.botState = BotState.Defeated;
                 this.actionsApi.quitGame();
             }
 
@@ -175,68 +116,6 @@ export class SupalosaBot extends Bot {
             this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness, (message) =>
                 this.logBotStatus(message)
             );
-
-            // Update rally point every few ticks.
-            if (game.getCurrentTick() % RALLY_POINT_UPDATE_INTERVAL_TICKS === 0) {
-                const enemy = game.getPlayerData(this.enemyPlayers[0]);
-                this.matchAwareness.mainRallyPoint = getPointTowardsOtherPoint(
-                    game,
-                    myPlayer.startLocation,
-                    enemy.startLocation,
-                    10,
-                    10,
-                    0
-                );
-            }
-
-            // Dispatch missions.
-            if (!shouldAttack) {
-                //this.logBotStatus(`Not worth attacking, disbanding attack missions.`);
-                this.missionController.disbandMission("globalAttack");
-                this.botState = BotState.Defending;
-            }
-
-            // TODO: remove this switch.
-            switch (this.botState) {
-                case BotState.Initial: {
-                    let conYards = game.getVisibleUnits(this.name, "self", (r) => r.constructionYard);
-                    if (conYards.length) {
-                        break;
-                    }
-                    break;
-                }
-                case BotState.Deployed: {
-                    break;
-                }
-                case BotState.Attacking: {
-                    break;
-                }
-                case BotState.Defending: {
-                    // hacky, improve this
-                    const defenceRadius = 15;
-                    this.missionController.addMission(
-                        new DefenceMission("globalDefence", 100, mainRallyPoint, defenceRadius)
-                    );
-                    if (shouldAttack) {
-                        this.logBotStatus(`Finished defending, ready to attack.`);
-                        this.botState = BotState.Attacking;
-                    }
-                    break;
-                }
-                case BotState.Scouting: {
-                    const enemyBuildings = game
-                        .getVisibleUnits(this.name, "hostile")
-                        .filter((unit) => this.isHostileUnit(game, unit));
-                    if (enemyBuildings.length > 0) {
-                        this.logBotStatus(`Scouted a target, reverting to attack mode.`);
-                        this.botState = BotState.Attacking;
-                    }
-                    break;
-                }
-
-                default:
-                    break;
-            }
         }
     }
 
@@ -248,7 +127,7 @@ export class SupalosaBot extends Bot {
         if (!this.enableLogging) {
             return;
         }
-        console.log(`[${this.getHumanTimestamp(this.gameApi)} ${this.name} ${this.botState}] ${message}`);
+        console.log(`[${this.getHumanTimestamp(this.gameApi)} ${this.name}] ${message}`);
     }
 
     private logDebugState(game: GameApi) {
@@ -273,27 +152,6 @@ export class SupalosaBot extends Bot {
         this.logBotStatus(`Harvesters: ${harvesters}`);
         this.logBotStatus(`----- End -----`);
         this.missionController.logDebugOutput();
-    }
-
-    private isWorthAttacking(threatCache: GlobalThreat, threatFactor: number) {
-        let scaledGroundPower = Math.pow(threatCache.totalAvailableAntiGroundFirepower, 1.125);
-        let scaledGroundThreat =
-            (threatFactor * threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat) * 1.1;
-
-        let scaledAirPower = Math.pow(threatCache.totalAvailableAirPower, 1.125);
-        let scaledAirThreat =
-            (threatFactor * threatCache.totalOffensiveAntiAirThreat + threatCache.totalDefensiveThreat) * 1.1;
-
-        return scaledGroundPower > scaledGroundThreat || scaledAirPower > scaledAirThreat;
-    }
-
-    private isHostileUnit(game: GameApi, unitId: number) {
-        const unitData = game.getUnitData(unitId);
-        if (!unitData) {
-            return false;
-        }
-
-        return unitData.owner != this.name && game.getPlayerData(unitData.owner)?.isCombatant;
     }
 
     override onGameEvent(ev: ApiEvent) {

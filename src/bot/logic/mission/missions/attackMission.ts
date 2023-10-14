@@ -7,6 +7,8 @@ import { Squad } from "../../squad/squad.js";
 import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
+import { MissionController } from "../missionController.js";
+import { match } from "assert";
 
 export type AttackTarget = Point2D | null;
 
@@ -44,12 +46,17 @@ export class AttackMission extends Mission<AttackFailReason> {
         return unitData.owner != playerData.name && game.getPlayerData(unitData.owner)?.isCombatant;
     }
 
-    onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | null): MissionAction {
+    onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction {
         if (this.getSquad() === null) {
             return this.setSquad(
                 new Squad(this.getUniqueName(), new AttackSquad(this.rallyArea, this.attackArea, this.radius), this)
             );
         } else {
+            // Dispatch missions.
+            if (matchAwareness.shouldRetreat()) {
+                return disbandMission(AttackFailReason.DefenceTooStrong);
+            }
+
             const foundTarget = gameApi
                 .getVisibleUnits(playerData.name, "hostile")
                 .some((unit) => this.isHostileUnit(gameApi, unit, playerData));
@@ -66,38 +73,35 @@ export class AttackMission extends Mission<AttackFailReason> {
 
 const ATTACK_COOLDOWN_TICKS = 120;
 
-export class AttackMissionFactory implements MissionFactory<AttackMission> {
+export class AttackMissionFactory implements MissionFactory {
     constructor(private lastAttackAt: number = -ATTACK_COOLDOWN_TICKS) {}
+
+    getName(): string {
+        return "AttackMissionFactory";
+    }
 
     maybeCreateMissions(
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        existingMissions: Mission[]
-    ): AttackMission[] {
+        missionController: MissionController
+    ): void {
+        if (!matchAwareness.shouldAttack()) {
+            return;
+        }
         if (gameApi.getCurrentTick() < this.lastAttackAt + ATTACK_COOLDOWN_TICKS) {
-            return [];
+            return;
         }
 
         const attackRadius = 15;
-        /* TODO retreat  mission
-        this.missionController
-            .addMission(new AttackMission("globalAttack", 100, mainRallyPoint, GENERAL_ATTACK, attackRadius))
-            ?.then((reason, squad) => {
-                this.logBotStatus(`Attack ended, reason ${reason} ${squad?.getName()}`);
-                if (squad) {
-                    const units = squad.getUnits(game).map((unit) => unit.id);
-                    this.actionsApi.orderUnits(units, OrderType.Move, mainRallyPoint.x, mainRallyPoint.y);
-                }
-                if (reason === AttackFailReason.NoTargets) {
-                    this.botState = BotState.Scouting;
-                } else {
-                    this.botState = BotState.Defending;
-                }
-            });*/
 
-        this.lastAttackAt = gameApi.getCurrentTick();
-        return [new AttackMission("globalAttack", 100, matchAwareness.mainRallyPoint, GeneralAttack, attackRadius)];
+        const tryAttack = missionController.addMission(new AttackMission("globalAttack", 100, matchAwareness.getMainRallyPoint(), GeneralAttack, attackRadius))
+            ?.then((reason, squad) => {
+                // TODO: create a "retreat" mission for the squad
+            });
+        if (tryAttack) {
+            this.lastAttackAt = gameApi.getCurrentTick();
+        }
     }
 
     onMissionFailed(
@@ -105,8 +109,8 @@ export class AttackMissionFactory implements MissionFactory<AttackMission> {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         failedMission: Mission,
-        failureReason: any
-    ): AttackMission[] {
-        return [];
+        failureReason: any,
+        missionController: MissionController,
+    ): void {
     }
 }

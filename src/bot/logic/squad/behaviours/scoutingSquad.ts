@@ -22,7 +22,7 @@ export class ScoutingSquad implements SquadBehaviour {
         const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
         const scouts = squad.getUnitsOfTypes(gameApi, ...scoutNames);
 
-        if ((matchAwareness.sectorCache.getOverallVisibility() || 0) > 0.9) {
+        if ((matchAwareness.getSectorCache().getOverallVisibility() || 0) > 0.9) {
             return disband();
         }
 
