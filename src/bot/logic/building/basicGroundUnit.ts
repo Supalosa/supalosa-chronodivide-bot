@@ -34,8 +34,8 @@ export class BasicGroundUnit implements AiBuildingRules {
                         this.basePriority *
                         (threatCache.totalOffensiveLandThreat /
                             Math.max(1, threatCache.totalAvailableAntiGroundFirepower));
-                } else {
-                    // But also, if our power dwarfs the enemy, keep pressing the advantage.
+                }/* else {
+                    // But also, if our power dwarfs the enemy, keep pressing the advantage. Disabled because it causes spamming of one particular type of unit.
                     priority +=
                         this.antiGroundPower *
                         this.basePriority *
@@ -43,7 +43,7 @@ export class BasicGroundUnit implements AiBuildingRules {
                             threatCache.totalAvailableAntiGroundFirepower /
                                 Math.max(1, threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat)
                         );
-                }
+                }*/
             }
             if (this.antiAirPower > 0) {
                 if (threatCache.totalOffensiveAirThreat > threatCache.totalAvailableAntiAirFirepower) {

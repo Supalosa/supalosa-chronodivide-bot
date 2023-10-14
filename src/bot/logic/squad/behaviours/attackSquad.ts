@@ -25,15 +25,19 @@ const GRAB_RADIUS = 30;
 export class AttackSquad implements SquadBehaviour {
     private lastIdleCheck: number | null = null;
 
-    constructor(private rallyArea: Point2D, private attackArea: AttackTarget, private radius: number) {}
+    constructor(
+        private rallyArea: Point2D,
+        private attackArea: AttackTarget,
+        private radius: number,
+    ) {}
 
-    private isHostileUnit(game: GameApi, unitId: number, playerData: PlayerData) {
+    private isHostileUnit(game: GameApi, unitId: number, hostilePlayerNames: string[]) {
         const unitData = game.getUnitData(unitId);
         if (!unitData) {
             return false;
         }
 
-        return unitData.owner != playerData.name && game.getPlayerData(unitData.owner)?.isCombatant;
+        return hostilePlayerNames.includes(unitData.owner);
     }
 
     public setAttackArea(attackArea: AttackTarget) {
@@ -45,15 +49,23 @@ export class AttackSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        matchAwareness: MatchAwareness
+        matchAwareness: MatchAwareness,
     ): SquadAction {
         const units = squad.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
-        const enemyUnits = gameApi.getVisibleUnits(playerData.name, "hostile", (r) => r.isSelectableCombatant);
+        const enemyUnitsAndBuildings = gameApi.getVisibleUnits(
+            playerData.name,
+            "hostile",
+            (r) => r.isSelectableCombatant || r.type === ObjectType.Building,
+        );
+        const hostilePlayerNames = gameApi
+            .getPlayers()
+            .map((name) => gameApi.getPlayerData(name))
+            .filter((other) => other.isCombatant && !gameApi.areAlliedPlayers(playerData.name, other.name))
+            .map((other) => other.name);
 
-        if (enemyUnits.length > 0) {
-            const weightedTargets = enemyUnits
-                // TODO is this necessary?
-                //.filter((unit) => this.isHostileUnit(gameApi, unit, playerData))
+        if (enemyUnitsAndBuildings.length > 0) {
+            const weightedTargets = enemyUnitsAndBuildings
+                .filter((unit) => this.isHostileUnit(gameApi, unit, hostilePlayerNames))
                 .map((unitId) => {
                     let unit = gameApi.getUnitData(unitId);
                     return {
@@ -78,7 +90,12 @@ export class AttackSquad implements SquadBehaviour {
                     }
                 }
             } else if (this.attackArea) {
-                actionsApi.orderUnits(units.map((unit) => unit.id), OrderType.AttackMove, this.attackArea.x, this.attackArea.y);
+                actionsApi.orderUnits(
+                    units.map((unit) => unit.id),
+                    OrderType.AttackMove,
+                    this.attackArea.x,
+                    this.attackArea.y,
+                );
             }
         }
         return grabCombatants(this.rallyArea, this.radius * GRAB_RADIUS);
