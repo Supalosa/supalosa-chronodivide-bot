@@ -6,9 +6,10 @@ import { Mission, MissionAction, MissionActionDisband, MissionActionRegisterSqua
 import { SquadController } from "../squad/squadController.js";
 import { missionFactories as MISSION_FACTORIES } from "./missionFactories.js";
 import { MatchAwareness } from "../awareness.js";
+import { disband } from "../squad/squadBehaviour.js";
 
 export class MissionController {
-    private missions: Mission[] = [];
+    private missions: Mission<any>[] = [];
 
     private forceDisbandedMissions: string[] = [];
 
@@ -18,21 +19,22 @@ export class MissionController {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        squadController: SquadController,
+        squadController: SquadController
     ) {
         const { threatCache } = matchAwareness;
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
 
         // Poll missions for requested actions.
-        let missionActions = this.missions.map((mission) => ({
+        const missionActions = this.missions.map((mission) => ({
             mission,
             action: mission.onAiUpdate(gameApi, playerData, threatCache),
         }));
 
         // Handle disbands and merges.
         const isDisband = (a: MissionAction) => a.type == "disband";
-        let disbandedMissions: Map<string, any> = new Map();
+        const disbandedMissions: Map<string, any> = new Map();
+        const disbandedMissionsArray: { mission: Mission; reason: any }[] = [];
         this.forceDisbandedMissions.forEach((name) => disbandedMissions.set(name, null));
         this.forceDisbandedMissions = [];
         missionActions
@@ -46,6 +48,8 @@ export class MissionController {
             .filter((missions) => disbandedMissions.has(missions.getUniqueName()))
             .forEach((disbandedMission) => {
                 this.logger(`mission disbanded: ${disbandedMission.getUniqueName()}`);
+                const reason = disbandedMissions.get(disbandedMission.getUniqueName());
+                disbandedMissionsArray.push({ mission: disbandedMission, reason });
                 disbandedMission.getSquad()?.setMission(null);
                 disbandedMission.endMission(disbandedMissions.get(disbandedMission.getUniqueName()));
             });
@@ -65,20 +69,45 @@ export class MissionController {
         const missionNames: Set<String> = new Set();
         this.missions.forEach((mission) => missionNames.add(mission.getUniqueName()));
         MISSION_FACTORIES.forEach((missionFactory) => {
-            const maybeMissions = missionFactory.maybeCreateMission(gameApi, playerData, matchAwareness, this.missions);
+            const maybeMissions = missionFactory.maybeCreateMissions(
+                gameApi,
+                playerData,
+                matchAwareness,
+                this.missions
+            );
             maybeMissions.forEach((newMission) => {
                 if (!missionNames.has(newMission.getUniqueName())) {
                     this.logger(`Starting new mission ${newMission.getUniqueName()}.`);
                     this.missions.push(newMission);
                     missionNames.add(newMission.getUniqueName());
                 } else {
-                    //this.logger(`Rejecting new mission ${maybeMission.getUniqueName()} as another mission exists.`);
+                    this.logger(
+                        `Rejecting new mission ${newMission.getUniqueName()} as another mission exists with that name.`
+                    );
                 }
+            });
+            disbandedMissionsArray.forEach(({ reason, mission }) => {
+                const newMissions = missionFactory.onMissionFailed(
+                    gameApi,
+                    playerData,
+                    matchAwareness,
+                    mission,
+                    reason
+                );
+                newMissions.forEach((newMission) => {
+                    if (!missionNames.has(newMission.getUniqueName())) {
+                        this.logger(
+                            `Starting new mission ${newMission.getUniqueName()} because ${mission.getUniqueName()} failed for reason ${reason}`
+                        );
+                        this.missions.push(newMission);
+                        missionNames.add(newMission.getUniqueName());
+                    }
+                });
             });
         });
     }
 
-    public addMission(mission: Mission) : Mission | null {
+    public addMission<T>(mission: Mission<T>): Mission<T> | null {
         if (this.missions.some((m) => m.getUniqueName() === mission.getUniqueName())) {
             // reject non-unique mission names
             return null;
@@ -93,5 +122,9 @@ export class MissionController {
      */
     public disbandMission(missionName: string) {
         this.forceDisbandedMissions.push(missionName);
+    }
+
+    public logDebugOutput() {
+        this.logger(`Missions (${this.missions.length}): ${this.missions.join(", ")}`);
     }
 }

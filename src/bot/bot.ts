@@ -23,7 +23,11 @@ import { ExpansionMission } from "./logic/mission/missions/expansionMission.js";
 import { ScoutingMission } from "./logic/mission/missions/scoutingMission.js";
 import { MatchAwareness as MatchAwareness } from "./logic/awareness.js";
 import { DefenceMission } from "./logic/mission/missions/defenceMission.js";
-import { AttackFailReason, AttackMission, GeneralAttack as GENERAL_ATTACK } from "./logic/mission/missions/attackMission.js";
+import {
+    AttackFailReason,
+    AttackMission,
+    GeneralAttack as GENERAL_ATTACK,
+} from "./logic/mission/missions/attackMission.js";
 
 enum BotState {
     Initial = "init",
@@ -186,43 +190,25 @@ export class SupalosaBot extends Bot {
             }
 
             // Dispatch missions.
+            if (!shouldAttack) {
+                //this.logBotStatus(`Not worth attacking, disbanding attack missions.`);
+                this.missionController.disbandMission("globalAttack");
+                this.botState = BotState.Defending;
+            }
 
             // TODO: remove this switch.
             switch (this.botState) {
                 case BotState.Initial: {
                     let conYards = game.getVisibleUnits(this.name, "self", (r) => r.constructionYard);
                     if (conYards.length) {
-                        this.botState = BotState.Deployed;
                         break;
                     }
                     break;
                 }
                 case BotState.Deployed: {
-                    this.botState = BotState.Scouting;
                     break;
                 }
                 case BotState.Attacking: {
-                    if (!shouldAttack) {
-                        this.logBotStatus(`Not worth attacking, reverting to defence.`);
-                        this.missionController.disbandMission("globalAttack");
-                        this.botState = BotState.Defending;
-                    } else {
-                        const attackRadius = 15;
-                        this.missionController.addMission(
-                            new AttackMission("globalAttack", 100, mainRallyPoint, GENERAL_ATTACK, attackRadius)
-                        )?.then((reason, squad) => {
-                            this.logBotStatus(`Attack ended, reason ${reason} ${squad?.getName()}`)
-                            if (squad) {
-                                const units = squad.getUnits(game).map((unit) => unit.id);
-                                this.actionsApi.orderUnits(units, OrderType.Move, mainRallyPoint.x, mainRallyPoint.y);
-                            }
-                            if (reason === AttackFailReason.NoTargets) {
-                                this.botState = BotState.Scouting;
-                            } else {
-                                this.botState = BotState.Defending;
-                            }
-                        });
-                    }
                     break;
                 }
                 case BotState.Defending: {
@@ -238,7 +224,6 @@ export class SupalosaBot extends Bot {
                     break;
                 }
                 case BotState.Scouting: {
-                    this.missionController.addMission(new ScoutingMission("globalScout", 100));
                     const enemyBuildings = game
                         .getVisibleUnits(this.name, "hostile")
                         .filter((unit) => this.isHostileUnit(game, unit));
@@ -287,6 +272,7 @@ export class SupalosaBot extends Bot {
         const harvesters = game.getVisibleUnits(this.name, "self", (r) => r.harvester).length;
         this.logBotStatus(`Harvesters: ${harvesters}`);
         this.logBotStatus(`----- End -----`);
+        this.missionController.logDebugOutput();
     }
 
     private isWorthAttacking(threatCache: GlobalThreat, threatFactor: number) {

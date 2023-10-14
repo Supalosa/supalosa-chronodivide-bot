@@ -23,7 +23,7 @@ export class Squad {
     constructor(
         private name: string,
         private behaviour: SquadBehaviour,
-        private mission: Mission | null,
+        private mission: Mission<any> | null,
         private killable = false
     ) {}
 
@@ -44,7 +44,6 @@ export class Squad {
             this.mission = null;
             return disband();
         } else if (!this.mission) {
-            console.log(`squad ${this.name} - disbanding because mission is inactive`)
             return disband();
         }
         let outcome = this.behaviour.onAiUpdate(gameApi, actionsApi, playerData, this, matchAwareness);

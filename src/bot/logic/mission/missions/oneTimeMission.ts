@@ -9,7 +9,7 @@ import { SquadBehaviour } from "../../squad/squadBehaviour.js";
 /**
  * A mission that gets dispatched once, and once the squad decides to disband, the mission is disbanded.
  */
-export abstract class OneTimeMission extends Mission {
+export abstract class OneTimeMission<T = undefined> extends Mission<T> {
     private hadSquad = false;
 
     constructor(uniqueName: string, priority: number, private behaviourFactory: () => SquadBehaviour) {
