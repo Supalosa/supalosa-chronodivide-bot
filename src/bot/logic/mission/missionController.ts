@@ -4,33 +4,38 @@ import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { Mission, MissionAction, MissionActionDisband, MissionActionRegisterSquad } from "./mission.js";
 import { SquadController } from "../squad/squadController.js";
-import { missionFactories as MISSION_FACTORIES } from "./missionFactories.js";
+import { MatchAwareness } from "../awareness.js";
+import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 
 export class MissionController {
-    private missions: Mission[] = [];
+    private missionFactories: MissionFactory[];
+    private missions: Mission<any>[] = [];
 
     private forceDisbandedMissions: string[] = [];
 
-    constructor(private logger: (message: string) => void) {}
+    constructor(private logger: (message: string) => void) {
+        this.missionFactories = createMissionFactories();
+    }
 
     public onAiUpdate(
         gameApi: GameApi,
         playerData: PlayerData,
-        threatData: GlobalThreat | null,
-        squadController: SquadController
+        matchAwareness: MatchAwareness,
+        squadController: SquadController,
     ) {
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
 
         // Poll missions for requested actions.
-        let missionActions = this.missions.map((mission) => ({
+        const missionActions = this.missions.map((mission) => ({
             mission,
-            action: mission.onAiUpdate(gameApi, playerData, threatData),
+            action: mission.onAiUpdate(gameApi, playerData, matchAwareness),
         }));
 
         // Handle disbands and merges.
         const isDisband = (a: MissionAction) => a.type == "disband";
-        let disbandedMissions: Map<string, any> = new Map();
+        const disbandedMissions: Map<string, any> = new Map();
+        const disbandedMissionsArray: { mission: Mission; reason: any }[] = [];
         this.forceDisbandedMissions.forEach((name) => disbandedMissions.set(name, null));
         this.forceDisbandedMissions = [];
         missionActions
@@ -44,6 +49,8 @@ export class MissionController {
             .filter((missions) => disbandedMissions.has(missions.getUniqueName()))
             .forEach((disbandedMission) => {
                 this.logger(`mission disbanded: ${disbandedMission.getUniqueName()}`);
+                const reason = disbandedMissions.get(disbandedMission.getUniqueName());
+                disbandedMissionsArray.push({ mission: disbandedMission, reason });
                 disbandedMission.getSquad()?.setMission(null);
                 disbandedMission.endMission(disbandedMissions.get(disbandedMission.getUniqueName()));
             });
@@ -60,23 +67,20 @@ export class MissionController {
             });
 
         // Create dynamic missions.
-        let missionNames: Set<String> = new Set();
-        this.missions.forEach((mission) => missionNames.add(mission.getUniqueName()));
-        MISSION_FACTORIES.forEach((missionFactory) => {
-            let maybeMission = missionFactory.maybeCreateMission(gameApi, playerData, threatData, this.missions);
-            if (maybeMission) {
-                if (!missionNames.has(maybeMission.getUniqueName())) {
-                    this.logger(`Starting new mission ${maybeMission.getUniqueName()}.`);
-                    this.missions.push(maybeMission);
-                    missionNames.add(maybeMission.getUniqueName());
-                } else {
-                    //this.logger(`Rejecting new mission ${maybeMission.getUniqueName()} as another mission exists.`);
-                }
-            }
+        this.missionFactories.forEach((missionFactory) => {
+            missionFactory.maybeCreateMissions(gameApi, playerData, matchAwareness, this);
+            disbandedMissionsArray.forEach(({ reason, mission }) => {
+                missionFactory.onMissionFailed(gameApi, playerData, matchAwareness, mission, reason, this);
+            });
         });
     }
 
-    public addMission(mission: Mission) : Mission | null {
+    /**
+     * Attempts to add a mission to the active set.
+     * @param mission
+     * @returns The mission if it was accepted, or null if it was not.
+     */
+    public addMission<T>(mission: Mission<T | any>): Mission<T> | null {
         if (this.missions.some((m) => m.getUniqueName() === mission.getUniqueName())) {
             // reject non-unique mission names
             return null;
@@ -91,5 +95,9 @@ export class MissionController {
      */
     public disbandMission(missionName: string) {
         this.forceDisbandedMissions.push(missionName);
+    }
+
+    public logDebugOutput() {
+        this.logger(`Missions (${this.missions.length}): ${this.missions.map((m) => m.getUniqueName()).join(", ")}`);
     }
 }

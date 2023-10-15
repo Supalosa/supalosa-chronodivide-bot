@@ -8,6 +8,7 @@ import {
     SquadActionDisband,
     SquadActionGrabFreeCombatants,
     SquadActionMergeInto,
+    SquadActionRequestSpecificUnits,
     SquadActionRequestUnits,
 } from "./squadBehaviour.js";
 import { MatchAwareness } from "../awareness.js";
@@ -54,8 +55,8 @@ export class SquadController {
             };
         });
         // Handle disbands and merges.
-        const isDisband = (a: SquadAction): a is SquadActionDisband => a.type == "disband";
-        const isMerge = (a: SquadAction): a is SquadActionMergeInto => a.type == "mergeInto";
+        const isDisband = (a: SquadAction): a is SquadActionDisband => a.type === "disband";
+        const isMerge = (a: SquadAction): a is SquadActionMergeInto => a.type === "mergeInto";
         let disbandedSquads: Set<string> = new Set();
         squadActions
             .filter((a) => isDisband(a.action))
@@ -65,7 +66,6 @@ export class SquadController {
                 a.squad.getUnitIds().forEach((unitId) => {
                     this.unitIdToSquad.delete(unitId);
                 });
-                a.squad.clearUnits();
                 disbandedSquads.add(a.squad.getName());
             });
         squadActions
@@ -84,8 +84,41 @@ export class SquadController {
         // remove disbanded and merged squads.
         this.squads = this.squads.filter((squad) => !disbandedSquads.has(squad.getName()));
 
-        // Request units
-        const isRequest = (a: SquadAction) => a.type == "request";
+        // Request specific units by ID
+        const isRequestSpecific = (a: SquadAction) => a.type === "requestSpecific";
+        const unitIdToHighestRequest = squadActions
+            .filter((a) => isRequestSpecific(a.action))
+            .reduce((prev, a) => {
+                const squadWithAction = a as SquadWithAction<SquadActionRequestSpecificUnits>;
+                const { unitIds } = squadWithAction.action;
+                unitIds.forEach((unitId) => {
+                    if (prev.hasOwnProperty(unitId)) {
+                        if (prev[unitId].action.priority > prev[unitId].action.priority) {
+                            prev[unitId] = squadWithAction;
+                        }
+                    } else {
+                        prev[unitId] = squadWithAction;
+                    }
+                });
+                return prev;
+            }, {} as Record<number, SquadWithAction<SquadActionRequestSpecificUnits>>);
+        Object.entries(unitIdToHighestRequest).forEach(([id, request]) => {
+            const unitId = Number.parseInt(id);
+            const unit = gameApi.getUnitData(unitId);
+            const { squad: requestingSquad } = request;
+            const missionName = requestingSquad.getMission()?.getUniqueName();
+            if (!unit) {
+                logger(`mission ${missionName} requested non-existent unit ${unitId}`);
+                return;
+            }
+            if (!this.unitIdToSquad.has(unitId)) {
+                logger(`granting specific unit ${unitId} to squad ${requestingSquad.getName()} in mission ${missionName}`);
+                this.addUnitToSquad(requestingSquad, unit);
+            }
+        });
+
+        // Request units by type
+        const isRequest = (a: SquadAction) => a.type === "request";
         const unitTypeToHighestRequest = squadActions
             .filter((a) => isRequest(a.action))
             .reduce((prev, a) => {
@@ -103,7 +136,8 @@ export class SquadController {
                 return prev;
             }, {} as Record<string, SquadWithAction<SquadActionRequestUnits>>);
 
-        const isGrab = (a: SquadAction) => a.type == "requestCombatants";
+        // Request combat-capable units in an area
+        const isGrab = (a: SquadAction) => a.type === "requestCombatants";
         const grabRequests = squadActions.filter((a) =>
             isGrab(a.action)
         ) as SquadWithAction<SquadActionGrabFreeCombatants>[];
@@ -126,7 +160,7 @@ export class SquadController {
                     const { squad: requestingSquad } = request;
                     if (
                         freeUnit.rules.isSelectableCombatant &&
-                        getDistanceBetween(freeUnit, request.action.point) < request.action.radius
+                        getDistanceBetween(freeUnit, request.action.point) <= request.action.radius
                     ) {
                         logger(
                             `granting unit ${freeUnit.id}#${

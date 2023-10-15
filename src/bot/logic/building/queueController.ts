@@ -43,13 +43,7 @@ export const queueTypeToName = (queue: QueueType) => {
     }
 };
 
-// Repair buildings at this ratio of the maxHitpoints.
-const REPAIR_HITPOINTS_RATIO = 0.9;
-
-// Don't repair buildings more often than this.
-const REPAIR_COOLDOWN_TICKS = 15;
-
-const DEBUG_BUILD_QUEUES = false;
+const DEBUG_BUILD_QUEUES = true;
 
 export class QueueController {
     constructor() {}
@@ -60,7 +54,7 @@ export class QueueController {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         threatCache: GlobalThreat | null,
-        logger: (message: string) => void
+        logger: (message: string) => void,
     ) {
         const decisions = QUEUES.map((queueType) => {
             const options = productionApi.getAvailableObjects(queueType);
@@ -87,12 +81,11 @@ export class QueueController {
                 decision.decision,
                 totalWeightAcrossQueues,
                 totalCostAcrossQueues,
-                logger
+                logger,
             );
         });
 
         // Repair is simple - just repair everything that's damaged.
-        // Unfortunately there doesn't seem to be an API to determine if something is being repaired, so we have to remember it.
         game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
             const unit = game.getUnitData(unitId);
             if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
@@ -112,11 +105,11 @@ export class QueueController {
         decision: TechnoRulesWithPriority | undefined,
         totalWeightAcrossQueues: number,
         totalCostAcrossQueues: number,
-        logger: (message: string) => void
+        logger: (message: string) => void,
     ): void {
         const myCredits = playerData.credits;
 
-        let queueData = productionApi.getQueueData(queueType);
+        const queueData = productionApi.getQueueData(queueType);
         if (queueData.status == QueueStatus.Idle) {
             // Start building the decided item.
             if (decision !== undefined) {
@@ -131,7 +124,7 @@ export class QueueController {
                 let location: { rx: number; ry: number } | undefined = this.getBestLocationForStructure(
                     game,
                     playerData,
-                    objectReady
+                    objectReady,
                 );
                 if (location !== undefined) {
                     actionsApi.placeBuilding(objectReady.name, location.rx, location.ry);
@@ -149,7 +142,7 @@ export class QueueController {
                     logger(
                         `Dequeueing queue ${queueTypeToName(queueData.type)} unit ${current.name} because ${
                             decision.unit.name
-                        } has 2x higher priority.`
+                        } has 2x higher priority.`,
                     );
                     actionsApi.unqueueFromProduction(queueData.type, current.name, current.type, 1);
                 }
@@ -159,7 +152,7 @@ export class QueueController {
                     logger(
                         `Pausing queue ${queueTypeToName(queueData.type)} because weight is low (${
                             decision.priority
-                        }/${totalWeightAcrossQueues})`
+                        }/${totalWeightAcrossQueues})`,
                     );
                     actionsApi.pauseProduction(queueData.type);
                 }
@@ -173,7 +166,7 @@ export class QueueController {
                 logger(
                     `Resuming queue ${queueTypeToName(queueData.type)} because weight is high (${
                         decision.priority
-                    }/${totalWeightAcrossQueues})`
+                    }/${totalWeightAcrossQueues})`,
                 );
                 actionsApi.resumeProduction(queueData.type);
             }
@@ -185,7 +178,7 @@ export class QueueController {
         options: TechnoRules[],
         threatCache: GlobalThreat | null,
         playerData: PlayerData,
-        logger: (message: string) => void
+        logger: (message: string) => void,
     ): TechnoRulesWithPriority | undefined {
         let priorityQueue: TechnoRulesWithPriority[] = [];
         options.forEach((option) => {
@@ -212,7 +205,7 @@ export class QueueController {
         option: TechnoRules,
         game: GameApi,
         playerStatus: PlayerData,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ) {
         if (BUILDING_NAME_TO_RULES.has(option.name)) {
             let logic = BUILDING_NAME_TO_RULES.get(option.name)!;
@@ -228,7 +221,7 @@ export class QueueController {
     private getBestLocationForStructure(
         game: GameApi,
         playerData: PlayerData,
-        objectReady: TechnoRules
+        objectReady: TechnoRules,
     ): { rx: number; ry: number } | undefined {
         if (BUILDING_NAME_TO_RULES.has(objectReady.name)) {
             let logic = BUILDING_NAME_TO_RULES.get(objectReady.name)!;

@@ -40,6 +40,10 @@ export class SectorCache {
         }
     }
 
+    public getMapBounds(): Point2D {
+        return this.mapBounds;
+    }
+
     public updateSectors(currentGameTick: number, maxSectorsToUpdate: number, mapApi: MapApi, playerData: PlayerData) {
         let nextSectorX = this.lastUpdatedSectorX ? this.lastUpdatedSectorX + 1 : 0;
         let nextSectorY = this.lastUpdatedSectorY ? this.lastUpdatedSectorY : 0;

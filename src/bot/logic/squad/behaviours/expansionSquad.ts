@@ -1,7 +1,7 @@
 import { ActionsApi, GameApi, OrderType, PlayerData, SideType } from "@chronodivide/game-api";
 import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../squad.js";
-import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squadBehaviour.js";
+import { SquadAction, SquadBehaviour, disband, noop, requestSpecificUnits, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
 
 const DEPLOY_COOLDOWN_TICKS = 30;
@@ -12,6 +12,13 @@ export class ExpansionSquad implements SquadBehaviour {
         unitId: number;
         gameTick: number;
     } | null = null;
+
+    /**
+     * @param selectedMcv ID of the MCV to try to expand with. If that unit dies, the squad will disband. If no value is provided,
+     * the mission requests an MCV.
+     */
+    constructor(private selectedMcv: number | null) {
+    };
 
     public onAiUpdate(
         gameApi: GameApi,
@@ -28,7 +35,11 @@ export class ExpansionSquad implements SquadBehaviour {
                 return disband();
             }
             // We need an mcv!
-            return requestUnits(mcvTypes, 100);
+            if (this.selectedMcv) {
+                return requestSpecificUnits([this.selectedMcv], 100);
+            } else {
+                return requestUnits(mcvTypes, 100);
+            }
         } else if (
             !this.hasAttemptedDeployWith ||
             gameApi.getCurrentTick() > this.hasAttemptedDeployWith.gameTick + DEPLOY_COOLDOWN_TICKS

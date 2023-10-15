@@ -3,6 +3,7 @@ import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
+import { getUnseenStartingLocations } from "../../common/scout.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -17,12 +18,12 @@ export class ScoutingSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        matchAwareness: MatchAwareness
+        matchAwareness: MatchAwareness,
     ): SquadAction {
         const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
         const scouts = squad.getUnitsOfTypes(gameApi, ...scoutNames);
 
-        if ((matchAwareness.sectorCache.getOverallVisibility() || 0) > 0.9) {
+        if ((matchAwareness.getSectorCache().getOverallVisibility() || 0) > 0.9) {
             return disband();
         }
 
@@ -33,18 +34,7 @@ export class ScoutingSquad implements SquadBehaviour {
             !this.scoutingWith ||
             gameApi.getCurrentTick() > this.scoutingWith.gameTick + SCOUT_MOVE_COOLDOWN_TICKS
         ) {
-            let candidatePoints: Point2D[] = [];
-
-            // Move to an unseen starting location.
-            const unseenStartingLocations = gameApi.mapApi.getStartingLocations().filter((startingLocation) => {
-                if (startingLocation == playerData.startLocation) {
-                    return false;
-                }
-                let tile = gameApi.mapApi.getTile(startingLocation.x, startingLocation.y);
-                return tile ? !gameApi.mapApi.isVisibleTile(tile, playerData.name) : false;
-            });
-            candidatePoints.push(...unseenStartingLocations);
-
+            const candidatePoints = getUnseenStartingLocations(gameApi, playerData);
             scouts.forEach((unit) => {
                 if (candidatePoints.length > 0) {
                     if (unit?.isIdle) {

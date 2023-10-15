@@ -14,20 +14,20 @@ export interface AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number;
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules
+        technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined;
 
     getMaxCount(
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number | null;
 }
 
@@ -44,7 +44,7 @@ export function getDefaultPlacementLocation(
     playerData: PlayerData,
     startPoint: Point2D,
     technoRules: TechnoRules,
-    space: number = 1
+    space: number = 1,
 ): { rx: number; ry: number } | undefined {
     // Random location, preferably near start location.
     let startX = startPoint.x;
@@ -64,7 +64,6 @@ export function getDefaultPlacementLocation(
             }
         }
     }
-    console.log("Can't find a place to put the " + technoRules.name);
     return undefined;
 }
 
@@ -84,15 +83,18 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["GAAIRC", new BasicBuilding(8, 1, 6000)], // Airforce Command
 
+    ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
+
     ["GAPILL", new AntiGroundStaticDefence(5, 1, 5)], // Pillbox
     ["ATESLA", new AntiGroundStaticDefence(5, 1, 10)], // Prism Cannon
     ["GAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
-    ["E1", new BasicGroundUnit(5, 3, 0.25, 0)], // GI
+    ["E1", new BasicGroundUnit(2, 3, 0.25, 0)], // GI
     ["MTNK", new BasicGroundUnit(10, 3, 2, 0)], // Grizzly Tank
     ["MGTK", new BasicGroundUnit(10, 1, 2.5, 0)], // Mirage Tank
     ["FV", new BasicGroundUnit(5, 2, 0.5, 1)], // IFV
     ["JUMPJET", new BasicAirUnit(10, 1, 1, 1)], // Rocketeer
+    ["ORCA", new BasicAirUnit(7, 1, 2, 0)], // Rocketeer
     ["SREF", new ArtilleryUnit(9, 1)], // Prism Tank
     ["CLEG", new BasicGroundUnit(0, 0)], // Chrono Legionnaire (Disabled - we don't handle the warped out phase properly and it tends to bug both bots out)
     ["SHAD", new BasicGroundUnit(0, 0)], // Nighthawk (Disabled)
@@ -106,12 +108,15 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["SENGINEER", new BasicBuilding(1, 1, 10000)], // Soviet Engineer
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(8, 1, 4000)], // Radar
+    ["NANRCT", new PowerPlant()], // Nuclear Reactor
+
+    ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 
     ["NALASR", new AntiGroundStaticDefence(5, 1, 5)], // Sentry Gun
     ["TESLA", new AntiGroundStaticDefence(5, 1, 10)], // Tesla Coil
     ["NAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
-    ["E2", new BasicGroundUnit(5, 3, 0.25, 0)], // Conscript
+    ["E2", new BasicGroundUnit(2, 3, 0.25, 0)], // Conscript
     ["HTNK", new BasicGroundUnit(10, 3, 3, 0)], // Rhino Tank
     ["APOC", new BasicGroundUnit(6, 1, 5, 0)], // Apocalypse Tank
     ["HTK", new BasicGroundUnit(5, 2, 0.33, 1.5)], // Flak Track

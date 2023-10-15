@@ -1,18 +1,19 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { Squad } from "../squad/squad.js";
 import { GlobalThreat } from "../threat/threat.js";
+import { MatchAwareness } from "../awareness.js";
 
 // AI starts Missions based on heuristics, which have one or more squads.
 // Missions can create squads (but squads will disband themselves).
-export abstract class Mission {
+export abstract class Mission<FailureReasons = undefined> {
     private squad: Squad | null = null;
     private active = true;
 
-    private onFinish: (reason: any, squad: Squad | null) => void = () => {};
+    private onFinish: (reason: FailureReasons, squad: Squad | null) => void = () => {};
 
     constructor(private uniqueName: string, private priority: number = 1) {}
 
-    abstract onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat | null): MissionAction;
+    abstract onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction;
 
     isActive(): boolean {
         return this.active;
@@ -37,16 +38,16 @@ export abstract class Mission {
     }
 
     // Don't call this from the mission itself
-    endMission(reason: any): void {
+    endMission(reason: FailureReasons): void {
         this.onFinish(reason, this.squad);
         this.squad = null;
         this.active = false;
     }
-    
+
     /**
      * Declare a callback that is executed when the mission is disbanded for whatever reason.
      */
-    then(onFinish: (reason: any, squad: Squad | null) => void): Mission {
+    then(onFinish: (reason: FailureReasons, squad: Squad | null) => void): Mission<FailureReasons> {
         this.onFinish = onFinish;
         return this;
     }

@@ -5,18 +5,19 @@ import { ExpansionSquad } from "../../squad/behaviours/expansionSquad.js";
 import { Squad } from "../../squad/squad.js";
 import { MissionFactory } from "../missionFactories.js";
 import { SquadBehaviour } from "../../squad/squadBehaviour.js";
+import { MatchAwareness } from "../../awareness.js";
 
 /**
  * A mission that gets dispatched once, and once the squad decides to disband, the mission is disbanded.
  */
-export abstract class OneTimeMission extends Mission {
+export abstract class OneTimeMission<T = undefined> extends Mission<T> {
     private hadSquad = false;
 
     constructor(uniqueName: string, priority: number, private behaviourFactory: () => SquadBehaviour) {
         super(uniqueName, priority);
     }
 
-    onAiUpdate(gameApi: GameApi, playerData: PlayerData, threatData: GlobalThreat): MissionAction {
+    onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction {
         if (this.getSquad() === null) {
             if (!this.hadSquad) {
                 this.hadSquad = true;
