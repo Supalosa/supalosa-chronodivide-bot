@@ -81,7 +81,7 @@ export class DefenceMissionFactory implements MissionFactory {
                     (reason, squad) => {
                         missionController.addMission(
                             new RetreatMission(
-                                "retreat-from-globalDefence",
+                                "retreat-from-globalDefence" + gameApi.getCurrentTick(),
                                 100,
                                 matchAwareness.getMainRallyPoint(),
                                 squad?.getUnitIds() ?? [],
