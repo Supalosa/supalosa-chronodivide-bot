@@ -25,7 +25,7 @@ export function manageAttackMicro(actionsApi: ActionsApi, attacker: UnitData, ta
         }
     }
     let targetData = target;
-    let orderType: OrderType = OrderType.AttackMove;
+    let orderType: OrderType = OrderType.Attack;
     const primaryWeaponRange = attacker.primaryWeapon?.maxRange || 5;
     if (targetData?.type == ObjectType.Building && distance < primaryWeaponRange * 0.8) {
         orderType = OrderType.Attack;

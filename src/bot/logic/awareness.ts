@@ -84,10 +84,11 @@ export class MatchAwarenessImpl implements MatchAwareness {
         return this.getHostilesNearPoint(point.x, point.y, radius);
     }
 
-    getHostilesNearPoint(x: number, y: number, radius: number): UnitPositionQuery[] {
-        const intersections = this.hostileQuadTree.retrieve(new Circle({ x, y, r: radius }));
+    getHostilesNearPoint(searchX: number, searchY: number, radius: number): UnitPositionQuery[] {
+        const intersections = this.hostileQuadTree.retrieve(new Circle({ x: searchX, y: searchY, r: radius }));
         return intersections
             .map(({ x, y, data: unitId }) => ({ x, y, unitId: unitId! }))
+            .filter(({ x, y }) => getDistanceBetweenPoints({ x, y }, { x: searchX, y: searchY }) <= radius)
             .filter(({ unitId }) => !!unitId);
     }
 
@@ -163,8 +164,8 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
             rebuildQuadtree(this.hostileQuadTree, hostileUnits);
         } catch (err) {
+            // Hack. Will be fixed soon.
             console.error(`caught error`, hostileUnitIds);
-            throw err;
         }
 
         // Threat decays over time if we haven't killed anything

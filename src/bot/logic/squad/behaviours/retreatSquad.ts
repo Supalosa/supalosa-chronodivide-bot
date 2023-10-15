@@ -22,19 +22,17 @@ export class RetreatSquad implements SquadBehaviour {
         squad: Squad,
         matchAwareness: MatchAwareness,
     ): SquadAction {
-        if (!this.hasRequestedUnits) {
-            this.hasRequestedUnits = true;
-            return requestSpecificUnits(this.unitIds, 100);
-        }
-
-        actionsApi.orderUnits(squad.getUnitIds(), OrderType.Move, this.retreatToPoint.x, this.retreatToPoint.y);
-        if (!this.moveOrderSentAt) {
-            this.moveOrderSentAt = gameApi.getCurrentTick();
+        if (squad.getUnitIds().length > 0) {
+            // Only send the order once we have managed to claim some units.
+            actionsApi.orderUnits(squad.getUnitIds(), OrderType.Move, this.retreatToPoint.x, this.retreatToPoint.y);
+            if (!this.moveOrderSentAt) {
+                this.moveOrderSentAt = gameApi.getCurrentTick();
+            }
         }
         if (gameApi.getCurrentTick() > this.moveOrderSentAt + 60) {
             return disband();
         } else {
-            return noop();
+            return requestSpecificUnits(this.unitIds, 100);
         }
     }
 }
