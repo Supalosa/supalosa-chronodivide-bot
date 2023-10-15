@@ -55,7 +55,7 @@ export class SupalosaBot extends Bot {
             null,
             new SectorCache(game.mapApi, this.knownMapBounds),
             game.getPlayerData(this.name).startLocation,
-            this.logBotStatus,
+            (msg) => this.logBotStatus(msg),
         );
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);

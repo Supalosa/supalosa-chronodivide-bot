@@ -16,24 +16,24 @@ const GRAB_RADIUS = 30;
 const MIN_GATHER_RADIUS = 5;
 const GATHER_RATIO = 10;
 
-enum AttackSquadState {
+enum SquadState {
     Gathering,
     Attacking,
 }
 
-export class AttackSquad implements SquadBehaviour {
+export class CombatSquad implements SquadBehaviour {
     private lastGrab: number | null = null;
     private lastCommand: number | null = null;
-    private state = AttackSquadState.Gathering;
+    private state = SquadState.Gathering;
 
     constructor(
         private rallyArea: Point2D,
-        private attackArea: Point2D,
+        private targetArea: Point2D,
         private radius: number,
     ) {}
 
-    public setAttackArea(attackArea: Point2D) {
-        this.attackArea = attackArea;
+    public setAttackArea(targetArea: Point2D) {
+        this.targetArea = targetArea;
     }
 
     public onAiUpdate(
@@ -49,7 +49,7 @@ export class AttackSquad implements SquadBehaviour {
             const maxDistance = squad.getMaxDistanceToCenterOfMass();
             const units = squad.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
 
-            if (this.state === AttackSquadState.Gathering) {
+            if (this.state === SquadState.Gathering) {
                 // Only use ground units for center of mass.
                 const groundUnits = squad.getUnitsMatching(
                     gameApi,
@@ -71,24 +71,24 @@ export class AttackSquad implements SquadBehaviour {
                         manageMoveMicro(actionsApi, unit, centerOfMass);
                     });
                 } else {
-                    this.state = AttackSquadState.Attacking;
+                    this.state = SquadState.Attacking;
                 }
             } else {
-                const attackPoint = this.attackArea || playerData.startLocation;
+                const targetPoint = this.targetArea || playerData.startLocation;
 
-                for (const attacker of units) {
-                    if (attacker.isIdle) {
-                        const { rx: x, ry: y } = attacker.tile;
-                        const range = attacker.primaryWeapon?.maxRange ?? attacker.secondaryWeapon?.maxRange ?? 5;
+                for (const unit of units) {
+                    if (unit.isIdle) {
+                        const { rx: x, ry: y } = unit.tile;
+                        const range = unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
                         const nearbyHostiles = matchAwareness.getHostilesNearPoint(x, y, range * 2);
                         const closest = _.minBy(nearbyHostiles, ({ x: hX, y: hY }) =>
                             getDistanceBetweenPoints({ x, y }, { x: hX, y: hY }),
                         );
                         const closestUnit = closest ? gameApi.getUnitData(closest.unitId) ?? null : null;
                         if (closestUnit) {
-                            manageAttackMicro(actionsApi, attacker, closestUnit);
+                            manageAttackMicro(actionsApi, unit, closestUnit);
                         } else {
-                            manageMoveMicro(actionsApi, attacker, attackPoint);
+                            manageMoveMicro(actionsApi, unit, targetPoint);
                         }
                     }
                 }

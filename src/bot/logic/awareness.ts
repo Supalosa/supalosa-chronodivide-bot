@@ -159,8 +159,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
         try {
             const hostileUnits = hostileUnitIds
                 .map((id) => game.getUnitData(id))
-                .filter((unit) => this.isHostileUnit(unit, hostilePlayerNames))
-                .map((unit) => unit!);
+                .filter((unit) => this.isHostileUnit(unit, hostilePlayerNames)) as UnitData[];
 
             rebuildQuadtree(this.hostileQuadTree, hostileUnits);
         } catch (err) {

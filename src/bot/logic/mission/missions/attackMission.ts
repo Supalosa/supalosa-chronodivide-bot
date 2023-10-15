@@ -1,6 +1,6 @@
 import { AttackState, GameApi, ObjectType, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
 import { OneTimeMission } from "./oneTimeMission.js";
-import { AttackSquad } from "../../squad/behaviours/attackSquad.js";
+import { CombatSquad } from "../../squad/behaviours/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
 import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../../squad/squad.js";
@@ -38,7 +38,7 @@ export class AttackMission extends Mission<AttackFailReason> {
     onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction {
         if (this.getSquad() === null) {
             return this.setSquad(
-                new Squad(this.getUniqueName(), new AttackSquad(this.rallyArea, this.attackArea, this.radius), this),
+                new Squad(this.getUniqueName(), new CombatSquad(this.rallyArea, this.attackArea, this.radius), this),
             );
         } else {
             // Dispatch missions.

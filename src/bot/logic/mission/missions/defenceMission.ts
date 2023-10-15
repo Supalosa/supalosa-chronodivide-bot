@@ -1,10 +1,10 @@
 import { GameApi, PlayerData, Point2D } from "@chronodivide/game-api";
-import { DefenceSquad } from "../../squad/behaviours/defenceSquad.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
 import { Squad } from "../../squad/squad.js";
+import { CombatSquad } from "../../squad/behaviours/combatSquad.js";
 
 export enum DefenceFailReason {
     NoTargets,
@@ -28,7 +28,7 @@ export class DefenceMission extends Mission<DefenceFailReason> {
             return this.setSquad(
                 new Squad(
                     "defenceSquad-" + this.getUniqueName(),
-                    new DefenceSquad(this.defenceArea, this.radius),
+                    new CombatSquad(matchAwareness.getMainRallyPoint(), this.defenceArea, this.radius),
                     this,
                 ),
             );
