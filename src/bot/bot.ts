@@ -135,6 +135,9 @@ export class SupalosaBot extends Bot {
     }
 
     private logDebugState(game: GameApi) {
+        if (!this.enableLogging) {
+            return;
+        }
         const myPlayer = game.getPlayerData(this.name);
         const queueState = QUEUES.reduce((prev, queueType) => {
             if (this.productionApi.getQueueData(queueType).size === 0) {

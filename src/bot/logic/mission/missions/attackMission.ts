@@ -42,7 +42,7 @@ export class AttackMission extends Mission<AttackFailReason> {
             );
         } else {
             // Dispatch missions.
-            if (matchAwareness.shouldRetreat()) {
+            if (!matchAwareness.shouldAttack()) {
                 return disbandMission(AttackFailReason.DefenceTooStrong);
             }
 
@@ -51,7 +51,6 @@ export class AttackMission extends Mission<AttackFailReason> {
             if (foundTargets.length > 0) {
                 this.lastTargetSeenAt = gameApi.getCurrentTick();
             } else if (gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_IDLE_TIMEOUT_TICKS) {
-                console.log(`Mission - Can't see any targets in target attack area, disbanding attack.`);
                 return disbandMission(AttackFailReason.NoTargets);
             }
         }
@@ -82,15 +81,20 @@ export class AttackMissionFactory implements MissionFactory {
 
     generateTarget(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): Point2D | null {
         // Randomly decide between harvester and base.
-        const tryFocusHarvester = gameApi.generateRandomInt(0, 1) === 0;
-        const enemyUnits = gameApi
-            .getVisibleUnits(playerData.name, "hostile")
-            .map((unitId) => gameApi.getUnitData(unitId))
-            .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
+        try {
+            const tryFocusHarvester = gameApi.generateRandomInt(0, 1) === 0;
+            const enemyUnits = gameApi
+                .getVisibleUnits(playerData.name, "hostile")
+                .map((unitId) => gameApi.getUnitData(unitId))
+                .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
-        const maxUnit = _.maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
-        if (maxUnit) {
-            return { x: maxUnit.tile.rx, y: maxUnit.tile.ry };
+            const maxUnit = _.maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
+            if (maxUnit) {
+                return { x: maxUnit.tile.rx, y: maxUnit.tile.ry };
+            }
+        } catch (err) {
+            // There's a crash here when accessing a building that got destroyed. Will catch and ignore or now.
+            return null;
         }
         return null;
     }

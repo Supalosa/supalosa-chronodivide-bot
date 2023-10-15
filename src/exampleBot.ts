@@ -16,7 +16,7 @@ async function main() {
     Other maps:
     mp03t4
     */
-    const mapName = "mp03t4.map";
+    const mapName = "mp01t4.map";
     // Bot names must be unique in online mode
     const botName = `Joe${String(Date.now()).substr(-6)}`;
     const otherBotName = `Bob${String(Date.now() + 1).substr(-6)}`;
@@ -32,8 +32,8 @@ async function main() {
         serverUrl: process.env.SERVER_URL!,
         clientUrl: process.env.CLIENT_URL!,
         agents: [new SupalosaBot(botName, "Americans"), { name: otherBotName, country: "French" }],*/
-        //agents: [new SupalosaBot(botName, "Russians", false), new SupalosaBot(otherBotName, "Americans", true)],
-        agents: [new SupalosaBot(botName, "Americans", false), new SupalosaBot(otherBotName, "Russians", true)],
+        agents: [new SupalosaBot(botName, "Russians", false), new SupalosaBot(otherBotName, "Americans", true)],
+        //agents: [new SupalosaBot(botName, "Americans", false), new SupalosaBot(otherBotName, "Russians", false)],
         buildOffAlly: false,
         cratesAppear: false,
         credits: 10000,

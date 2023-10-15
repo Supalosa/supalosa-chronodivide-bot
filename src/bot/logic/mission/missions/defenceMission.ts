@@ -6,7 +6,6 @@ import { MissionFactory } from "../missionFactories.js";
 import { Squad } from "../../squad/squad.js";
 import { CombatSquad } from "../../squad/behaviours/combatSquad.js";
 import { RetreatMission } from "./retreatMission.js";
-import { getDistanceBetweenPoints } from "../../map/map.js";
 
 export enum DefenceFailReason {
     NoTargets,
@@ -36,7 +35,6 @@ export class DefenceMission extends Mission<DefenceFailReason> {
             const foundTargets = matchAwareness.getHostilesNearPoint2d(this.defenceArea, this.radius);
 
             if (foundTargets.length === 0) {
-                console.log(`(${playerData.name}) defence mission disbanded`);
                 return disbandMission(DefenceFailReason.NoTargets);
             } else {
                 this.combatSquad?.setAttackArea({ x: foundTargets[0].x, y: foundTargets[0].y });

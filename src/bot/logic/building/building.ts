@@ -64,7 +64,6 @@ export function getDefaultPlacementLocation(
             }
         }
     }
-    console.log("Can't find a place to put the " + technoRules.name);
     return undefined;
 }
 

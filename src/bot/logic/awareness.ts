@@ -42,16 +42,13 @@ export interface MatchAwareness {
      * True if the AI should initiate an attack.
      */
     shouldAttack(): boolean;
-
-    /**
-     * True if the AI should cancel existing attacks.
-     */
-    shouldRetreat(): boolean;
 }
 
 const SECTORS_TO_UPDATE_PER_CYCLE = 8;
 
 const RALLY_POINT_UPDATE_INTERVAL_TICKS = 60;
+
+const THREAT_UPDATE_INTERVAL_TICKS = 30;
 
 type QTUnit = Circle<number>;
 export type UnitPositionQuery = { x: number; y: number; unitId: number };
@@ -65,8 +62,6 @@ const rebuildQuadtree = (quadtree: Quadtree<QTUnit>, units: UnitData[]) => {
 
 export class MatchAwarenessImpl implements MatchAwareness {
     private _shouldAttack: boolean = false;
-    private _shouldRetreat: boolean = true;
-    private tickOfLastAttackOrder: number = 0;
 
     private hostileQuadTree: Quadtree<QTUnit>;
 
@@ -106,16 +101,12 @@ export class MatchAwarenessImpl implements MatchAwareness {
         return this._shouldAttack;
     }
 
-    shouldRetreat(): boolean {
-        return this._shouldRetreat;
-    }
-
-    private isWorthAttacking(threatCache: GlobalThreat, threatFactor: number) {
-        let scaledGroundPower = Math.pow(threatCache.totalAvailableAntiGroundFirepower, 1.125);
+    private checkShouldAttack(threatCache: GlobalThreat, threatFactor: number) {
+        let scaledGroundPower = Math.pow(threatCache.totalAvailableAntiGroundFirepower, 1.025);
         let scaledGroundThreat =
             (threatFactor * threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat) * 1.1;
 
-        let scaledAirPower = Math.pow(threatCache.totalAvailableAirPower, 1.125);
+        let scaledAirPower = Math.pow(threatCache.totalAvailableAirPower, 1.025);
         let scaledAirThreat =
             (threatFactor * threatCache.totalOffensiveAntiAirThreat + threatCache.totalDefensiveThreat) * 1.1;
 
@@ -168,19 +159,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
             console.error(`caught error`, hostileUnitIds);
         }
 
-        // Threat decays over time if we haven't killed anything
-        const boredomFactor =
-            1.0 - Math.min(1.0, Math.max(0.0, (game.getCurrentTick() - this.tickOfLastAttackOrder) / 1600.0));
-
-        const nextShouldAttack = !!this.threatCache ? this.isWorthAttacking(this.threatCache, boredomFactor) : false;
-        if (nextShouldAttack && !this._shouldAttack) {
-            this.tickOfLastAttackOrder = game.getCurrentTick();
-        }
-        this._shouldAttack = nextShouldAttack;
-        // TODO: implement separate attack/retreat thresholds.
-        this._shouldRetreat = !nextShouldAttack;
-
-        if (game.getCurrentTick() % 600 == 0) {
+        if (game.getCurrentTick() % THREAT_UPDATE_INTERVAL_TICKS == 0) {
             let visibility = sectorCache?.getOverallVisibility();
             if (visibility) {
                 this.logger(`${Math.round(visibility * 1000.0) / 10}% of tiles visible. Calculating threat.`);
@@ -201,7 +180,24 @@ export class MatchAwarenessImpl implements MatchAwareness {
                         this.threatCache.totalAvailableAntiAirFirepower,
                     )}.`,
                 );
-                this.logger(`Boredom: ${boredomFactor}`);
+
+                // As the game approaches 2 hours, be more willing to attack. (15 ticks per second)
+                const gameLengthFactor = Math.max(0, 1.0 - game.getCurrentTick() / (15 * 7200.0));
+                this.logger(`Game length multiplier: ${gameLengthFactor}`);
+
+                if (!this._shouldAttack) {
+                    // If not attacking, make it harder to switch to attack mode by multiplying the opponent's threat.
+                    this._shouldAttack = this.checkShouldAttack(this.threatCache, 1.25 * gameLengthFactor);
+                    if (this._shouldAttack) {
+                        this.logger(`Globally switched to attack mode.`);
+                    }
+                } else {
+                    // If currently attacking, make it harder to switch to defence mode my dampening the opponent's threat.
+                    this._shouldAttack = this.checkShouldAttack(this.threatCache, 0.75 * gameLengthFactor);
+                    if (!this._shouldAttack) {
+                        this.logger(`Globally switched to defence mode.`);
+                    }
+                }
             }
         }
 

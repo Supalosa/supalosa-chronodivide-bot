@@ -14,6 +14,10 @@ const GRAB_RADIUS = 30;
 // Units must be in a certain radius of the center of mass before attacking.
 // This scales for number of units in the squad though.
 const MIN_GATHER_RADIUS = 5;
+
+// If the radius expands beyond this amount then we should switch back to gathering mode.
+const MAX_GATHER_RADIUS = 15;
+
 const GATHER_RATIO = 10;
 
 enum SquadState {
@@ -49,17 +53,17 @@ export class CombatSquad implements SquadBehaviour {
             const maxDistance = squad.getMaxDistanceToCenterOfMass();
             const units = squad.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
 
-            if (this.state === SquadState.Gathering) {
-                // Only use ground units for center of mass.
-                const groundUnits = squad.getUnitsMatching(
-                    gameApi,
-                    (r) =>
-                        r.rules.isSelectableCombatant &&
-                        (r.rules.movementZone === MovementZone.Infantry ||
-                            r.rules.movementZone === MovementZone.Normal ||
-                            r.rules.movementZone === MovementZone.InfantryDestroyer),
-                );
+            // Only use ground units for center of mass.
+            const groundUnits = squad.getUnitsMatching(
+                gameApi,
+                (r) =>
+                    r.rules.isSelectableCombatant &&
+                    (r.rules.movementZone === MovementZone.Infantry ||
+                        r.rules.movementZone === MovementZone.Normal ||
+                        r.rules.movementZone === MovementZone.InfantryDestroyer),
+            );
 
+            if (this.state === SquadState.Gathering) {
                 const requiredGatherRadius = Math.sqrt(groundUnits.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
                 if (
                     centerOfMass &&
@@ -75,7 +79,17 @@ export class CombatSquad implements SquadBehaviour {
                 }
             } else {
                 const targetPoint = this.targetArea || playerData.startLocation;
-
+                const requiredGatherRadius = Math.sqrt(groundUnits.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
+                if (
+                    centerOfMass &&
+                    maxDistance &&
+                    gameApi.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
+                    maxDistance > requiredGatherRadius
+                ) {
+                    // Switch back to gather mode.
+                    this.state = SquadState.Gathering;
+                    return noop();
+                }
                 for (const unit of units) {
                     if (unit.isIdle) {
                         const { rx: x, ry: y } = unit.tile;
