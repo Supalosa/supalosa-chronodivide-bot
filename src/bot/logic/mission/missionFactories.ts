@@ -1,14 +1,13 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
-import { GlobalThreat } from "../threat/threat.js";
 import { ExpansionMissionFactory } from "./missions/expansionMission.js";
 import { Mission } from "./mission.js";
 import { MatchAwareness } from "../awareness.js";
 import { ScoutingMissionFactory } from "./missions/scoutingMission.js";
 import { AttackMissionFactory } from "./missions/attackMission.js";
 import { MissionController } from "./missionController.js";
+import { DefenceMissionFactory } from "./missions/defenceMission.js";
 
 export interface MissionFactory {
-
     getName(): string;
 
     /**
@@ -23,7 +22,7 @@ export interface MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        missionController: MissionController
+        missionController: MissionController,
     ): void;
 
     /**
@@ -35,12 +34,13 @@ export interface MissionFactory {
         matchAwareness: MatchAwareness,
         failedMission: Mission,
         failureReason: any,
-        missionController: MissionController
+        missionController: MissionController,
     ): void;
 }
 
-export const missionFactories = [
+export const createMissionFactories = () => [
     new ExpansionMissionFactory(),
     new ScoutingMissionFactory(),
     new AttackMissionFactory(),
+    new DefenceMissionFactory(),
 ];

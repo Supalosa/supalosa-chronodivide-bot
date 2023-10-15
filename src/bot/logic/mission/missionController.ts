@@ -4,22 +4,24 @@ import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { Mission, MissionAction, MissionActionDisband, MissionActionRegisterSquad } from "./mission.js";
 import { SquadController } from "../squad/squadController.js";
-import { missionFactories as MISSION_FACTORIES } from "./missionFactories.js";
 import { MatchAwareness } from "../awareness.js";
-import { disband } from "../squad/squadBehaviour.js";
+import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 
 export class MissionController {
+    private missionFactories: MissionFactory[];
     private missions: Mission<any>[] = [];
 
     private forceDisbandedMissions: string[] = [];
 
-    constructor(private logger: (message: string) => void) {}
+    constructor(private logger: (message: string) => void) {
+        this.missionFactories = createMissionFactories();
+    }
 
     public onAiUpdate(
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        squadController: SquadController
+        squadController: SquadController,
     ) {
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
@@ -65,29 +67,17 @@ export class MissionController {
             });
 
         // Create dynamic missions.
-        MISSION_FACTORIES.forEach((missionFactory) => {
-            missionFactory.maybeCreateMissions(
-                gameApi,
-                playerData,
-                matchAwareness,
-                this
-            );
+        this.missionFactories.forEach((missionFactory) => {
+            missionFactory.maybeCreateMissions(gameApi, playerData, matchAwareness, this);
             disbandedMissionsArray.forEach(({ reason, mission }) => {
-                missionFactory.onMissionFailed(
-                    gameApi,
-                    playerData,
-                    matchAwareness,
-                    mission,
-                    reason,
-                    this
-                );
+                missionFactory.onMissionFailed(gameApi, playerData, matchAwareness, mission, reason, this);
             });
         });
     }
 
     /**
      * Attempts to add a mission to the active set.
-     * @param mission 
+     * @param mission
      * @returns The mission if it was accepted, or null if it was not.
      */
     public addMission<T>(mission: Mission<T | any>): Mission<T> | null {

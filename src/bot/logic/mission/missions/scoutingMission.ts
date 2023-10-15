@@ -6,6 +6,7 @@ import { MatchAwareness } from "../../awareness.js";
 import { Mission } from "../mission.js";
 import { AttackMission } from "./attackMission.js";
 import { MissionController } from "../missionController.js";
+import { getUnseenStartingLocations } from "../../common/scout.js";
 
 /**
  * A mission that tries to scout around the map with a cheap, fast unit (usually attack dogs)
@@ -32,6 +33,10 @@ export class ScoutingMissionFactory implements MissionFactory {
         missionController: MissionController,
     ): void {
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
+            return;
+        }
+        const candidatePoints = getUnseenStartingLocations(gameApi, playerData);
+        if (candidatePoints.length === 0) {
             return;
         }
         if (!missionController.addMission(new ScoutingMission("globalScout", 100))) {

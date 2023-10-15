@@ -142,7 +142,12 @@ export class MatchAwarenessImpl implements MatchAwareness {
         const hostilePlayerNames = game
             .getPlayers()
             .map((name) => game.getPlayerData(name))
-            .filter((other) => other.isCombatant && !game.areAlliedPlayers(playerData.name, other.name))
+            .filter(
+                (other) =>
+                    other.name !== playerData.name &&
+                    other.isCombatant &&
+                    !game.areAlliedPlayers(playerData.name, other.name),
+            )
             .map((other) => other.name);
 
         // Build the quadtree, if this is too slow we should consider doing this periodically.

@@ -1,25 +1,10 @@
 import _ from "lodash";
-import {
-    ActionsApi,
-    AttackState,
-    GameApi,
-    MovementZone,
-    ObjectType,
-    OrderType,
-    PlayerData,
-    Point2D,
-    SideType,
-    UnitData,
-} from "@chronodivide/game-api";
+import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
-import { getDistanceBetween, getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
-import { match } from "assert";
-
-// If no enemies are seen in a circle IDLE_CHECK_RADIUS*radius for IDLE_COOLDOWN_TICKS ticks, the mission is disbanded.
-const IDLE_CHECK_RADIUS_RATIO = 2;
-const IDLE_COOLDOWN_TICKS = 15 * 30;
+import { getDistanceBetweenPoints } from "../../map/map.js";
+import { manageAttackMicro, manageMoveMicro } from "./common.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 const GRAB_INTERVAL_TICKS = 10;
@@ -37,7 +22,6 @@ enum AttackSquadState {
 }
 
 export class AttackSquad implements SquadBehaviour {
-    private lastIdleCheck: number | null = null;
     private lastGrab: number | null = null;
     private lastCommand: number | null = null;
     private state = AttackSquadState.Gathering;
@@ -83,14 +67,8 @@ export class AttackSquad implements SquadBehaviour {
                     gameApi.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
                     maxDistance > requiredGatherRadius
                 ) {
-                    /*console.dir({
-                        centerOfMass,
-                        maxDistance,
-                        requiredGatherRadius,
-                        units: groundUnits.map((u) => u.name),
-                    });*/
                     units.forEach((unit) => {
-                        this.manageMoveMicro(actionsApi, unit, centerOfMass);
+                        manageMoveMicro(actionsApi, unit, centerOfMass);
                     });
                 } else {
                     this.state = AttackSquadState.Attacking;
@@ -108,9 +86,9 @@ export class AttackSquad implements SquadBehaviour {
                         );
                         const closestUnit = closest ? gameApi.getUnitData(closest.unitId) ?? null : null;
                         if (closestUnit) {
-                            this.manageAttackMicro(actionsApi, attacker, closestUnit);
+                            manageAttackMicro(actionsApi, attacker, closestUnit);
                         } else {
-                            this.manageMoveMicro(actionsApi, attacker, attackPoint);
+                            manageMoveMicro(actionsApi, attacker, attackPoint);
                         }
                     }
                 }
@@ -123,42 +101,5 @@ export class AttackSquad implements SquadBehaviour {
         } else {
             return noop();
         }
-    }
-
-    // Micro methods
-    private manageMoveMicro(actionsApi: ActionsApi, attacker: UnitData, attackPoint: Point2D) {
-        if (attacker.name === "E1") {
-            if (attacker.canMove === false) {
-                actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
-            }
-        }
-        actionsApi.orderUnits([attacker.id], OrderType.Move, attackPoint.x, attackPoint.y);
-    }
-
-    private manageAttackMicro(actionsApi: ActionsApi, attacker: UnitData, target: UnitData) {
-        const distance = getDistanceBetweenUnits(attacker, target);
-        if (attacker.name === "E1") {
-            // Para (deployed weapon) range is 5.
-            const deployedWeaponRange = attacker.secondaryWeapon?.maxRange || 5;
-            actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
-
-            if (attacker.canMove && distance <= deployedWeaponRange * 0.8) {
-                actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
-                return;
-            } else if (!attacker.canMove && distance > deployedWeaponRange) {
-                actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
-                return;
-            }
-        }
-        let targetData = target;
-        let orderType: OrderType = OrderType.AttackMove;
-        const primaryWeaponRange = attacker.primaryWeapon?.maxRange || 5;
-        if (targetData?.type == ObjectType.Building && distance < primaryWeaponRange * 0.8) {
-            orderType = OrderType.Attack;
-        } else if (targetData?.rules.canDisguise) {
-            // Special case for mirage tank/spy as otherwise they just sit next to it.
-            orderType = OrderType.Attack;
-        }
-        actionsApi.orderUnits([attacker.id], orderType, target.id);
     }
 }

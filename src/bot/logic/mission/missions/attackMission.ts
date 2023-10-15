@@ -35,15 +35,6 @@ export class AttackMission extends Mission<AttackFailReason> {
         super(uniqueName, priority);
     }
 
-    private isHostileUnit(game: GameApi, unitId: number, playerData: PlayerData) {
-        const unitData = game.getUnitData(unitId);
-        if (!unitData) {
-            return false;
-        }
-
-        return unitData.owner != playerData.name && game.getPlayerData(unitData.owner)?.isCombatant;
-    }
-
     onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction {
         if (this.getSquad() === null) {
             return this.setSquad(
@@ -95,8 +86,7 @@ export class AttackMissionFactory implements MissionFactory {
         const enemyUnits = gameApi
             .getVisibleUnits(playerData.name, "hostile")
             .map((unitId) => gameApi.getUnitData(unitId))
-            .filter((u) => !!u)
-            .map((u) => u!);
+            .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
         const maxUnit = _.maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
         if (maxUnit) {

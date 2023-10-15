@@ -14,6 +14,7 @@ import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, grabCombatants, noop, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
 import { getDistanceBetween, getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
+import { manageAttackMicro } from "./common.js";
 
 // If no enemies are seen in a circle IDLE_CHECK_RADIUS*radius for IDLE_COOLDOWN_TICKS ticks, the mission is disbanded.
 const IDLE_CHECK_RADIUS_RATIO = 2;
@@ -24,14 +25,17 @@ const GRAB_RADIUS = 2;
 export class DefenceSquad implements SquadBehaviour {
     private lastIdleCheck: number | null = null;
 
-    constructor(private defenceArea: Point2D, private radius: number) {}
+    constructor(
+        private defenceArea: Point2D,
+        private radius: number,
+    ) {}
 
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        matchAwareness: MatchAwareness
+        matchAwareness: MatchAwareness,
     ): SquadAction {
         const enemyUnits = gameApi.getVisibleUnits(playerData.name, "hostile", (r) => r.isSelectableCombatant);
         const hasEnemiesInIdleCheckRadius = enemyUnits
@@ -40,7 +44,7 @@ export class DefenceSquad implements SquadBehaviour {
                 (unit) =>
                     !!unit &&
                     unit.tile &&
-                    getDistanceBetween(unit, this.defenceArea) < IDLE_CHECK_RADIUS_RATIO * this.radius
+                    getDistanceBetween(unit, this.defenceArea) < IDLE_CHECK_RADIUS_RATIO * this.radius,
             );
 
         if (this.lastIdleCheck === null) {
@@ -65,27 +69,14 @@ export class DefenceSquad implements SquadBehaviour {
                         enemy,
                         distance: getDistanceBetweenUnits(defender, enemy),
                     })),
-                    "distance"
+                    "distance",
                 );
                 if (closestEnemy) {
-                    this.manageMicro(actionsApi, defender, closestEnemy.enemy, closestEnemy.distance);
+                    manageAttackMicro(actionsApi, defender, closestEnemy.enemy);
                 }
             }
         });
 
         return grabCombatants(this.defenceArea, this.radius * GRAB_RADIUS);
-    }
-
-    // Micro methods
-    private manageMicro(actionsApi: ActionsApi, defender: UnitData, closestEnemy: UnitData, distance: number) {
-        if (defender.name === "E1") {
-            // Para (deployed weapon) range is 5.
-            if (defender.canMove && distance <= 4) {
-                actionsApi.orderUnits([defender.id], OrderType.DeploySelected);
-            } else if (!defender.canMove && distance >= 5) {
-                actionsApi.orderUnits([defender.id], OrderType.DeploySelected);
-            }
-        }
-        actionsApi.orderUnits([defender.id], OrderType.AttackMove, closestEnemy.tile.rx, closestEnemy.tile.ry);
     }
 }
