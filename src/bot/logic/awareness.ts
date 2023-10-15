@@ -22,9 +22,9 @@ export interface MatchAwareness {
     /**
      * Returns the enemy unit IDs in a certain radius of a point
      */
-    getHostilesInRadius(point: Point2D, radius: number): UnitPositionQuery[];
+    getHostilesNearPoint2d(point: Point2D, radius: number): UnitPositionQuery[];
 
-    getHostilesInRadius2(x: number, y: number, radius: number): UnitPositionQuery[];
+    getHostilesNearPoint(x: number, y: number, radius: number): UnitPositionQuery[];
 
     /**
      * Returns the main rally point for the AI, which updates every few ticks.
@@ -54,7 +54,7 @@ const SECTORS_TO_UPDATE_PER_CYCLE = 8;
 const RALLY_POINT_UPDATE_INTERVAL_TICKS = 60;
 
 type QTUnit = Circle<number>;
-export type UnitPositionQuery = {x: number, y: number, unitId: number};
+export type UnitPositionQuery = { x: number; y: number; unitId: number };
 
 const rebuildQuadtree = (quadtree: Quadtree<QTUnit>, units: UnitData[]) => {
     quadtree.clear();
@@ -80,15 +80,15 @@ export class MatchAwarenessImpl implements MatchAwareness {
         this.hostileQuadTree = new Quadtree({ width, height });
     }
 
-    getHostilesInRadius(point: Point2D, radius: number): UnitPositionQuery[] {
-        return this.getHostilesInRadius2(point.x, point.y, radius);
+    getHostilesNearPoint2d(point: Point2D, radius: number): UnitPositionQuery[] {
+        return this.getHostilesNearPoint(point.x, point.y, radius);
     }
 
-    getHostilesInRadius2(x: number, y: number, radius: number): UnitPositionQuery[] {
+    getHostilesNearPoint(x: number, y: number, radius: number): UnitPositionQuery[] {
         const intersections = this.hostileQuadTree.retrieve(new Circle({ x, y, r: radius }));
         return intersections
-            .map(({x, y, data: unitId}) => ({x, y, unitId: unitId!}))
-            .filter(({unitId}) => !!unitId);
+            .map(({ x, y, data: unitId }) => ({ x, y, unitId: unitId! }))
+            .filter(({ unitId }) => !!unitId);
     }
 
     getThreatCache(): GlobalThreat | null {
@@ -146,16 +146,22 @@ export class MatchAwarenessImpl implements MatchAwareness {
             .map((other) => other.name);
 
         // Build the quadtree, if this is too slow we should consider doing this periodically.
-        const hostileUnits = game
-            .getVisibleUnits(
-                playerData.name,
-                "hostile",
-                (r) => r.isSelectableCombatant || r.type === ObjectType.Building,
-            )
-            .map((id) => game.getUnitData(id))
-            .filter((unit) => this.isHostileUnit(unit, hostilePlayerNames))
-            .map((unit) => unit!);
-        rebuildQuadtree(this.hostileQuadTree, hostileUnits);
+        const hostileUnitIds = game.getVisibleUnits(
+            playerData.name,
+            "hostile",
+            (r) => r.isSelectableCombatant || r.type === ObjectType.Building,
+        );
+        try {
+            const hostileUnits = hostileUnitIds
+                .map((id) => game.getUnitData(id))
+                .filter((unit) => this.isHostileUnit(unit, hostilePlayerNames))
+                .map((unit) => unit!);
+
+            rebuildQuadtree(this.hostileQuadTree, hostileUnits);
+        } catch (err) {
+            console.error(`caught error`, hostileUnitIds);
+            throw err;
+        }
 
         // Threat decays over time if we haven't killed anything
         const boredomFactor =

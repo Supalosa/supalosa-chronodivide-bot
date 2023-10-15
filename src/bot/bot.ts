@@ -21,7 +21,7 @@ import { MatchAwareness as MatchAwareness, MatchAwarenessImpl } from "./logic/aw
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 const NATURAL_TICK_RATE = 15;
-const BOT_AUTO_SURRENDER_TIME_SECONDS = 3600; // 7200; // 2 hours (approx 30 mins in real game)
+const BOT_AUTO_SURRENDER_TIME_SECONDS = 7200; // 7200; // 2 hours (approx 30 mins in real game)
 
 export class SupalosaBot extends Bot {
     private tickRatio!: number;
@@ -55,7 +55,7 @@ export class SupalosaBot extends Bot {
             null,
             new SectorCache(game.mapApi, this.knownMapBounds),
             game.getPlayerData(this.name).startLocation,
-            this.logBotStatus
+            this.logBotStatus,
         );
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);
@@ -87,12 +87,12 @@ export class SupalosaBot extends Bot {
             const mcvUnits = game.getVisibleUnits(
                 this.name,
                 "self",
-                (r) => !!r.deploysInto && game.getGeneralRules().baseUnit.includes(r.name)
+                (r) => !!r.deploysInto && game.getGeneralRules().baseUnit.includes(r.name),
             );
             const productionBuildings = game.getVisibleUnits(
                 this.name,
                 "self",
-                (r) => r.type == ObjectType.Building && r.factory != FactoryType.None
+                (r) => r.type == ObjectType.Building && r.factory != FactoryType.None,
             );
             if (armyUnits.length == 0 && productionBuildings.length == 0 && mcvUnits.length == 0) {
                 this.logBotStatus(`No army or production left, quitting.`);
@@ -106,7 +106,7 @@ export class SupalosaBot extends Bot {
                 this.actionsApi,
                 myPlayer,
                 threatCache,
-                (message) => this.logBotStatus(message)
+                (message) => this.logBotStatus(message),
             );
 
             // Mission logic every 6 ticks
@@ -117,7 +117,7 @@ export class SupalosaBot extends Bot {
             // Squad logic every 3 ticks
             if (this.gameApi.getCurrentTick() % 3 === 0) {
                 this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness, (message) =>
-                    this.logBotStatus(message)
+                    this.logBotStatus(message),
                 );
             }
         }
@@ -156,6 +156,7 @@ export class SupalosaBot extends Bot {
         this.logBotStatus(`Harvesters: ${harvesters}`);
         this.logBotStatus(`----- End -----`);
         this.missionController.logDebugOutput();
+        this.actionsApi.sayAll(`Cash: ${myPlayer.credits}`);
     }
 
     override onGameEvent(ev: ApiEvent) {

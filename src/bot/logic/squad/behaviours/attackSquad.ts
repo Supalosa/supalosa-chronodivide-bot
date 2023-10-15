@@ -3,6 +3,7 @@ import {
     ActionsApi,
     AttackState,
     GameApi,
+    MovementZone,
     ObjectType,
     OrderType,
     PlayerData,
@@ -11,33 +12,43 @@ import {
     UnitData,
 } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
-import { SquadAction, SquadBehaviour, disband, grabCombatants, noop, requestUnits } from "../squadBehaviour.js";
+import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
 import { getDistanceBetween, getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
-import { AttackTarget } from "../../mission/missions/attackMission.js";
 import { match } from "assert";
 
 // If no enemies are seen in a circle IDLE_CHECK_RADIUS*radius for IDLE_COOLDOWN_TICKS ticks, the mission is disbanded.
 const IDLE_CHECK_RADIUS_RATIO = 2;
 const IDLE_COOLDOWN_TICKS = 15 * 30;
 
-const TARGET_UPDATE_INTERVAL_TICKS = 4;
+const TARGET_UPDATE_INTERVAL_TICKS = 10;
 const GRAB_INTERVAL_TICKS = 10;
 
 const GRAB_RADIUS = 30;
+
+// Units must be in a certain radius of the center of mass before attacking.
+// This scales for number of units in the squad though.
+const MIN_GATHER_RADIUS = 5;
+const GATHER_RATIO = 10;
+
+enum AttackSquadState {
+    Gathering,
+    Attacking,
+}
 
 export class AttackSquad implements SquadBehaviour {
     private lastIdleCheck: number | null = null;
     private lastGrab: number | null = null;
     private lastCommand: number | null = null;
+    private state = AttackSquadState.Gathering;
 
     constructor(
         private rallyArea: Point2D,
-        private attackArea: AttackTarget,
+        private attackArea: Point2D,
         private radius: number,
     ) {}
 
-    public setAttackArea(attackArea: AttackTarget) {
+    public setAttackArea(attackArea: Point2D) {
         this.attackArea = attackArea;
     }
 
@@ -49,28 +60,63 @@ export class AttackSquad implements SquadBehaviour {
         matchAwareness: MatchAwareness,
     ): SquadAction {
         if (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS) {
+            this.lastCommand = gameApi.getCurrentTick();
+            const centerOfMass = squad.getCenterOfMass();
+            const maxDistance = squad.getMaxDistanceToCenterOfMass();
             const units = squad.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
 
-            const attackPoint = this.attackArea || playerData.startLocation;
+            if (this.state === AttackSquadState.Gathering) {
+                // Only use ground units for center of mass.
+                const groundUnits = squad.getUnitsMatching(
+                    gameApi,
+                    (r) =>
+                        r.rules.isSelectableCombatant &&
+                        (r.rules.movementZone === MovementZone.Infantry ||
+                            r.rules.movementZone === MovementZone.Normal ||
+                            r.rules.movementZone === MovementZone.InfantryDestroyer),
+                );
 
-            for (const attacker of units) {
-                if (attacker.isIdle) {
-                    const { rx: x, ry: y } = attacker.tile;
-                    const range = attacker.primaryWeapon?.maxRange ?? attacker.secondaryWeapon?.maxRange ?? 5;
-                    const nearbyHostiles = matchAwareness.getHostilesInRadius2(x, y, range * 2);
-                    const closest = _.minBy(nearbyHostiles, ({ x: hX, y: hY }) =>
-                        getDistanceBetweenPoints({ x, y }, { x: hX, y: hY }),
-                    );
-                    const closestUnit = closest ? gameApi.getUnitData(closest.unitId) ?? null : null;
-                    if (closestUnit) {
-                        this.manageAttackMicro(actionsApi, attacker, closestUnit);
-                    } else {
-                        this.manageMoveMicro(actionsApi, attacker, attackPoint);
+                const requiredGatherRadius = Math.sqrt(groundUnits.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
+                if (
+                    centerOfMass &&
+                    maxDistance &&
+                    gameApi.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
+                    maxDistance > requiredGatherRadius
+                ) {
+                    /*console.dir({
+                        centerOfMass,
+                        maxDistance,
+                        requiredGatherRadius,
+                        units: groundUnits.map((u) => u.name),
+                    });*/
+                    units.forEach((unit) => {
+                        this.manageMoveMicro(actionsApi, unit, centerOfMass);
+                    });
+                } else {
+                    this.state = AttackSquadState.Attacking;
+                }
+            } else {
+                const attackPoint = this.attackArea || playerData.startLocation;
+
+                for (const attacker of units) {
+                    if (attacker.isIdle) {
+                        const { rx: x, ry: y } = attacker.tile;
+                        const range = attacker.primaryWeapon?.maxRange ?? attacker.secondaryWeapon?.maxRange ?? 5;
+                        const nearbyHostiles = matchAwareness.getHostilesNearPoint(x, y, range * 2);
+                        const closest = _.minBy(nearbyHostiles, ({ x: hX, y: hY }) =>
+                            getDistanceBetweenPoints({ x, y }, { x: hX, y: hY }),
+                        );
+                        const closestUnit = closest ? gameApi.getUnitData(closest.unitId) ?? null : null;
+                        if (closestUnit) {
+                            this.manageAttackMicro(actionsApi, attacker, closestUnit);
+                        } else {
+                            this.manageMoveMicro(actionsApi, attacker, attackPoint);
+                        }
                     }
                 }
             }
-            this.lastCommand = gameApi.getCurrentTick();
         }
+
         if (!this.lastGrab || gameApi.getCurrentTick() > this.lastGrab + GRAB_INTERVAL_TICKS) {
             this.lastGrab = gameApi.getCurrentTick();
             return grabCombatants(this.rallyArea, this.radius * GRAB_RADIUS);
@@ -86,7 +132,7 @@ export class AttackSquad implements SquadBehaviour {
                 actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
             }
         }
-        actionsApi.orderUnits([attacker.id], OrderType.AttackMove, attackPoint.x, attackPoint.y);
+        actionsApi.orderUnits([attacker.id], OrderType.Move, attackPoint.x, attackPoint.y);
     }
 
     private manageAttackMicro(actionsApi: ActionsApi, attacker: UnitData, target: UnitData) {
@@ -95,7 +141,6 @@ export class AttackSquad implements SquadBehaviour {
             // Para (deployed weapon) range is 5.
             const deployedWeaponRange = attacker.secondaryWeapon?.maxRange || 5;
             actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
-            //console.dir({distance, attacker: attacker.name, canMove: attacker.canMove, primaryMaxRange: attacker.primaryWeapon?.maxRange, secondaryMaxRange: attacker.secondaryWeapon?.maxRange})
 
             if (attacker.canMove && distance <= deployedWeaponRange * 0.8) {
                 actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);

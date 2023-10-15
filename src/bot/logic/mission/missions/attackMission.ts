@@ -1,4 +1,4 @@
-import { GameApi, PlayerData, Point2D } from "@chronodivide/game-api";
+import { AttackState, GameApi, ObjectType, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
 import { OneTimeMission } from "./oneTimeMission.js";
 import { AttackSquad } from "../../squad/behaviours/attackSquad.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
@@ -10,10 +10,7 @@ import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { match } from "assert";
 import { RetreatMission } from "./retreatMission.js";
-
-export type AttackTarget = Point2D | null;
-
-export const GENERAL_ATTACK: AttackTarget = null;
+import _ from "lodash";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -32,7 +29,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         uniqueName: string,
         priority: number,
         private rallyArea: Point2D,
-        private attackArea: AttackTarget,
+        private attackArea: Point2D,
         private radius: number,
     ) {
         super(uniqueName, priority);
@@ -58,13 +55,12 @@ export class AttackMission extends Mission<AttackFailReason> {
                 return disbandMission(AttackFailReason.DefenceTooStrong);
             }
 
-            const foundTarget = gameApi
-                .getVisibleUnits(playerData.name, "hostile")
-                .some((unit) => this.isHostileUnit(gameApi, unit, playerData));
-            if (foundTarget) {
+            const foundTargets = matchAwareness.getHostilesNearPoint2d(this.attackArea, this.radius);
+
+            if (foundTargets.length > 0) {
                 this.lastTargetSeenAt = gameApi.getCurrentTick();
             } else if (gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_IDLE_TIMEOUT_TICKS) {
-                console.log(`Mission - Can't see any targets, disbanding attack.`);
+                console.log(`Mission - Can't see any targets in target attack area, disbanding attack.`);
                 return disbandMission(AttackFailReason.NoTargets);
             }
         }
@@ -74,11 +70,39 @@ export class AttackMission extends Mission<AttackFailReason> {
 
 const ATTACK_COOLDOWN_TICKS = 120;
 
+// Calculates the weight for initiating an attack on the position of a unit or building.
+// This is separate from unit micro; the squad will be ordered to attack in the vicinity of the point.
+const getTargetWeight: (unitData: UnitData, tryFocusHarvester: boolean) => number = (unitData, tryFocusHarvester) => {
+    if (tryFocusHarvester && unitData.rules.harvester) {
+        return 100000;
+    } else if (unitData.type === ObjectType.Building) {
+        return unitData.maxHitPoints * 10;
+    } else {
+        return unitData.maxHitPoints;
+    }
+};
+
 export class AttackMissionFactory implements MissionFactory {
     constructor(private lastAttackAt: number = -ATTACK_COOLDOWN_TICKS) {}
 
     getName(): string {
         return "AttackMissionFactory";
+    }
+
+    generateTarget(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): Point2D | null {
+        // Randomly decide between harvester and base.
+        const tryFocusHarvester = gameApi.generateRandomInt(0, 1) === 0;
+        const enemyUnits = gameApi
+            .getVisibleUnits(playerData.name, "hostile")
+            .map((unitId) => gameApi.getUnitData(unitId))
+            .filter((u) => !!u)
+            .map((u) => u!);
+
+        const maxUnit = _.maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
+        if (maxUnit) {
+            return { x: maxUnit.tile.rx, y: maxUnit.tile.ry };
+        }
+        return null;
     }
 
     maybeCreateMissions(
@@ -95,15 +119,28 @@ export class AttackMissionFactory implements MissionFactory {
         }
 
         const attackRadius = 15;
+
+        const attackArea = this.generateTarget(gameApi, playerData, matchAwareness);
+
+        if (!attackArea) {
+            // Nothing to attack.
+            return;
+        }
+
         // TODO: not using a fixed value here. But performance slows to a crawl when this is unique.
         const squadName = "globalAttack";
 
         const tryAttack = missionController
-            .addMission(
-                new AttackMission(squadName, 100, matchAwareness.getMainRallyPoint(), GENERAL_ATTACK, attackRadius),
-            )
+            .addMission(new AttackMission(squadName, 100, matchAwareness.getMainRallyPoint(), attackArea, attackRadius))
             ?.then((reason, squad) => {
-                missionController.addMission(new RetreatMission("retreat-from-" + squadName, 100, matchAwareness.getMainRallyPoint(), squad?.getUnitIds() ?? []));
+                missionController.addMission(
+                    new RetreatMission(
+                        "retreat-from-" + squadName,
+                        100,
+                        matchAwareness.getMainRallyPoint(),
+                        squad?.getUnitIds() ?? [],
+                    ),
+                );
             });
         if (tryAttack) {
             this.lastAttackAt = gameApi.getCurrentTick();
