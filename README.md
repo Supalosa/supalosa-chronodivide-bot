@@ -55,11 +55,17 @@ npx cross-env MIX_DIR="${GAMEPATH}" NODE_OPTIONS="--inspect" npm start
 
 ladder maps: https://github.com/chronodivide/pvpgn-server/blob/26bbbe39613751cff696a73f087ce5b4cd938fc8/conf/bnmaps.conf.in#L321-L328
 
-CDR2            1v1             2_malibu_cliffs_le.map
-CDR2            1v1             4_country_swing_le_v2.map
-CDR2            1v1             mp01t4.map
-CDR2            1v1             tn04t2.map
-CDR2            1v1             mp10s4.map
-CDR2            1v1             heckcorners.map
-CDR2            1v1             4_montana_dmz_le.map
-CDR2            1v1             barrel.map
+CDR2 1v1 2_malibu_cliffs_le.map
+CDR2 1v1 4_country_swing_le_v2.map
+CDR2 1v1 mp01t4.map
+CDR2 1v1 tn04t2.map
+CDR2 1v1 mp10s4.map
+CDR2 1v1 heckcorners.map
+CDR2 1v1 4_montana_dmz_le.map
+CDR2 1v1 barrel.map
+
+---
+
+to play vs bot
+export SERVER_URL="wss://<region_server>"
+export CLIENT_URL="https://game.chronodivide.com/"

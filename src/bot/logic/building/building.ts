@@ -83,6 +83,8 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["GAAIRC", new BasicBuilding(8, 1, 6000)], // Airforce Command
 
+    ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
+
     ["GAPILL", new AntiGroundStaticDefence(5, 1, 5)], // Pillbox
     ["ATESLA", new AntiGroundStaticDefence(5, 1, 10)], // Prism Cannon
     ["GAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
@@ -106,6 +108,9 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["SENGINEER", new BasicBuilding(1, 1, 10000)], // Soviet Engineer
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(8, 1, 4000)], // Radar
+    ["NANRCT", new PowerPlant()], // Nuclear Reactor
+
+    ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 
     ["NALASR", new AntiGroundStaticDefence(5, 1, 5)], // Sentry Gun
     ["TESLA", new AntiGroundStaticDefence(5, 1, 10)], // Tesla Coil
