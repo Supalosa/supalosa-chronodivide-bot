@@ -9,7 +9,7 @@ import { manageAttackMicro, manageMoveMicro } from "./common.js";
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 const GRAB_INTERVAL_TICKS = 10;
 
-const GRAB_RADIUS = 30;
+const GRAB_RADIUS = 20;
 
 // Units must be in a certain radius of the center of mass before attacking.
 // This scales for number of units in the squad though.
@@ -30,6 +30,12 @@ export class CombatSquad implements SquadBehaviour {
     private lastCommand: number | null = null;
     private state = SquadState.Gathering;
 
+    /**
+     *
+     * @param rallyArea the initial location to grab combatants
+     * @param targetArea
+     * @param radius
+     */
     constructor(
         private rallyArea: Point2D,
         private targetArea: Point2D,
@@ -111,7 +117,7 @@ export class CombatSquad implements SquadBehaviour {
 
         if (!this.lastGrab || gameApi.getCurrentTick() > this.lastGrab + GRAB_INTERVAL_TICKS) {
             this.lastGrab = gameApi.getCurrentTick();
-            return grabCombatants(this.rallyArea, this.radius * GRAB_RADIUS);
+            return grabCombatants(squad.getCenterOfMass() ?? this.rallyArea, GRAB_RADIUS);
         } else {
             return noop();
         }
