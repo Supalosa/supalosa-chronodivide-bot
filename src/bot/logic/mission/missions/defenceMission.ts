@@ -77,7 +77,7 @@ export class DefenceMissionFactory implements MissionFactory {
 
         if (enemiesNearSpawn.length > 0) {
             missionController.addMission(
-                new DefenceMission("globalDefence", 1000, playerData.startLocation, defendableRadius * 1.2)?.then(
+                new DefenceMission("globalDefence", 1000, playerData.startLocation, defendableRadius * 1.2).then(
                     (reason, squad) => {
                         missionController.addMission(
                             new RetreatMission(

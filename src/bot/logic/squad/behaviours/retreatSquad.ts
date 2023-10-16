@@ -28,19 +28,18 @@ export class RetreatSquad implements SquadBehaviour {
         }
         if (squad.getUnitIds().length > 0) {
             // Only send the order once we have managed to claim some units.
-            console.log(`Retreat squad ordered ${squad.getUnitIds()} to retreat`);
             actionsApi.orderUnits(squad.getUnitIds(), OrderType.Move, this.retreatToPoint.x, this.retreatToPoint.y);
             if (!this.moveOrderSentAt) {
                 this.moveOrderSentAt = gameApi.getCurrentTick();
             }
         }
         if (
-            (this.moveOrderSentAt && gameApi.getCurrentTick() > this.moveOrderSentAt + 60) ||
+            (this.moveOrderSentAt && gameApi.getCurrentTick() > this.moveOrderSentAt + 20) ||
             (this.createdAt && gameApi.getCurrentTick() > this.createdAt + 240)
         ) {
             return disband();
         } else {
-            return requestSpecificUnits(this.unitIds, 100);
+            return requestSpecificUnits(this.unitIds, 1000);
         }
     }
 }

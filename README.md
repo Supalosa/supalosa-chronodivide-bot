@@ -40,6 +40,14 @@ Contact the developer of Chrono Divide for details if you are seriously interest
 npx cross-env MIX_DIR="C:\path_to_ra2_install_dir" NODE_OPTIONS="--inspect" npm start
 ```
 
+## Publishing
+
+Have the npmjs token in ~/.npmrc or somewhere appropriate.
+
+```
+npm publish
+```
+
 # ignore me
 
 export GAMEPATH="G:\Origin\Ra2_YurisRevenge\Command and Conquer Red Alert II"

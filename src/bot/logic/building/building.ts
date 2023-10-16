@@ -84,6 +84,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GAAIRC", new BasicBuilding(8, 1, 6000)], // Airforce Command
 
     ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
+    ["GAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
 
     ["GAPILL", new AntiGroundStaticDefence(5, 1, 5)], // Pillbox
     ["ATESLA", new AntiGroundStaticDefence(5, 1, 10)], // Prism Cannon
@@ -109,6 +110,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(8, 1, 4000)], // Radar
     ["NANRCT", new PowerPlant()], // Nuclear Reactor
+    ["NAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
 
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 

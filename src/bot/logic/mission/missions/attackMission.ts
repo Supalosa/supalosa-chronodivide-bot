@@ -124,18 +124,20 @@ export class AttackMissionFactory implements MissionFactory {
         // TODO: not using a fixed value here. But performance slows to a crawl when this is unique.
         const squadName = "globalAttack";
 
-        const tryAttack = missionController
-            .addMission(new AttackMission(squadName, 100, matchAwareness.getMainRallyPoint(), attackArea, attackRadius))
-            ?.then((reason, squad) => {
-                missionController.addMission(
-                    new RetreatMission(
-                        "retreat-from-" + squadName + gameApi.getCurrentTick(),
-                        100,
-                        matchAwareness.getMainRallyPoint(),
-                        squad?.getUnitIds() ?? [],
-                    ),
-                );
-            });
+        const tryAttack = missionController.addMission(
+            new AttackMission(squadName, 100, matchAwareness.getMainRallyPoint(), attackArea, attackRadius).then(
+                (reason, squad) => {
+                    missionController.addMission(
+                        new RetreatMission(
+                            "retreat-from-" + squadName + gameApi.getCurrentTick(),
+                            100,
+                            matchAwareness.getMainRallyPoint(),
+                            squad?.getUnitIds() ?? [],
+                        ),
+                    );
+                },
+            ),
+        );
         if (tryAttack) {
             this.lastAttackAt = gameApi.getCurrentTick();
         }

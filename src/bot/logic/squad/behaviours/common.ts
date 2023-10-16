@@ -1,10 +1,11 @@
-import { ActionsApi, ObjectType, OrderType, Point2D, UnitData } from "@chronodivide/game-api";
+import { ActionsApi, AttackState, ObjectType, OrderType, Point2D, StanceType, UnitData } from "@chronodivide/game-api";
 import { getDistanceBetweenUnits } from "../../map/map.js";
 
 // Micro methods
 export function manageMoveMicro(actionsApi: ActionsApi, attacker: UnitData, attackPoint: Point2D) {
     if (attacker.name === "E1") {
-        if (!attacker.canMove) {
+        const isDeployed = attacker.stance === StanceType.Deployed;
+        if (isDeployed) {
             actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
         }
     }
@@ -16,10 +17,11 @@ export function manageAttackMicro(actionsApi: ActionsApi, attacker: UnitData, ta
     if (attacker.name === "E1") {
         // Para (deployed weapon) range is 5.
         const deployedWeaponRange = attacker.secondaryWeapon?.maxRange || 5;
-        if (attacker.canMove && distance <= deployedWeaponRange * 0.8) {
+        const isDeployed = attacker.stance === StanceType.Deployed;
+        if (!isDeployed && (distance <= deployedWeaponRange || attacker.attackState === AttackState.JustFired)) {
             actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
             return;
-        } else if (!attacker.canMove && distance > deployedWeaponRange) {
+        } else if (isDeployed && distance > deployedWeaponRange) {
             actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
             return;
         }

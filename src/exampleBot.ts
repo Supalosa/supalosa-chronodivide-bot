@@ -1,4 +1,4 @@
-import { cdapi } from "@chronodivide/game-api";
+import { Agent, Bot, cdapi } from "@chronodivide/game-api";
 import { SupalosaBot } from "./bot/bot.js";
 
 async function main() {
@@ -26,14 +26,33 @@ async function main() {
     console.log("Server URL: " + process.env.SERVER_URL!);
     console.log("Client URL: " + process.env.CLIENT_URL!);
 
-    const game = await cdapi.createGame({
-        // Uncomment the following lines to play in real time versus the bot
-        /*online: true,
+    /*
+    Countries:
+    0=Americans
+    1=Alliance -> Korea
+    2=French
+    3=Germans
+    4=British
+
+    5=Africans -> Libya
+    6=Arabs -> Iraq
+    7=Confederation -> Cuba
+    8=Russians
+    */
+
+    const onlineSettings = {
+        online: true as true,
         serverUrl: process.env.SERVER_URL!,
         clientUrl: process.env.CLIENT_URL!,
-        agents: [new SupalosaBot(botName, "Americans"), { name: otherBotName, country: "French" }],*/
+        agents: [new SupalosaBot(botName, "Americans"), { name: otherBotName, country: "French" }] as [Bot, ...Agent[]],
+    };
+
+    const offlineSettings = {
         agents: [new SupalosaBot(botName, "French", false), new SupalosaBot(otherBotName, "French", true)],
-        //agents: [new SupalosaBot(botName, "Americans", false), new SupalosaBot(otherBotName, "Russians", false)],
+    };
+
+    const game = await cdapi.createGame({
+        ...offlineSettings,
         buildOffAlly: false,
         cratesAppear: false,
         credits: 10000,

@@ -48,11 +48,13 @@ export class MissionController {
         this.missions
             .filter((missions) => disbandedMissions.has(missions.getUniqueName()))
             .forEach((disbandedMission) => {
-                this.logger(`mission disbanded: ${disbandedMission.getUniqueName()}`);
                 const reason = disbandedMissions.get(disbandedMission.getUniqueName());
+                this.logger(
+                    `mission disbanded: ${disbandedMission.getUniqueName()}, reason: ${reason}, hasSquad: ${!!disbandedMission.getSquad}`,
+                );
                 disbandedMissionsArray.push({ mission: disbandedMission, reason });
-                disbandedMission.getSquad()?.setMission(null);
                 disbandedMission.endMission(disbandedMissions.get(disbandedMission.getUniqueName()));
+                disbandedMission.getSquad()?.setMission(null);
             });
         this.missions = this.missions.filter((missions) => !disbandedMissions.has(missions.getUniqueName()));
 
