@@ -47,7 +47,7 @@ export class DefenceMission extends Mission<DefenceFailReason> {
 const DEFENCE_CHECK_TICKS = 30;
 
 // Starting radius around the player's base to trigger defense.
-const DEFENCE_STARTING_RADIUS = 20;
+const DEFENCE_STARTING_RADIUS = 10;
 // Every game tick, we increase the defendable area by this amount.
 const DEFENCE_RADIUS_INCREASE_PER_GAME_TICK = 0.005;
 

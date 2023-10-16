@@ -37,8 +37,8 @@ export class SupalosaBot extends Bot {
 
     constructor(name: string, country: string, enableLogging = true) {
         super(name, country);
-        this.missionController = new MissionController((message) => this.logBotStatus(message));
-        this.squadController = new SquadController();
+        this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
+        this.squadController = new SquadController((message, sayInGame) => this.logBotStatus(message, sayInGame));
         this.queueController = new QueueController();
         this.enableLogging = enableLogging;
     }
@@ -55,7 +55,7 @@ export class SupalosaBot extends Bot {
             null,
             new SectorCache(game.mapApi, this.knownMapBounds),
             game.getPlayerData(this.name).startLocation,
-            (msg) => this.logBotStatus(msg),
+            (message, sayInGame) => this.logBotStatus(message, sayInGame),
         );
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);
@@ -116,9 +116,7 @@ export class SupalosaBot extends Bot {
 
             // Squad logic every 3 ticks
             if (this.gameApi.getCurrentTick() % 3 === 0) {
-                this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness, (message) =>
-                    this.logBotStatus(message),
-                );
+                this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
             }
         }
     }
@@ -127,11 +125,15 @@ export class SupalosaBot extends Bot {
         return Duration.fromMillis((game.getCurrentTick() / NATURAL_TICK_RATE) * 1000).toFormat("hh:mm:ss");
     }
 
-    private logBotStatus(message: string) {
+    private logBotStatus(message: string, sayInGame: boolean = false) {
         if (!this.enableLogging) {
             return;
         }
-        console.log(`[${this.getHumanTimestamp(this.gameApi)} ${this.name}] ${message}`);
+        const timestamp = this.getHumanTimestamp(this.gameApi);
+        console.log(`[${timestamp} ${this.name}] ${message}`);
+        if (sayInGame) {
+            this.actionsApi.sayAll(`${timestamp}: ${message}`);
+        }
     }
 
     private logDebugState(game: GameApi) {
@@ -157,9 +159,9 @@ export class SupalosaBot extends Bot {
         this.logBotStatus(`----- Cash: ${myPlayer.credits} ----- | Queues: ${queueState}`);
         const harvesters = game.getVisibleUnits(this.name, "self", (r) => r.harvester).length;
         this.logBotStatus(`Harvesters: ${harvesters}`);
+        this.squadController.debugSquads(this.gameApi);
         this.logBotStatus(`----- End -----`);
         this.missionController.logDebugOutput();
-        this.actionsApi.sayAll(`Cash: ${myPlayer.credits}`);
     }
 
     override onGameEvent(ev: ApiEvent) {

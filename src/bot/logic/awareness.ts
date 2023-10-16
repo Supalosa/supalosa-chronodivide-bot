@@ -69,7 +69,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
         private threatCache: GlobalThreat | null,
         private sectorCache: SectorCache,
         private mainRallyPoint: Point2D,
-        private logger: (message: string) => void,
+        private logger: (message: string, sayInGame?: boolean) => void,
     ) {
         const { x: width, y: height } = sectorCache.getMapBounds();
         this.hostileQuadTree = new Quadtree({ width, height });

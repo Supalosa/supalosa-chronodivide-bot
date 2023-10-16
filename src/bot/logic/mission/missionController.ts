@@ -13,7 +13,7 @@ export class MissionController {
 
     private forceDisbandedMissions: string[] = [];
 
-    constructor(private logger: (message: string) => void) {
+    constructor(private logger: (message: string, sayInGame?: boolean) => void) {
         this.missionFactories = createMissionFactories();
     }
 

@@ -13,6 +13,7 @@ import {
 } from "./squadBehaviour.js";
 import { MatchAwareness } from "../awareness.js";
 import { getDistanceBetween } from "../map/map.js";
+import _ from "lodash";
 
 type SquadWithAction<T> = {
     squad: Squad;
@@ -23,14 +24,13 @@ export class SquadController {
     private squads: Squad[] = [];
     private unitIdToSquad: Map<number, Squad> = new Map();
 
-    constructor() {}
+    constructor(private logger: (message: string, sayInGame?: boolean) => void) {}
 
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        logger: (message: string) => void
     ) {
         // Remove dead squads or those where the mission is dead.
         this.squads = this.squads.filter((squad) => squad.getLiveness() !== SquadLiveness.SquadDead);
@@ -41,7 +41,7 @@ export class SquadController {
         this.squads.forEach((squad) => {
             squad.getUnitIds().forEach((unitId) => {
                 if (this.unitIdToSquad.has(unitId)) {
-                    logger(`WARNING: unit ${unitId} is in multiple squads, please debug.`);
+                    this.logger(`WARNING: unit ${unitId} is in multiple squads, please debug.`);
                 } else {
                     this.unitIdToSquad.set(unitId, squad);
                 }
@@ -61,7 +61,7 @@ export class SquadController {
         squadActions
             .filter((a) => isDisband(a.action))
             .forEach((a) => {
-                logger(`Squad ${a.squad.getName()} disbanding as requested.`);
+                this.logger(`Squad ${a.squad.getName()} disbanding as requested.`);
                 a.squad.getMission()?.removeSquad();
                 a.squad.getUnitIds().forEach((unitId) => {
                     this.unitIdToSquad.delete(unitId);
@@ -73,8 +73,8 @@ export class SquadController {
             .forEach((a) => {
                 let mergeInto = a.action as SquadActionMergeInto;
                 if (disbandedSquads.has(mergeInto.mergeInto.getName())) {
-                    logger(
-                        `Squad ${a.squad.getName()} tried to merge into disbanded squad ${mergeInto.mergeInto.getName()}, cancelling.`
+                    this.logger(
+                        `Squad ${a.squad.getName()} tried to merge into disbanded squad ${mergeInto.mergeInto.getName()}, cancelling.`,
                     );
                     return;
                 }
@@ -88,31 +88,36 @@ export class SquadController {
         const isRequestSpecific = (a: SquadAction) => a.type === "requestSpecific";
         const unitIdToHighestRequest = squadActions
             .filter((a) => isRequestSpecific(a.action))
-            .reduce((prev, a) => {
-                const squadWithAction = a as SquadWithAction<SquadActionRequestSpecificUnits>;
-                const { unitIds } = squadWithAction.action;
-                unitIds.forEach((unitId) => {
-                    if (prev.hasOwnProperty(unitId)) {
-                        if (prev[unitId].action.priority > prev[unitId].action.priority) {
+            .reduce(
+                (prev, a) => {
+                    const squadWithAction = a as SquadWithAction<SquadActionRequestSpecificUnits>;
+                    const { unitIds } = squadWithAction.action;
+                    unitIds.forEach((unitId) => {
+                        if (prev.hasOwnProperty(unitId)) {
+                            if (prev[unitId].action.priority > prev[unitId].action.priority) {
+                                prev[unitId] = squadWithAction;
+                            }
+                        } else {
                             prev[unitId] = squadWithAction;
                         }
-                    } else {
-                        prev[unitId] = squadWithAction;
-                    }
-                });
-                return prev;
-            }, {} as Record<number, SquadWithAction<SquadActionRequestSpecificUnits>>);
+                    });
+                    return prev;
+                },
+                {} as Record<number, SquadWithAction<SquadActionRequestSpecificUnits>>,
+            );
         Object.entries(unitIdToHighestRequest).forEach(([id, request]) => {
             const unitId = Number.parseInt(id);
             const unit = gameApi.getUnitData(unitId);
             const { squad: requestingSquad } = request;
             const missionName = requestingSquad.getMission()?.getUniqueName();
             if (!unit) {
-                logger(`mission ${missionName} requested non-existent unit ${unitId}`);
+                this.logger(`mission ${missionName} requested non-existent unit ${unitId}`);
                 return;
             }
             if (!this.unitIdToSquad.has(unitId)) {
-                logger(`granting specific unit ${unitId} to squad ${requestingSquad.getName()} in mission ${missionName}`);
+                this.logger(
+                    `granting specific unit ${unitId} to squad ${requestingSquad.getName()} in mission ${missionName}`,
+                );
                 this.addUnitToSquad(requestingSquad, unit);
             }
         });
@@ -121,25 +126,28 @@ export class SquadController {
         const isRequest = (a: SquadAction) => a.type === "request";
         const unitTypeToHighestRequest = squadActions
             .filter((a) => isRequest(a.action))
-            .reduce((prev, a) => {
-                const squadWithAction = a as SquadWithAction<SquadActionRequestUnits>;
-                const { unitNames } = squadWithAction.action;
-                unitNames.forEach((unitName) => {
-                    if (prev.hasOwnProperty(unitName)) {
-                        if (prev[unitName].action.priority > prev[unitName].action.priority) {
+            .reduce(
+                (prev, a) => {
+                    const squadWithAction = a as SquadWithAction<SquadActionRequestUnits>;
+                    const { unitNames } = squadWithAction.action;
+                    unitNames.forEach((unitName) => {
+                        if (prev.hasOwnProperty(unitName)) {
+                            if (prev[unitName].action.priority > prev[unitName].action.priority) {
+                                prev[unitName] = squadWithAction;
+                            }
+                        } else {
                             prev[unitName] = squadWithAction;
                         }
-                    } else {
-                        prev[unitName] = squadWithAction;
-                    }
-                });
-                return prev;
-            }, {} as Record<string, SquadWithAction<SquadActionRequestUnits>>);
+                    });
+                    return prev;
+                },
+                {} as Record<string, SquadWithAction<SquadActionRequestUnits>>,
+            );
 
         // Request combat-capable units in an area
         const isGrab = (a: SquadAction) => a.type === "requestCombatants";
         const grabRequests = squadActions.filter((a) =>
-            isGrab(a.action)
+            isGrab(a.action),
         ) as SquadWithAction<SquadActionGrabFreeCombatants>[];
 
         // Find loose units
@@ -152,7 +160,7 @@ export class SquadController {
         freeUnits.forEach((freeUnit) => {
             if (unitTypeToHighestRequest.hasOwnProperty(freeUnit.name)) {
                 const { squad: requestingSquad } = unitTypeToHighestRequest[freeUnit.name];
-                logger(`granting unit ${freeUnit.id}#${freeUnit.name} to squad ${requestingSquad.getName()}`);
+                this.logger(`granting unit ${freeUnit.id}#${freeUnit.name} to squad ${requestingSquad.getName()}`);
                 this.addUnitToSquad(requestingSquad, freeUnit);
                 delete unitTypeToHighestRequest[freeUnit.name];
             } else if (grabRequests.length > 0) {
@@ -162,12 +170,12 @@ export class SquadController {
                         freeUnit.rules.isSelectableCombatant &&
                         getDistanceBetween(freeUnit, request.action.point) <= request.action.radius
                     ) {
-                        logger(
+                        this.logger(
                             `granting unit ${freeUnit.id}#${
                                 freeUnit.name
                             } to squad ${requestingSquad.getName()} via grab at ${request.action.point.x},${
                                 request.action.point.y
-                            }`
+                            }`,
                         );
                         this.addUnitToSquad(requestingSquad, freeUnit);
                         return true;
@@ -186,5 +194,17 @@ export class SquadController {
 
     public registerSquad(squad: Squad) {
         this.squads.push(squad);
+    }
+
+    public debugSquads(gameApi: GameApi) {
+        const unitsInSquad = (unitIds: number[]) => _.countBy(unitIds, (unitId) => gameApi.getUnitData(unitId)?.name);
+
+        this.squads.forEach((squad) => {
+            this.logger(
+                `Squad ${squad.getName()}: ${Object.entries(unitsInSquad(squad.getUnitIds()))
+                    .map(([unitName, count]) => `${unitName} x ${count}`)
+                    .join(", ")}`,
+            );
+        });
     }
 }

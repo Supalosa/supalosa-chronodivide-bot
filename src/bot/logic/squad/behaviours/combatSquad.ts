@@ -92,7 +92,7 @@ export class CombatSquad implements SquadBehaviour {
                     gameApi.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
                     maxDistance > requiredGatherRadius
                 ) {
-                    // Switch back to gather mode.
+                    // Switch back to gather mode
                     this.state = SquadState.Gathering;
                     return noop();
                 }
