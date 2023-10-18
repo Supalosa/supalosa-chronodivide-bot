@@ -5,6 +5,7 @@ import { SquadAction, SquadBehaviour, disband } from "./squadBehaviour.js";
 import { MatchAwareness } from "../awareness.js";
 import { getDistanceBetweenPoints } from "../map/map.js";
 import _ from "lodash";
+import { DebugLogger } from "../common/utils.js";
 
 export enum SquadLiveness {
     SquadDead,
@@ -76,6 +77,7 @@ export class Squad {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
+        logger: DebugLogger
     ): SquadAction {
         this.updateLiveness(gameApi);
         const movableUnitTiles = this.unitIds
@@ -100,8 +102,7 @@ export class Squad {
         } else if (!this.mission) {
             return disband();
         }
-        let outcome = this.behaviour.onAiUpdate(gameApi, actionsApi, playerData, this, matchAwareness);
-        return outcome;
+        return this.behaviour.onAiUpdate(gameApi, actionsApi, playerData, this, matchAwareness, logger);
     }
     public getMission(): Mission | null {
         return this.mission;

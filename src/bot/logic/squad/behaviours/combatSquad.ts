@@ -5,6 +5,7 @@ import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehav
 import { MatchAwareness } from "../../awareness.js";
 import { getDistanceBetweenPoints } from "../../map/map.js";
 import { manageAttackMicro, manageMoveMicro } from "./common.js";
+import { DebugLogger } from "../../common/utils.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 const GRAB_INTERVAL_TICKS = 10;
@@ -52,8 +53,9 @@ export class CombatSquad implements SquadBehaviour {
         playerData: PlayerData,
         squad: Squad,
         matchAwareness: MatchAwareness,
+        logger: DebugLogger,
     ): SquadAction {
-        if (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS) {
+        if (squad.getUnitIds().length > 0 && (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)) {
             this.lastCommand = gameApi.getCurrentTick();
             const centerOfMass = squad.getCenterOfMass();
             const maxDistance = squad.getMaxDistanceToCenterOfMass();
@@ -81,6 +83,7 @@ export class CombatSquad implements SquadBehaviour {
                         manageMoveMicro(actionsApi, unit, centerOfMass);
                     });
                 } else {
+                    logger(`CombatSquad ${squad.getName()} switching back to attack mode (${maxDistance})`)
                     this.state = SquadState.Attacking;
                 }
             } else {
@@ -93,6 +96,7 @@ export class CombatSquad implements SquadBehaviour {
                     maxDistance > requiredGatherRadius
                 ) {
                     // Switch back to gather mode
+                    logger(`CombatSquad ${squad.getName()} switching back to gather (${maxDistance})`)
                     this.state = SquadState.Gathering;
                     return noop();
                 }

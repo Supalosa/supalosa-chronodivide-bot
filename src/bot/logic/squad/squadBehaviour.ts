@@ -2,6 +2,7 @@ import { ActionsApi, GameApi, PlayerData, Point2D } from "@chronodivide/game-api
 import { GlobalThreat } from "../threat/threat.js";
 import { Squad } from "./squad.js";
 import { MatchAwareness } from "../awareness.js";
+import { DebugLogger } from "../common/utils.js";
 
 export type SquadActionNoop = {
     type: "noop";
@@ -56,6 +57,7 @@ export interface SquadBehaviour {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         squad: Squad,
-        matchAwareness: MatchAwareness
+        matchAwareness: MatchAwareness,
+        logger: DebugLogger
     ): SquadAction;
 }

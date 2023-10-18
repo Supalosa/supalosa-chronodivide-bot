@@ -1,7 +1,6 @@
 // Meta-controller for forming and controlling squads.
 
 import { GameApi, PlayerData } from "@chronodivide/game-api";
-import { GlobalThreat } from "../threat/threat.js";
 import { Mission, MissionAction, MissionActionDisband, MissionActionRegisterSquad } from "./mission.js";
 import { SquadController } from "../squad/squadController.js";
 import { MatchAwareness } from "../awareness.js";
@@ -70,9 +69,9 @@ export class MissionController {
 
         // Create dynamic missions.
         this.missionFactories.forEach((missionFactory) => {
-            missionFactory.maybeCreateMissions(gameApi, playerData, matchAwareness, this);
+            missionFactory.maybeCreateMissions(gameApi, playerData, matchAwareness, this, this.logger);
             disbandedMissionsArray.forEach(({ reason, mission }) => {
-                missionFactory.onMissionFailed(gameApi, playerData, matchAwareness, mission, reason, this);
+                missionFactory.onMissionFailed(gameApi, playerData, matchAwareness, mission, reason, this, this.logger);
             });
         });
     }

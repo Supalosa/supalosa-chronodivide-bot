@@ -1,0 +1,1 @@
+export type DebugLogger = (message: string, sayInGame?: boolean) => void;

@@ -2,6 +2,7 @@ import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { Squad } from "../squad/squad.js";
 import { GlobalThreat } from "../threat/threat.js";
 import { MatchAwareness } from "../awareness.js";
+import { DebugLogger } from "../common/utils.js";
 
 // AI starts Missions based on heuristics, which have one or more squads.
 // Missions can create squads (but squads will disband themselves).
@@ -11,7 +12,7 @@ export abstract class Mission<FailureReasons = undefined> {
 
     private onFinish: (reason: FailureReasons, squad: Squad | null) => void = () => {};
 
-    constructor(private uniqueName: string, private priority: number = 1) {}
+    constructor(private uniqueName: string, private priority: number, protected logger: DebugLogger) {}
 
     abstract onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction;
 
