@@ -17,7 +17,8 @@ import { SectorCache } from "./logic/map/sector.js";
 import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
 import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
-import { MatchAwareness as MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
+import { MatchAwareness } from "./logic/awareness.js";
+import { MatchAwarenessImpl } from "./logic/awarenessImpl.js";
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 const NATURAL_TICK_RATE = 15;
@@ -50,13 +51,15 @@ export class SupalosaBot extends Bot {
         this.tickRatio = Math.ceil(gameRate / botRate);
 
         this.knownMapBounds = determineMapBounds(game.mapApi);
+        const myPlayer = game.getPlayerData(this.name);
 
         this.matchAwareness = new MatchAwarenessImpl(
             null,
             new SectorCache(game.mapApi, this.knownMapBounds),
-            game.getPlayerData(this.name).startLocation,
+            myPlayer.startLocation,
             (message, sayInGame) => this.logBotStatus(message, sayInGame),
         );
+        this.matchAwareness.onGameStart(game, myPlayer);
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);
     }

@@ -6,12 +6,36 @@ import { calculateAreaVisibility } from "./map.js";
 export const SECTOR_SIZE = 8;
 
 export class Sector {
+    // How many times we've attempted to enter the sector.
+    private sectorExploreAttempts: number;
+    private sectorLastExploredAt: number | undefined;
+
     constructor(
         public sectorStartPoint: Point2D,
         public sectorStartTile: Tile | undefined,
         public sectorVisibilityPct: number | undefined,
-        public sectorVisibilityLastCheckTick: number | undefined
-    ) {}
+        public sectorVisibilityLastCheckTick: number | undefined,
+    ) {
+        this.sectorExploreAttempts = 0;
+    }
+
+    public onExploreAttempted(currentTick: number) {
+        this.sectorExploreAttempts++;
+        this.sectorLastExploredAt = currentTick;
+    }
+
+    // Whether we should attempt to explore this sector, given the cooldown and limit of attempts.
+    public shouldAttemptExploration(currentTick: number, cooldown: number, limit: number) {
+        if (limit >= this.sectorExploreAttempts) {
+            return false;
+        }
+
+        if (this.sectorLastExploredAt && currentTick < this.sectorLastExploredAt + cooldown) {
+            return false;
+        }
+
+        return true;
+    }
 }
 
 export class SectorCache {
@@ -34,7 +58,7 @@ export class SectorCache {
                     { x: xx * SECTOR_SIZE, y: yy * SECTOR_SIZE },
                     mapApi.getTile(xx * SECTOR_SIZE, yy * SECTOR_SIZE),
                     undefined,
-                    undefined
+                    undefined,
                 );
             }
         }
@@ -127,8 +151,26 @@ export class SectorCache {
         return this.sectors[sectorX][sectorY];
     }
 
-    public getSectorForWorldPosition(x: number, y: number): Sector | undefined {
+    public getSectorBounds(): Point2D {
+        return {
+            x: this.sectorsX,
+            y: this.sectorsY,
+        }
+    }
+
+    public getSectorCoordinatesForWorldPosition(x: number, y: number) {
         if (x < 0 || x >= this.mapBounds.x || y < 0 || y >= this.mapBounds.y) {
+            return undefined;
+        }
+        return {
+            sectorX: Math.floor(x / SECTOR_SIZE),
+            sectorY: Math.floor(y / SECTOR_SIZE)
+        }
+    }
+
+    public getSectorForWorldPosition(x: number, y: number): Sector | undefined {
+        const sectorCoordinates = this.getSectorCoordinatesForWorldPosition(x, y);
+        if (!sectorCoordinates) {
             return undefined;
         }
         return this.sectors[Math.floor(x / SECTOR_SIZE)][Math.floor(y / SECTOR_SIZE)];
