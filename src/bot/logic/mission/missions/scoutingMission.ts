@@ -7,13 +7,15 @@ import { Mission } from "../mission.js";
 import { AttackMission } from "./attackMission.js";
 import { MissionController } from "../missionController.js";
 import { getUnseenStartingLocations } from "../../common/scout.js";
+import { DebugLogger } from "../../common/utils.js";
 
 /**
  * A mission that tries to scout around the map with a cheap, fast unit (usually attack dogs)
  */
 export class ScoutingMission extends OneTimeMission {
-    constructor(uniqueName: string, priority: number) {
-        super(uniqueName, priority, () => new ScoutingSquad());
+    constructor(uniqueName: string, priority: number, 
+        logger: DebugLogger) {
+        super(uniqueName, priority, () => new ScoutingSquad(), logger);
     }
 }
 
@@ -31,6 +33,7 @@ export class ScoutingMissionFactory implements MissionFactory {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
+        logger: DebugLogger
     ): void {
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
             return;
@@ -39,7 +42,7 @@ export class ScoutingMissionFactory implements MissionFactory {
         if (candidatePoints.length === 0) {
             return;
         }
-        if (!missionController.addMission(new ScoutingMission("globalScout", 100))) {
+        if (!missionController.addMission(new ScoutingMission("globalScout", 100, logger))) {
             this.lastScoutAt = gameApi.getCurrentTick();
         }
     }
@@ -51,9 +54,10 @@ export class ScoutingMissionFactory implements MissionFactory {
         failedMission: Mission,
         failureReason: undefined,
         missionController: MissionController,
+        logger: DebugLogger
     ): void {
         if (failedMission instanceof AttackMission) {
-            missionController.addMission(new ScoutingMission("globalScout", 100));
+            missionController.addMission(new ScoutingMission("globalScout", 100, logger));
         }
     }
 }

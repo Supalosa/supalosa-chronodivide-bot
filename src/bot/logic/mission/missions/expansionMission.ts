@@ -5,15 +5,16 @@ import { ExpansionSquad } from "../../squad/behaviours/expansionSquad.js";
 import { MissionFactory } from "../missionFactories.js";
 import { OneTimeMission } from "./oneTimeMission.js";
 import { MatchAwareness } from "../../awareness.js";
-import { AttackFailReason, AttackMission } from "./attackMission.js";
 import { MissionController } from "../missionController.js";
+import { DebugLogger } from "../../common/utils.js";
 
 /**
  * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.
  */
 export class ExpansionMission extends OneTimeMission {
-    constructor(uniqueName: string, priority: number, selectedMcv: number | null) {
-        super(uniqueName, priority, () => new ExpansionSquad(selectedMcv));
+    constructor(uniqueName: string, priority: number, selectedMcv: number | null, 
+        logger: DebugLogger) {
+        super(uniqueName, priority, () => new ExpansionSquad(selectedMcv), logger);
     }
 }
 
@@ -27,13 +28,14 @@ export class ExpansionMissionFactory implements MissionFactory {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
+        logger: DebugLogger
     ): void {
         // At this point, only expand if we have a loose MCV.
         const mcvs = gameApi.getVisibleUnits(playerData.name, "self", (r) =>
             gameApi.getGeneralRules().baseUnit.includes(r.name)
         );
         mcvs.forEach((mcv) => {
-            missionController.addMission(new ExpansionMission("expand-with-" + mcv, 100, mcv));
+            missionController.addMission(new ExpansionMission("expand-with-" + mcv, 100, mcv, logger));
         });
     }
 

@@ -11,6 +11,7 @@ import { MissionController } from "../missionController.js";
 import { match } from "assert";
 import { RetreatMission } from "./retreatMission.js";
 import _ from "lodash";
+import { DebugLogger } from "../../common/utils.js";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -31,8 +32,9 @@ export class AttackMission extends Mission<AttackFailReason> {
         private rallyArea: Point2D,
         private attackArea: Point2D,
         private radius: number,
+        logger: DebugLogger
     ) {
-        super(uniqueName, priority);
+        super(uniqueName, priority, logger);
     }
 
     onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction {
@@ -104,6 +106,7 @@ export class AttackMissionFactory implements MissionFactory {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
+        logger: DebugLogger
     ): void {
         if (!matchAwareness.shouldAttack()) {
             return;
@@ -125,7 +128,7 @@ export class AttackMissionFactory implements MissionFactory {
         const squadName = "globalAttack";
 
         const tryAttack = missionController.addMission(
-            new AttackMission(squadName, 100, matchAwareness.getMainRallyPoint(), attackArea, attackRadius).then(
+            new AttackMission(squadName, 100, matchAwareness.getMainRallyPoint(), attackArea, attackRadius, logger).then(
                 (reason, squad) => {
                     missionController.addMission(
                         new RetreatMission(
@@ -133,6 +136,7 @@ export class AttackMissionFactory implements MissionFactory {
                             100,
                             matchAwareness.getMainRallyPoint(),
                             squad?.getUnitIds() ?? [],
+                            logger,
                         ),
                     );
                 },

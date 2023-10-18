@@ -6,6 +6,7 @@ import { ScoutingMissionFactory } from "./missions/scoutingMission.js";
 import { AttackMissionFactory } from "./missions/attackMission.js";
 import { MissionController } from "./missionController.js";
 import { DefenceMissionFactory } from "./missions/defenceMission.js";
+import { DebugLogger } from "../common/utils.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -23,6 +24,7 @@ export interface MissionFactory {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
+        logger: DebugLogger
     ): void;
 
     /**
@@ -35,6 +37,7 @@ export interface MissionFactory {
         failedMission: Mission,
         failureReason: any,
         missionController: MissionController,
+        logger: DebugLogger
     ): void;
 }
 

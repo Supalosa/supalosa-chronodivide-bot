@@ -14,6 +14,7 @@ import {
 import { MatchAwareness } from "../awareness.js";
 import { getDistanceBetween } from "../map/map.js";
 import _ from "lodash";
+import { DebugLogger } from "../common/utils.js";
 
 type SquadWithAction<T> = {
     squad: Squad;
@@ -51,7 +52,7 @@ export class SquadController {
         const squadActions: SquadWithAction<SquadAction>[] = this.squads.map((squad) => {
             return {
                 squad,
-                action: squad.onAiUpdate(gameApi, actionsApi, playerData, matchAwareness),
+                action: squad.onAiUpdate(gameApi, actionsApi, playerData, matchAwareness, this.logger),
             };
         });
         // Handle disbands and merges.
@@ -105,21 +106,43 @@ export class SquadController {
                 },
                 {} as Record<number, SquadWithAction<SquadActionRequestSpecificUnits>>,
             );
-        Object.entries(unitIdToHighestRequest).forEach(([id, request]) => {
-            const unitId = Number.parseInt(id);
-            const unit = gameApi.getUnitData(unitId);
-            const { squad: requestingSquad } = request;
-            const missionName = requestingSquad.getMission()?.getUniqueName();
-            if (!unit) {
-                this.logger(`mission ${missionName} requested non-existent unit ${unitId}`);
-                return;
-            }
-            if (!this.unitIdToSquad.has(unitId)) {
-                this.logger(
-                    `granting specific unit ${unitId} to squad ${requestingSquad.getName()} in mission ${missionName}`,
-                );
-                this.addUnitToSquad(requestingSquad, unit);
-            }
+
+        // Map of Squad ID to Unit Type to Count.
+        const newSquadAssignments = Object.entries(unitIdToHighestRequest)
+            .flatMap(([id, request]) => {
+                const unitId = Number.parseInt(id);
+                const unit = gameApi.getUnitData(unitId);
+                const { squad: requestingSquad } = request;
+                const missionName = requestingSquad.getMission()?.getUniqueName();
+                if (!unit) {
+                    this.logger(`mission ${missionName} requested non-existent unit ${unitId}`);
+                    return [];
+                }
+                if (!this.unitIdToSquad.has(unitId)) {
+                    this.addUnitToSquad(requestingSquad, unit);
+                    return [{ unitName: unit?.name, squad: requestingSquad.getName() }];
+                }
+                return [];
+            })
+            .reduce(
+                (acc, curr) => {
+                    if (!acc[curr.squad]) {
+                        acc[curr.squad] = {};
+                    }
+                    if (!acc[curr.squad][curr.unitName]) {
+                        acc[curr.squad][curr.unitName] = 0;
+                    }
+                    acc[curr.squad][curr.unitName] = acc[curr.squad][curr.unitName] + 1;
+                    return acc;
+                },
+                {} as Record<string, Record<string, number>>,
+            );
+        Object.entries(newSquadAssignments).forEach(([squad, assignments]) => {
+            this.logger(
+                `Squad ${squad} received: ${Object.entries(assignments)
+                    .map(([unitType, count]) => unitType + " x " + count)
+                    .join(", ")}`,
+            );
         });
 
         // Request units by type
@@ -157,33 +180,57 @@ export class SquadController {
             .filter((unit) => !!unit && !this.unitIdToSquad.has(unit.id || 0))
             .map((unit) => unit!);
 
-        freeUnits.forEach((freeUnit) => {
-            if (unitTypeToHighestRequest.hasOwnProperty(freeUnit.name)) {
-                const { squad: requestingSquad } = unitTypeToHighestRequest[freeUnit.name];
-                this.logger(`granting unit ${freeUnit.id}#${freeUnit.name} to squad ${requestingSquad.getName()}`);
-                this.addUnitToSquad(requestingSquad, freeUnit);
-                delete unitTypeToHighestRequest[freeUnit.name];
-            } else if (grabRequests.length > 0) {
-                grabRequests.some((request) => {
-                    const { squad: requestingSquad } = request;
-                    if (
-                        freeUnit.rules.isSelectableCombatant &&
-                        getDistanceBetween(freeUnit, request.action.point) <= request.action.radius
-                    ) {
-                        this.logger(
-                            `granting unit ${freeUnit.id}#${
-                                freeUnit.name
-                            } to squad ${requestingSquad.getName()} via grab at ${request.action.point.x},${
-                                request.action.point.y
-                            }`,
+        type AssignmentWithType = { unitName: string; squad: string; method: "type" | "grab" };
+        // [squadName][unitName]['type' | 'grab']
+        const newAssignmentsByType = freeUnits
+            .flatMap((freeUnit) => {
+                if (unitTypeToHighestRequest.hasOwnProperty(freeUnit.name)) {
+                    const { squad: requestingSquad } = unitTypeToHighestRequest[freeUnit.name];
+                    this.logger(`granting unit ${freeUnit.id}#${freeUnit.name} to squad ${requestingSquad.getName()}`);
+                    this.addUnitToSquad(requestingSquad, freeUnit);
+                    delete unitTypeToHighestRequest[freeUnit.name];
+                    return [
+                        { unitName: freeUnit.name, squad: requestingSquad.getName(), method: "type" },
+                    ] as AssignmentWithType[];
+                } else if (grabRequests.length > 0) {
+                    const grantedSquad = grabRequests.find((request) => {
+                        return (
+                            freeUnit.rules.isSelectableCombatant &&
+                            getDistanceBetween(freeUnit, request.action.point) <= request.action.radius
                         );
-                        this.addUnitToSquad(requestingSquad, freeUnit);
-                        return true;
-                    } else {
-                        return false;
+                    });
+                    if (grantedSquad) {
+                        this.addUnitToSquad(grantedSquad.squad, freeUnit);
+                        return [
+                            { unitName: freeUnit.name, squad: grantedSquad.squad.getName(), method: "grab" },
+                        ] as AssignmentWithType[];
                     }
-                });
-            }
+                }
+                return [];
+            })
+            .reduce(
+                (acc, curr) => {
+                    if (!acc[curr.squad]) {
+                        acc[curr.squad] = {};
+                    }
+                    if (!acc[curr.squad][curr.unitName]) {
+                        acc[curr.squad][curr.unitName] = { grab: 0, type: 0 };
+                    }
+                    acc[curr.squad][curr.unitName][curr.method] = acc[curr.squad][curr.unitName][curr.method] + 1;
+                    return acc;
+                },
+                {} as Record<string, Record<string, Record<"type" | "grab", number>>>,
+            );
+        Object.entries(newAssignmentsByType).forEach(([squad, assignments]) => {
+            this.logger(
+                `Squad ${squad} received: ${Object.entries(assignments)
+                    .flatMap(([unitType, methodToCount]) =>
+                        Object.entries(methodToCount)
+                            .filter(([, count]) => count > 0)
+                            .map(([method, count]) => unitType + " x " + count + " (by " + method + ")"),
+                    )
+                    .join(", ")}`,
+            );
         });
     }
 
