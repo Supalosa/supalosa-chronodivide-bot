@@ -1,4 +1,13 @@
-import { BuildingPlacementData, GameApi, PlayerData, Point2D, TechnoRules } from "@chronodivide/game-api";
+import {
+    BuildingPlacementData,
+    GameApi,
+    ObjectType,
+    PlayerData,
+    Point2D,
+    Size,
+    TechnoRules,
+    Tile,
+} from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { AntiGroundStaticDefence } from "./antiGroundStaticDefence.js";
 import { ArtilleryUnit } from "./ArtilleryUnit.js";
@@ -39,6 +48,60 @@ export function numBuildingsOwnedOfName(game: GameApi, playerData: PlayerData, n
     return game.getVisibleUnits(playerData.name, "self", (r) => r.name === name).length;
 }
 
+function computeAdjacentRect(point: Point2D, t: Size, adjacent: number) {
+    return {
+        x: point.x - adjacent,
+        y: point.y - adjacent,
+        width: t.width + 2 * adjacent,
+        height: t.height + 2 * adjacent
+    };
+}
+export function getAdjacencyTiles(game: GameApi,playerData: PlayerData,technoRules: TechnoRules){
+    let tiles = []
+    let buildings= game.getVisibleUnits(playerData.name,"self",(tech:TechnoRules)=>{ return tech.type === ObjectType.Building })
+    for(let i in buildings){
+        let building = game.getUnitData(buildings[i])
+
+        if(building?.rules?.baseNormal){
+            let foundation = building?.foundation;
+            let range = computeAdjacentRect({x:building?.tile.rx,y:building?.tile.ry},{width:foundation?.width,height:foundation?.height},technoRules.adjacent)
+            let baseTile = game.mapApi.getTile(range.x,range.y)
+            if (!baseTile){
+                continue
+            }
+            tiles.push(...game.mapApi.getTilesInRect(baseTile,{width:range.width,height:range.height}))
+        }
+    }
+    return tiles
+}
+
+
+function getTileDistances(startPoint: Point2D, tiles: Tile[]) {
+    let ret = [];
+    for (let i in tiles) {
+        let currentTile = tiles[i]
+        ret.push({
+            tile:currentTile,
+            distance:distance(currentTile.rx, currentTile.ry, startPoint.x, startPoint.y)
+        })
+    }
+    ret.sort((a,b)=>{
+        return a.distance - b. distance
+    })
+    return ret
+}
+
+function distance(x1: number, y1 :number, x2:number, y2:number) {
+    var dx = x1 - x2
+    var dy = y1 - y2;
+    let tmp = dx * dx + dy * dy;
+    if (0 === tmp) {
+        return 0
+    }
+    return Math.sqrt(tmp)
+}
+
+
 export function getDefaultPlacementLocation(
     game: GameApi,
     playerData: PlayerData,
@@ -47,21 +110,16 @@ export function getDefaultPlacementLocation(
     space: number = 1,
 ): { rx: number; ry: number } | undefined {
     // Random location, preferably near start location.
-    let startX = startPoint.x;
-    let startY = startPoint.y;
     let size: BuildingPlacementData = game.getBuildingPlacementData(technoRules.name);
     if (!size) {
         return undefined;
     }
-    let largestSize = Math.max(size.foundation.height, size.foundation.width);
-    for (let searchRadius = largestSize; searchRadius < 25 + largestSize; ++searchRadius) {
-        for (let xx = startX - searchRadius; xx < startX + searchRadius; ++xx) {
-            for (let yy = startY - searchRadius; yy < startY + searchRadius; ++yy) {
-                let tile = game.mapApi.getTile(xx, yy);
-                if (tile && game.canPlaceBuilding(playerData.name, technoRules.name, tile)) {
-                    return { rx: xx, ry: yy };
-                }
-            }
+    let tiles = getAdjacencyTiles(game, playerData, technoRules)
+    let tileDistances = getTileDistances(startPoint, tiles)
+
+    for (let tileDistance of tileDistances) {
+        if (tileDistance.tile && game.canPlaceBuilding(playerData.name, technoRules.name, tileDistance.tile)) {
+            return tileDistance.tile;
         }
     }
     return undefined;
