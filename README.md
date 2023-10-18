@@ -37,7 +37,7 @@ Contact the developer of Chrono Divide for details if you are seriously interest
 ## Debugging
 
 ```sh
-npx cross-env MIX_DIR="C:\path_to_ra2_install_dir" NODE_OPTIONS="--inspect" npm start
+npx cross-env MIX_DIR="C:\path_to_ra2_install_dir" npm --node-options="${NODE_OPTIONS} --inspect" start
 ```
 
 ## Publishing
@@ -56,8 +56,8 @@ export GAMEPATH="D:\EA Games\Command and Conquer Red Alert II"
 
 ---
 
-npx cross-env MIX_DIR="${GAMEPATH}" npm start
-npx cross-env MIX_DIR="${GAMEPATH}" NODE_OPTIONS="--inspect" npm start
+npm run build && npx cross-env MIX_DIR="${GAMEPATH}" npm start
+npm run build && npx cross-env MIX_DIR="${GAMEPATH}" npm --node-options="${NODE_OPTIONS} --inspect" start
 
 ---
 
