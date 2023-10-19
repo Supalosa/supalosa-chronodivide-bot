@@ -17,8 +17,7 @@ import { SectorCache } from "./logic/map/sector.js";
 import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
 import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
-import { MatchAwareness } from "./logic/awareness.js";
-import { MatchAwarenessImpl } from "./logic/awarenessImpl.js";
+import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 const NATURAL_TICK_RATE = 15;

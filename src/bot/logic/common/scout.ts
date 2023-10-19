@@ -1,8 +1,7 @@
 import { GameApi, PlayerData, Point2D } from "@chronodivide/game-api";
-import PriorityQueue from "priority-queue-typescript";
-import { MatchAwareness } from "../awareness";
 import { Sector, SectorCache } from "../map/sector";
 import { DebugLogger } from "./utils";
+import { PriorityQueue } from "@datastructures-js/priority-queue";
 
 export const getUnseenStartingLocations = (gameApi: GameApi, playerData: PlayerData) => {
     const unseenStartingLocations = gameApi.mapApi.getStartingLocations().filter((startingLocation) => {
@@ -34,7 +33,7 @@ export class ScoutingManager {
     private scoutingQueue: PriorityQueue<PrioritisedScoutTarget>;
 
     constructor(private logger: DebugLogger) {
-        this.scoutingQueue = new PriorityQueue(10, (p: PrioritisedScoutTarget) => p.priority);
+        this.scoutingQueue = new PriorityQueue((p: PrioritisedScoutTarget) => p.priority);
     }
 
     onGameStart(gameApi: GameApi, playerData: PlayerData, sectorCache: SectorCache) {
@@ -50,7 +49,7 @@ export class ScoutingManager {
             priority: ENEMY_SPAWN_POINT_PRIORITY
         })).forEach((target) => {
             this.logger(`Adding ${target.targetPoint2D.x},${target.targetPoint2D.y} to initial scouting queue`);
-            this.scoutingQueue.add(target);
+            this.scoutingQueue.enqueue(target);
         })
 
         // Queue nearby sectors.
@@ -64,12 +63,12 @@ export class ScoutingManager {
 
         for (let x: number = Math.max(0, startingSector.sectorX - NEARBY_SECTOR_RADIUS); x <= Math.min(sectorsX, startingSector.sectorX + NEARBY_SECTOR_PRIORITY); ++x) {
             for (let y: number = Math.max(0, startingSector.sectorY - NEARBY_SECTOR_RADIUS); y <= Math.min(sectorsY, startingSector.sectorY + NEARBY_SECTOR_PRIORITY); ++y) {
-                if (x === startingSector?.sectorX && y === startY) {
+                if (x === startingSector?.sectorX && y === startingSector?.sectorY) {
                     continue;
                 }
                 const sector = sectorCache.getSector(x, y);
                 if (sector) {
-                    this.scoutingQueue.add({
+                    this.scoutingQueue.enqueue({
                         targetSector: sector,
                         priority: NEARBY_SECTOR_PRIORITY
                     });
@@ -78,8 +77,8 @@ export class ScoutingManager {
         }
     }
 
-    onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness) {
-        const currentHead = this.scoutingQueue.peek();
+    onAiUpdate(gameApi: GameApi, playerData: PlayerData) {
+        const currentHead = this.scoutingQueue.front();
         if (!currentHead) {
             return;
         }
@@ -88,24 +87,24 @@ export class ScoutingManager {
             const tile = gameApi.mapApi.getTile(x, y);
             if (tile && gameApi.mapApi.isVisibleTile(tile, playerData.name)) {
                 this.logger(`head point is visible, dequeueing`);
-                this.scoutingQueue.poll();
+                this.scoutingQueue.dequeue();
             }
         } else if (currentHead.targetSector) {
             if (currentHead.targetSector.sectorVisibilityPct ?? 0 > SECTOR_MINIMUM_VISIBILITY) {
                 this.logger(`head sector has visibility ${currentHead.targetSector.sectorVisibilityPct}, dequeueing`);
-                this.scoutingQueue.poll();
+                this.scoutingQueue.dequeue();
             } 
         } else {
-            this.scoutingQueue.poll();
+            this.scoutingQueue.dequeue();
             throw new Error('PrioritisedScoutingTarget was added with no target');
         }
     }
 
     getNewScoutTarget() {
-        return this.scoutingQueue.poll();
+        return this.scoutingQueue.dequeue();
     }
 
     hasScoutTargets() {
-        return !this.scoutingQueue.empty();
+        return !this.scoutingQueue.isEmpty();
     }
 }
