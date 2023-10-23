@@ -1,6 +1,5 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { Squad } from "../squad/squad.js";
-import { GlobalThreat } from "../threat/threat.js";
 import { MatchAwareness } from "../awareness.js";
 import { DebugLogger } from "../common/utils.js";
 

@@ -1,9 +1,12 @@
 import { GameApi, ObjectType, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector";
 import { GlobalThreat } from "./threat/threat";
-import { calculateGlobalThreat } from "../logic/threat/threatCalculator.js";
-import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "../logic/map/map.js";
-import { Circle, Quadtree, Rectangle } from "@timohausmann/quadtree-ts";
+import { calculateGlobalThreat } from "./threat/threatCalculator.js";
+import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "./map/map.js";
+import { Circle, Quadtree } from "@timohausmann/quadtree-ts";
+import { ScoutingManager } from "./common/scout.js";
+
+export type UnitPositionQuery = { x: number; y: number; unitId: number };
 
 /**
  * The bot's understanding of the current state of the game.
@@ -31,6 +34,8 @@ export interface MatchAwareness {
      */
     getMainRallyPoint(): Point2D;
 
+    onGameStart(gameApi: GameApi, playerData: PlayerData): void;
+
     /**
      * Update the internal state of the Ai.
      * @param gameApi
@@ -42,6 +47,8 @@ export interface MatchAwareness {
      * True if the AI should initiate an attack.
      */
     shouldAttack(): boolean;
+
+    getScoutingManager(): ScoutingManager;
 }
 
 const SECTORS_TO_UPDATE_PER_CYCLE = 8;
@@ -51,7 +58,6 @@ const RALLY_POINT_UPDATE_INTERVAL_TICKS = 60;
 const THREAT_UPDATE_INTERVAL_TICKS = 30;
 
 type QTUnit = Circle<number>;
-export type UnitPositionQuery = { x: number; y: number; unitId: number };
 
 const rebuildQuadtree = (quadtree: Quadtree<QTUnit>, units: UnitData[]) => {
     quadtree.clear();
@@ -64,6 +70,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
     private _shouldAttack: boolean = false;
 
     private hostileQuadTree: Quadtree<QTUnit>;
+    private scoutingManager: ScoutingManager;
 
     constructor(
         private threatCache: GlobalThreat | null,
@@ -73,6 +80,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
     ) {
         const { x: width, y: height } = sectorCache.getMapBounds();
         this.hostileQuadTree = new Quadtree({ width, height });
+        this.scoutingManager = new ScoutingManager(logger);
     }
 
     getHostilesNearPoint2d(point: Point2D, radius: number): UnitPositionQuery[] {
@@ -95,6 +103,9 @@ export class MatchAwarenessImpl implements MatchAwareness {
     }
     getMainRallyPoint(): Point2D {
         return this.mainRallyPoint;
+    }
+    getScoutingManager(): ScoutingManager {
+        return this.scoutingManager;
     }
 
     shouldAttack(): boolean {
@@ -121,10 +132,16 @@ export class MatchAwarenessImpl implements MatchAwareness {
         return hostilePlayerNames.includes(unit.owner);
     }
 
+    public onGameStart(gameApi: GameApi, playerData: PlayerData) {
+        this.scoutingManager.onGameStart(gameApi, playerData, this.sectorCache);
+    }
+
     onAiUpdate(game: GameApi, playerData: PlayerData): void {
         const sectorCache = this.sectorCache;
 
         sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE, game.mapApi, playerData);
+
+        this.scoutingManager.onAiUpdate(game, playerData);
 
         let updateRatio = sectorCache?.getSectorUpdateRatio(game.getCurrentTick() - game.getTickRate() * 60);
         if (updateRatio && updateRatio < 1.0) {
