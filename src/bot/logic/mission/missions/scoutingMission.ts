@@ -38,8 +38,7 @@ export class ScoutingMissionFactory implements MissionFactory {
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
             return;
         }
-        const candidatePoints = getUnseenStartingLocations(gameApi, playerData);
-        if (candidatePoints.length === 0) {
+        if (!matchAwareness.getScoutingManager().hasScoutTargets()) {
             return;
         }
         if (!missionController.addMission(new ScoutingMission("globalScout", 100, logger))) {

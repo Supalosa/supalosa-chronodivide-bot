@@ -20,6 +20,8 @@ import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queue
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
+
+// Number of ticks per second at the base speed.
 const NATURAL_TICK_RATE = 15;
 const BOT_AUTO_SURRENDER_TIME_SECONDS = 7200; // 7200; // 2 hours (approx 30 mins in real game)
 

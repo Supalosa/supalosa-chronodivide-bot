@@ -14,43 +14,65 @@ export const getUnseenStartingLocations = (gameApi: GameApi, playerData: PlayerD
     return unseenStartingLocations;
 };
 
-type PrioritisedScoutTarget = {
-    targetPoint2D?: Point2D;
-    targetSector?: Sector;
-    priority: number;
-}
+class PrioritisedScoutTarget {
+    private _targetPoint2D?: Point2D;
+    private _targetSector?: Sector;
+    private _priority: number;
 
-// If we see this percent (0-1.0) of tiles in a sector, we consider it scouted.
-const SECTOR_MINIMUM_VISIBILITY = 0.5;
+    constructor(priority: number, target: Point2D | Sector) {
+        if (target.hasOwnProperty("x") && target.hasOwnProperty("y")) {
+            this._targetPoint2D = target as Point2D;
+        } else if (target.hasOwnProperty("sectorStartPoint")) {
+            this._targetSector = target as Sector;
+        } else {
+            throw new TypeError(`invalid object passed as target: ${target}`);
+        }
+        this._priority = priority;
+    }
+
+    get priority() {
+        return this._priority;
+    }
+
+    asPoint2D() {
+        return this._targetPoint2D ?? this._targetSector?.sectorStartPoint ?? null;
+    }
+
+    get targetSector() {
+        return this._targetSector;
+    }
+}
 
 const ENEMY_SPAWN_POINT_PRIORITY = 100;
 
 // Amount of sectors around the starting sector to try to scout.
 const NEARBY_SECTOR_RADIUS = 2;
-const NEARBY_SECTOR_PRIORITY = 1000;
+const NEARBY_SECTOR_BASE_PRIORITY = 1000;
 
 export class ScoutingManager {
     private scoutingQueue: PriorityQueue<PrioritisedScoutTarget>;
 
     constructor(private logger: DebugLogger) {
-        this.scoutingQueue = new PriorityQueue((p: PrioritisedScoutTarget) => p.priority);
+        // Order by descending priority.
+        this.scoutingQueue = new PriorityQueue((a: PrioritisedScoutTarget, b: PrioritisedScoutTarget) => b.priority - a.priority);
     }
 
     onGameStart(gameApi: GameApi, playerData: PlayerData, sectorCache: SectorCache) {
         // Queue hostile starting locations with high priority.
-        gameApi.mapApi.getStartingLocations().filter((startingLocation) => {
-            if (startingLocation == playerData.startLocation) {
-                return false;
-            }
-            let tile = gameApi.mapApi.getTile(startingLocation.x, startingLocation.y);
-            return tile ? !gameApi.mapApi.isVisibleTile(tile, playerData.name) : false;
-        }).map((tile) => ({
-            targetPoint2D: tile,
-            priority: ENEMY_SPAWN_POINT_PRIORITY
-        })).forEach((target) => {
-            this.logger(`Adding ${target.targetPoint2D.x},${target.targetPoint2D.y} to initial scouting queue`);
-            this.scoutingQueue.enqueue(target);
-        })
+        gameApi.mapApi
+            .getStartingLocations()
+            .filter((startingLocation) => {
+                if (startingLocation == playerData.startLocation) {
+                    return false;
+                }
+                let tile = gameApi.mapApi.getTile(startingLocation.x, startingLocation.y);
+                return tile ? !gameApi.mapApi.isVisibleTile(tile, playerData.name) : false;
+            })
+            .map((tile) => new PrioritisedScoutTarget(ENEMY_SPAWN_POINT_PRIORITY, tile))
+            .forEach((target) => {
+                this.logger(`Adding ${target.asPoint2D()?.x},${target.asPoint2D()?.y} to initial scouting queue`);
+                this.scoutingQueue.enqueue(target);
+            });
 
         // Queue nearby sectors.
         const { x: startX, y: startY } = playerData.startLocation;
@@ -61,17 +83,28 @@ export class ScoutingManager {
             return;
         }
 
-        for (let x: number = Math.max(0, startingSector.sectorX - NEARBY_SECTOR_RADIUS); x <= Math.min(sectorsX, startingSector.sectorX + NEARBY_SECTOR_PRIORITY); ++x) {
-            for (let y: number = Math.max(0, startingSector.sectorY - NEARBY_SECTOR_RADIUS); y <= Math.min(sectorsY, startingSector.sectorY + NEARBY_SECTOR_PRIORITY); ++y) {
+        for (
+            let x: number = Math.max(0, startingSector.sectorX - NEARBY_SECTOR_RADIUS);
+            x <= Math.min(sectorsX, startingSector.sectorX + NEARBY_SECTOR_RADIUS);
+            ++x
+        ) {
+            for (
+                let y: number = Math.max(0, startingSector.sectorY - NEARBY_SECTOR_RADIUS);
+                y <= Math.min(sectorsY, startingSector.sectorY + NEARBY_SECTOR_RADIUS);
+                ++y
+            ) {
                 if (x === startingSector?.sectorX && y === startingSector?.sectorY) {
                     continue;
                 }
+                // Make it scout closer sectors first.
+                const distanceFactor = Math.pow(x - startingSector.sectorX, 2) + Math.pow(y - startingSector.sectorY, 2);
                 const sector = sectorCache.getSector(x, y);
                 if (sector) {
-                    this.scoutingQueue.enqueue({
-                        targetSector: sector,
-                        priority: NEARBY_SECTOR_PRIORITY
-                    });
+                    const maybeTarget = new PrioritisedScoutTarget(NEARBY_SECTOR_BASE_PRIORITY - distanceFactor, sector);
+                    const maybePoint = maybeTarget.asPoint2D();
+                    if (maybePoint && gameApi.mapApi.getTile(maybePoint.x, maybePoint.y)) {
+                        this.scoutingQueue.enqueue(maybeTarget);
+                    }
                 }
             }
         }
@@ -82,21 +115,16 @@ export class ScoutingManager {
         if (!currentHead) {
             return;
         }
-        if (currentHead.targetPoint2D) {
-            const { x, y } = currentHead.targetPoint2D;
-            const tile = gameApi.mapApi.getTile(x, y);
-            if (tile && gameApi.mapApi.isVisibleTile(tile, playerData.name)) {
-                this.logger(`head point is visible, dequeueing`);
-                this.scoutingQueue.dequeue();
-            }
-        } else if (currentHead.targetSector) {
-            if (currentHead.targetSector.sectorVisibilityPct ?? 0 > SECTOR_MINIMUM_VISIBILITY) {
-                this.logger(`head sector has visibility ${currentHead.targetSector.sectorVisibilityPct}, dequeueing`);
-                this.scoutingQueue.dequeue();
-            } 
-        } else {
+        const head = currentHead.asPoint2D();
+        if (!head) {
             this.scoutingQueue.dequeue();
-            throw new Error('PrioritisedScoutingTarget was added with no target');
+            return;
+        }
+        const { x, y } = head;
+        const tile = gameApi.mapApi.getTile(x, y);
+        if (tile && gameApi.mapApi.isVisibleTile(tile, playerData.name)) {
+            this.logger(`head point is visible, dequeueing`);
+            this.scoutingQueue.dequeue();
         }
     }
 

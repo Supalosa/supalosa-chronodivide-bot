@@ -47,6 +47,8 @@ export interface MatchAwareness {
      * True if the AI should initiate an attack.
      */
     shouldAttack(): boolean;
+
+    getScoutingManager(): ScoutingManager;
 }
 
 const SECTORS_TO_UPDATE_PER_CYCLE = 8;
