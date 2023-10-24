@@ -7,8 +7,8 @@ async function main() {
     CDR2            1v1             2_malibu_cliffs_le.map
     CDR2            1v1             4_country_swing_le_v2.map
     CDR2            1v1             mp01t4.map
-    CDR2            1v1             tn04t2.map
-    CDR2            1v1             mp10s4.map
+    CDR2            1v1             tn04t2.map small map
+    CDR2            1v1             mp10s4.map <- depth charge, naval map only
     CDR2            1v1             heckcorners.map
     CDR2            1v1             4_montana_dmz_le.map
     CDR2            1v1             barrel.map
@@ -16,7 +16,7 @@ async function main() {
     Other maps:
     mp03t4
     */
-    const mapName = "mp01t4.map";
+    const mapName = "mp03t4.map";
     // Bot names must be unique in online mode
     const botName = `Joe${String(Date.now()).substr(-6)}`;
     const otherBotName = `Bob${String(Date.now() + 1).substr(-6)}`;
