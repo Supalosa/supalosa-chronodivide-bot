@@ -10,7 +10,7 @@ import {
 } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { AntiGroundStaticDefence } from "./antiGroundStaticDefence.js";
-import { ArtilleryUnit } from "./ArtilleryUnit.js";
+import { ArtilleryUnit } from "./artilleryUnit.js";
 import { BasicAirUnit } from "./basicAirUnit.js";
 import { BasicBuilding } from "./basicBuilding.js";
 import { BasicGroundUnit } from "./basicGroundUnit.js";
@@ -154,7 +154,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["FV", new BasicGroundUnit(5, 2, 0.5, 1)], // IFV
     ["JUMPJET", new BasicAirUnit(10, 1, 1, 1)], // Rocketeer
     ["ORCA", new BasicAirUnit(7, 1, 2, 0)], // Rocketeer
-    ["SREF", new ArtilleryUnit(9, 1)], // Prism Tank
+    ["SREF", new ArtilleryUnit(10, 5, 3, 3)], // Prism Tank
     ["CLEG", new BasicGroundUnit(0, 0)], // Chrono Legionnaire (Disabled - we don't handle the warped out phase properly and it tends to bug both bots out)
     ["SHAD", new BasicGroundUnit(0, 0)], // Nighthawk (Disabled)
 
@@ -181,5 +181,5 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["APOC", new BasicGroundUnit(6, 1, 5, 0)], // Apocalypse Tank
     ["HTK", new BasicGroundUnit(5, 2, 0.33, 1.5)], // Flak Track
     ["ZEP", new BasicAirUnit(5, 1, 5, 1)], // Kirov
-    ["V3", new ArtilleryUnit(9, 1)], // V3 Rocket Launcher
+    ["V3", new ArtilleryUnit(9, 10, 0, 3)], // V3 Rocket Launcher
 ]);
