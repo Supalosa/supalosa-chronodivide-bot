@@ -1,5 +1,5 @@
 import { GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
-import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./building.js";
+import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./buildingRules.js";
 import { GlobalThreat } from "../threat/threat.js";
 
 export class BasicBuilding implements AiBuildingRules {
