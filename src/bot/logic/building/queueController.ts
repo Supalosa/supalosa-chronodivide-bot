@@ -13,7 +13,7 @@ import {
     BUILDING_NAME_TO_RULES,
     DEFAULT_BUILDING_PRIORITY,
     getDefaultPlacementLocation,
-} from "./building.js";
+} from "./buildingRules.js";
 
 export const QUEUES = [
     QueueType.Structures,

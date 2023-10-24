@@ -1,7 +1,7 @@
 import { GameApi, PlayerData, Point2D, TechnoRules } from "@chronodivide/game-api";
 import { getPointTowardsOtherPoint } from "../map/map.js";
 import { GlobalThreat } from "../threat/threat.js";
-import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./building.js";
+import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./buildingRules.js";
 
 export class AntiGroundStaticDefence implements AiBuildingRules {
     constructor(private basePriority: number, private baseAmount: number, private strength: number) {}

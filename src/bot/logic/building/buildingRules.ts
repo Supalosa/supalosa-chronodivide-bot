@@ -91,7 +91,7 @@ function getTileDistances(startPoint: Point2D, tiles: Tile[]) {
     return ret
 }
 
-function distance(x1: number, y1 :number, x2:number, y2:number) {
+function distance(x1: number, y1: number, x2: number, y2: number) {
     var dx = x1 - x2
     var dy = y1 - y2;
     let tmp = dx * dx + dy * dy;
@@ -110,12 +110,12 @@ export function getDefaultPlacementLocation(
     space: number = 1,
 ): { rx: number; ry: number } | undefined {
     // Random location, preferably near start location.
-    let size: BuildingPlacementData = game.getBuildingPlacementData(technoRules.name);
+    const size: BuildingPlacementData = game.getBuildingPlacementData(technoRules.name);
     if (!size) {
         return undefined;
     }
-    let tiles = getAdjacencyTiles(game, playerData, technoRules)
-    let tileDistances = getTileDistances(startPoint, tiles)
+    const tiles = getAdjacencyTiles(game, playerData, technoRules)
+    const tileDistances = getTileDistances(startPoint, tiles)
 
     for (let tileDistance of tileDistances) {
         if (tileDistance.tile && game.canPlaceBuilding(playerData.name, technoRules.name, tileDistance.tile)) {
@@ -137,7 +137,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GAWEAP", new BasicBuilding(15, 1)], // War Factory
     ["GAPILE", new BasicBuilding(12, 1)], // Barracks
     ["CMIN", new Harvester(15, 4, 2)], // Chrono Miner
-    ["ENGINEER", new BasicBuilding(1, 1, 10000)], // Engineer
+    ["ENGINEER", new BasicBuilding(10, 1, 1000)], // Engineer
     ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["GAAIRC", new BasicBuilding(8, 1, 6000)], // Airforce Command
 
@@ -164,7 +164,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NAWEAP", new BasicBuilding(15, 1)], // War Factory
     ["NAHAND", new BasicBuilding(12, 1)], // Barracks
     ["HARV", new Harvester(15, 4, 2)], // War Miner
-    ["SENGINEER", new BasicBuilding(1, 1, 10000)], // Soviet Engineer
+    ["SENGINEER", new BasicBuilding(10, 1, 1000)], // Soviet Engineer
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(8, 1, 4000)], // Radar
     ["NANRCT", new PowerPlant()], // Nuclear Reactor

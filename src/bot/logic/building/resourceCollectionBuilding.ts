@@ -6,7 +6,7 @@ import {
     getDefaultPlacementLocation,
     numBuildingsOwnedOfName,
     numBuildingsOwnedOfType,
-} from "./building.js";
+} from "./buildingRules.js";
 
 export class ResourceCollectionBuilding extends BasicBuilding {
     constructor(basePriority: number, maxNeeded: number, onlyBuildWhenFloatingCreditsAmount?: number) {

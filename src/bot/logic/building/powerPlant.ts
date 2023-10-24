@@ -1,5 +1,5 @@
 import { GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
-import { AiBuildingRules, getDefaultPlacementLocation } from "./building.js";
+import { AiBuildingRules, getDefaultPlacementLocation } from "./buildingRules.js";
 import { GlobalThreat } from "../threat/threat.js";
 
 export class PowerPlant implements AiBuildingRules {
