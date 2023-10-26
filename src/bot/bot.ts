@@ -23,10 +23,10 @@ const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 
 // Number of ticks per second at the base speed.
 const NATURAL_TICK_RATE = 15;
-const BOT_AUTO_SURRENDER_TIME_SECONDS = 1800; // 7200; // 2 hours (approx 30 mins in real game)
+const BOT_AUTO_SURRENDER_TIME_SECONDS = 7200; // 7200; // 2 hours (approx 30 mins in real game)
 
 export class SupalosaBot extends Bot {
-    private tickRatio!: number;
+    private tickRatio?: number;
     private knownMapBounds: Point2D | undefined;
     private missionController: MissionController;
     private squadController: SquadController;
@@ -76,7 +76,7 @@ export class SupalosaBot extends Bot {
             this.logDebugState(game);
         }
 
-        if (game.getCurrentTick() % this.tickRatio === 0) {
+        if (game.getCurrentTick() % this.tickRatio! === 0) {
             const myPlayer = game.getPlayerData(this.name);
 
             this.matchAwareness.onAiUpdate(game, myPlayer);

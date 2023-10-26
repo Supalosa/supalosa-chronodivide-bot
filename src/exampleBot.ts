@@ -48,7 +48,7 @@ async function main() {
     };
 
     const offlineSettings = {
-        agents: [new SupalosaBot(botName, "French", false), new SupalosaBot(otherBotName, "French", true)],
+        agents: [new SupalosaBot(botName, "French", false), new SupalosaBot(otherBotName, "Russians", true)],
     };
 
     const game = await cdapi.createGame({
