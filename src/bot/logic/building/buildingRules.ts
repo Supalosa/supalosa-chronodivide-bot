@@ -17,6 +17,7 @@ import { BasicGroundUnit } from "./basicGroundUnit.js";
 import { PowerPlant } from "./powerPlant.js";
 import { ResourceCollectionBuilding } from "./resourceCollectionBuilding.js";
 import { Harvester } from "./harvester.js";
+import _, { add, min, remove } from "lodash";
 
 export interface AiBuildingRules {
     getPriority(
@@ -48,6 +49,16 @@ export function numBuildingsOwnedOfName(game: GameApi, playerData: PlayerData, n
     return game.getVisibleUnits(playerData.name, "self", (r) => r.name === name).length;
 }
 
+/**
+ * Computes a rect 'centered' around a structure of a certain size with additional radius.
+ * 
+ * This is essentially the placeable area around a given structure.
+ * 
+ * @param point Top-left location of the inner rect.
+ * @param t Size of the inner rect.
+ * @param adjacent Size of the outer rect.
+ * @returns 
+ */
 function computeAdjacentRect(point: Point2D, t: Size, adjacent: number) {
     return {
         x: point.x - adjacent,
@@ -56,39 +67,75 @@ function computeAdjacentRect(point: Point2D, t: Size, adjacent: number) {
         height: t.height + 2 * adjacent
     };
 }
-export function getAdjacencyTiles(game: GameApi,playerData: PlayerData,technoRules: TechnoRules){
-    let tiles = []
-    let buildings= game.getVisibleUnits(playerData.name,"self",(tech:TechnoRules)=>{ return tech.type === ObjectType.Building })
-    for(let i in buildings){
-        let building = game.getUnitData(buildings[i])
 
-        if(building?.rules?.baseNormal){
-            let foundation = building?.foundation;
-            let range = computeAdjacentRect({x:building?.tile.rx,y:building?.tile.ry},{width:foundation?.width,height:foundation?.height},technoRules.adjacent)
-            let baseTile = game.mapApi.getTile(range.x,range.y)
-            if (!baseTile){
-                continue
+export function getAdjacencyTiles(
+        game: GameApi,
+        playerData: PlayerData,
+        technoRules: TechnoRules, 
+        minimumSpace: number) {
+    const placementRules = game.getBuildingPlacementData(technoRules.name);
+    const { width: newBuildingWidth, height: newBuildingHeight } = placementRules.foundation;
+    const tiles = [];
+    const buildings = game.getVisibleUnits(playerData.name, "self", (r: TechnoRules) => r.type === ObjectType.Building);
+    const removedTiles = new Set<string>();
+    for (let buildingId of buildings) {
+        const building = game.getUnitData(buildingId);
+        if (building?.rules?.baseNormal) {
+            const { foundation, tile } = building;
+            const buildingBase = {
+                x: tile.rx,
+                y: tile.ry
+            };
+            const buildingSize = 
+            {
+                width: foundation?.width,
+                height: foundation?.height
+            };
+            const range = computeAdjacentRect(buildingBase, buildingSize, technoRules.adjacent);
+            const baseTile = game.mapApi.getTile(range.x, range.y)
+            if (!baseTile) {
+                continue;
             }
-            tiles.push(...game.mapApi.getTilesInRect(baseTile,{width:range.width,height:range.height}))
+            const adjacentTiles = game.mapApi.getTilesInRect(baseTile, {
+                width: range.width,
+                height: range.height
+            });
+            tiles.push(...adjacentTiles);
+
+
+            // Prevent placing the new building on tiles that would cause it to overlap with this building.
+            const modifiedBase = {
+                x: buildingBase.x - (newBuildingWidth - 1),
+                y: buildingBase.y - (newBuildingHeight - 1),
+            }
+            const modifiedSize = {
+                width: buildingSize.width + (newBuildingWidth - 1),
+                height: buildingSize.height + (newBuildingHeight - 1),
+            }
+            const blockedRect = computeAdjacentRect(modifiedBase, modifiedSize, minimumSpace);
+            const buildingTiles = adjacentTiles.filter((tile) => {
+                return (tile.rx >= blockedRect.x &&
+                    tile.rx < blockedRect.x + blockedRect.width &&
+                    tile.ry >= blockedRect.y &&
+                    tile.ry < blockedRect.y + blockedRect.height);
+            });
+            buildingTiles.forEach((buildingTile) => removedTiles.add(buildingTile.id));
         }
     }
-    return tiles
+    // Remove duplicate tiles.
+    const withDuplicatesRemoved = _.uniqBy(tiles, (tile) => tile.id);
+    // Remove tiles containing buildings and potentially area around them removed as well.
+    return withDuplicatesRemoved.filter((tile) => !removedTiles.has(tile.id));
 }
 
 
 function getTileDistances(startPoint: Point2D, tiles: Tile[]) {
-    let ret = [];
-    for (let i in tiles) {
-        let currentTile = tiles[i]
-        ret.push({
-            tile:currentTile,
-            distance:distance(currentTile.rx, currentTile.ry, startPoint.x, startPoint.y)
-        })
-    }
-    ret.sort((a,b)=>{
-        return a.distance - b. distance
-    })
-    return ret
+    return tiles.map((tile) => ({
+        tile,
+        distance: distance(tile.rx, tile.ry, startPoint.x, startPoint.y)
+    })).sort((a, b)=>{
+        return a.distance - b.distance
+    });;
 }
 
 function distance(x1: number, y1: number, x2: number, y2: number) {
@@ -107,15 +154,15 @@ export function getDefaultPlacementLocation(
     playerData: PlayerData,
     startPoint: Point2D,
     technoRules: TechnoRules,
-    space: number = 1,
+    minSpace: number = 1,
 ): { rx: number; ry: number } | undefined {
     // Random location, preferably near start location.
     const size: BuildingPlacementData = game.getBuildingPlacementData(technoRules.name);
     if (!size) {
         return undefined;
     }
-    const tiles = getAdjacencyTiles(game, playerData, technoRules)
-    const tileDistances = getTileDistances(startPoint, tiles)
+    const tiles = getAdjacencyTiles(game, playerData, technoRules, minSpace);
+    const tileDistances = getTileDistances(startPoint, tiles);
 
     for (let tileDistance of tileDistances) {
         if (tileDistance.tile && game.canPlaceBuilding(playerData.name, technoRules.name, tileDistance.tile)) {
