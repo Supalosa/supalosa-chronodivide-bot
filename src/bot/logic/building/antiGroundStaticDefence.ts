@@ -27,7 +27,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         }
         let selectedLocation =
             enemyFacingLocationCandidates[Math.floor(game.generateRandom() * enemyFacingLocationCandidates.length)];
-        return getDefaultPlacementLocation(game, playerData, selectedLocation, technoRules);
+        return getDefaultPlacementLocation(game, playerData, selectedLocation, technoRules, 0);
     }
 
     getPriority(
