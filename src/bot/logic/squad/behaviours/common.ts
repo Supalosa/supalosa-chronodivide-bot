@@ -1,5 +1,15 @@
-import { ActionsApi, AttackState, ObjectType, OrderType, Point2D, StanceType, UnitData } from "@chronodivide/game-api";
-import { getDistanceBetweenUnits } from "../../map/map.js";
+import {
+    ActionsApi,
+    AttackState,
+    ObjectType,
+    OrderType,
+    Point2D,
+    StanceType,
+    UnitData,
+    ZoneType,
+} from "@chronodivide/game-api";
+import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
+import { Zone } from "luxon";
 
 // Micro methods
 export function manageMoveMicro(actionsApi: ActionsApi, attacker: UnitData, attackPoint: Point2D) {
@@ -36,4 +46,25 @@ export function manageAttackMicro(actionsApi: ActionsApi, attacker: UnitData, ta
         orderType = OrderType.Attack;
     }
     actionsApi.orderUnits([attacker.id], orderType, target.id);
+}
+
+/**
+ *
+ * @param attacker
+ * @param target
+ * @returns A number describing the weight of the given target for the attacker, or null if it should not attack it.
+ */
+export function getAttackWeight(attacker: UnitData, target: UnitData): number | null {
+    const { rx: x, ry: y } = attacker.tile;
+    const { rx: hX, ry: hY } = target.tile;
+
+    if (!attacker.primaryWeapon?.projectileRules.isAntiAir && target.zone === ZoneType.Air) {
+        return null;
+    }
+
+    if (!attacker.primaryWeapon?.projectileRules.isAntiGround && target.zone === ZoneType.Ground) {
+        return null;
+    }
+
+    return 1000000 - getDistanceBetweenPoints({ x, y }, { x: hX, y: hY });
 }
