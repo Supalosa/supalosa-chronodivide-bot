@@ -10,14 +10,13 @@ import {
     FactoryType,
 } from "@chronodivide/game-api";
 
-import { Duration } from "luxon";
-
 import { determineMapBounds } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
 import { MissionController } from "./logic/mission/missionController.js";
 import { SquadController } from "./logic/squad/squadController.js";
 import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
+import { formatTimeDuration } from "./logic/common/utils.js";
 
 const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
 
@@ -126,7 +125,7 @@ export class SupalosaBot extends Bot {
     }
 
     private getHumanTimestamp(game: GameApi) {
-        return Duration.fromMillis((game.getCurrentTick() / NATURAL_TICK_RATE) * 1000).toFormat("hh:mm:ss");
+        return formatTimeDuration(game.getCurrentTick() / NATURAL_TICK_RATE);
     }
 
     private logBotStatus(message: string, sayInGame: boolean = false) {
