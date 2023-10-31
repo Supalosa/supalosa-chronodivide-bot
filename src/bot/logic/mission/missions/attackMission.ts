@@ -1,16 +1,12 @@
-import { AttackState, GameApi, ObjectType, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
-import { OneTimeMission } from "./oneTimeMission.js";
+import { GameApi, ObjectType, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
 import { CombatSquad } from "../../squad/behaviours/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
-import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../../squad/squad.js";
-import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
-import { match } from "assert";
 import { RetreatMission } from "./retreatMission.js";
-import _ from "lodash";
+import maxBy from "lodash.maxby";
 import { DebugLogger } from "../../common/utils.js";
 
 export enum AttackFailReason {
@@ -32,7 +28,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         private rallyArea: Point2D,
         private attackArea: Point2D,
         private radius: number,
-        logger: DebugLogger
+        logger: DebugLogger,
     ) {
         super(uniqueName, priority, logger);
     }
@@ -90,7 +86,7 @@ export class AttackMissionFactory implements MissionFactory {
                 .map((unitId) => gameApi.getUnitData(unitId))
                 .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
-            const maxUnit = _.maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
+            const maxUnit = maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
             if (maxUnit) {
                 return { x: maxUnit.tile.rx, y: maxUnit.tile.ry };
             }
@@ -106,7 +102,7 @@ export class AttackMissionFactory implements MissionFactory {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
-        logger: DebugLogger
+        logger: DebugLogger,
     ): void {
         if (!matchAwareness.shouldAttack()) {
             return;
@@ -128,19 +124,24 @@ export class AttackMissionFactory implements MissionFactory {
         const squadName = "globalAttack";
 
         const tryAttack = missionController.addMission(
-            new AttackMission(squadName, 100, matchAwareness.getMainRallyPoint(), attackArea, attackRadius, logger).then(
-                (reason, squad) => {
-                    missionController.addMission(
-                        new RetreatMission(
-                            "retreat-from-" + squadName + gameApi.getCurrentTick(),
-                            100,
-                            matchAwareness.getMainRallyPoint(),
-                            squad?.getUnitIds() ?? [],
-                            logger,
-                        ),
-                    );
-                },
-            ),
+            new AttackMission(
+                squadName,
+                100,
+                matchAwareness.getMainRallyPoint(),
+                attackArea,
+                attackRadius,
+                logger,
+            ).then((reason, squad) => {
+                missionController.addMission(
+                    new RetreatMission(
+                        "retreat-from-" + squadName + gameApi.getCurrentTick(),
+                        100,
+                        matchAwareness.getMainRallyPoint(),
+                        squad?.getUnitIds() ?? [],
+                        logger,
+                    ),
+                );
+            }),
         );
         if (tryAttack) {
             this.lastAttackAt = gameApi.getCurrentTick();

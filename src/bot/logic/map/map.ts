@@ -1,5 +1,5 @@
 import { GameApi, MapApi, PlayerData, Point2D, Tile, UnitData } from "@chronodivide/game-api";
-import _ from "lodash";
+import maxBy from "lodash.maxby";
 
 const MAX_WIDTH_AND_HEIGHT = 500;
 
@@ -11,8 +11,8 @@ export function determineMapBounds(mapApi: MapApi): Point2D {
     const zeroTile = { rx: 0, ry: 0 } as Tile;
     const allTiles = mapApi.getTilesInRect(zeroTile, { width: MAX_WIDTH_AND_HEIGHT, height: MAX_WIDTH_AND_HEIGHT });
 
-    const maxX = _.maxBy(allTiles, (tile) => tile.rx)?.rx!;
-    const maxY = _.maxBy(allTiles, (tile) => tile.ry)?.ry!;
+    const maxX = maxBy(allTiles, (tile) => tile.rx)?.rx!;
+    const maxY = maxBy(allTiles, (tile) => tile.ry)?.ry!;
 
     return { x: maxX, y: maxY };
 }

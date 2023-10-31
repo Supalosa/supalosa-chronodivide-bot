@@ -1,4 +1,4 @@
-import _ from "lodash";
+import maxBy from "lodash.maxby";
 import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
@@ -109,7 +109,7 @@ export class CombatSquad implements SquadBehaviour {
                     const nearbyHostiles = matchAwareness
                         .getHostilesNearPoint(x, y, range * 2)
                         .map(({ unitId }) => gameApi.getUnitData(unitId)) as UnitData[];
-                    const bestUnit = _.maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
+                    const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
                         manageAttackMicro(actionsApi, unit, bestUnit);
                     } else {

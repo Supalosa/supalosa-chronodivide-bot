@@ -1,7 +1,6 @@
 // Meta-controller for forming and controlling squads.
 
 import { ActionsApi, GameApi, PlayerData, UnitData } from "@chronodivide/game-api";
-import { GlobalThreat } from "../threat/threat.js";
 import { Squad, SquadLiveness } from "./squad.js";
 import {
     SquadAction,
@@ -13,8 +12,7 @@ import {
 } from "./squadBehaviour.js";
 import { MatchAwareness } from "../awareness.js";
 import { getDistanceBetween } from "../map/map.js";
-import _ from "lodash";
-import { DebugLogger } from "../common/utils.js";
+import countBy from "lodash.countby";
 
 type SquadWithAction<T> = {
     squad: Squad;
@@ -244,7 +242,7 @@ export class SquadController {
     }
 
     public debugSquads(gameApi: GameApi) {
-        const unitsInSquad = (unitIds: number[]) => _.countBy(unitIds, (unitId) => gameApi.getUnitData(unitId)?.name);
+        const unitsInSquad = (unitIds: number[]) => countBy(unitIds, (unitId) => gameApi.getUnitData(unitId)?.name);
 
         this.squads.forEach((squad) => {
             this.logger(

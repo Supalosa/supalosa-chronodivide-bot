@@ -4,7 +4,6 @@ import { GlobalThreat } from "../threat/threat.js";
 import { SquadAction, SquadBehaviour, disband } from "./squadBehaviour.js";
 import { MatchAwareness } from "../awareness.js";
 import { getDistanceBetweenPoints } from "../map/map.js";
-import _ from "lodash";
 import { DebugLogger } from "../common/utils.js";
 
 export enum SquadLiveness {
@@ -42,7 +41,7 @@ const calculateCenterOfMass: (unitTiles: Tile[]) => {
 
     // max distance of units to the center of mass
     const distances = unitTiles.map((tile) => getDistanceBetweenPoints({ x: tile.rx, y: tile.ry }, centerOfMass));
-    const maxDistance = _.max(distances)!;
+    const maxDistance = Math.max(...distances);
     return { centerOfMass, maxDistance };
 };
 
@@ -77,7 +76,7 @@ export class Squad {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        logger: DebugLogger
+        logger: DebugLogger,
     ): SquadAction {
         this.updateLiveness(gameApi);
         const movableUnitTiles = this.unitIds
