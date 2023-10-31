@@ -1,10 +1,10 @@
 import _ from "lodash";
-import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
 import { getDistanceBetweenPoints } from "../../map/map.js";
-import { manageAttackMicro, manageMoveMicro } from "./common.js";
+import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
 import { DebugLogger } from "../../common/utils.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
@@ -55,7 +55,10 @@ export class CombatSquad implements SquadBehaviour {
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
     ): SquadAction {
-        if (squad.getUnitIds().length > 0 && (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)) {
+        if (
+            squad.getUnitIds().length > 0 &&
+            (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
+        ) {
             this.lastCommand = gameApi.getCurrentTick();
             const centerOfMass = squad.getCenterOfMass();
             const maxDistance = squad.getMaxDistanceToCenterOfMass();
@@ -83,7 +86,7 @@ export class CombatSquad implements SquadBehaviour {
                         manageMoveMicro(actionsApi, unit, centerOfMass);
                     });
                 } else {
-                    logger(`CombatSquad ${squad.getName()} switching back to attack mode (${maxDistance})`)
+                    logger(`CombatSquad ${squad.getName()} switching back to attack mode (${maxDistance})`);
                     this.state = SquadState.Attacking;
                 }
             } else {
@@ -96,24 +99,21 @@ export class CombatSquad implements SquadBehaviour {
                     maxDistance > requiredGatherRadius
                 ) {
                     // Switch back to gather mode
-                    logger(`CombatSquad ${squad.getName()} switching back to gather (${maxDistance})`)
+                    logger(`CombatSquad ${squad.getName()} switching back to gather (${maxDistance})`);
                     this.state = SquadState.Gathering;
                     return noop();
                 }
                 for (const unit of units) {
-                    if (unit.isIdle) {
-                        const { rx: x, ry: y } = unit.tile;
-                        const range = unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
-                        const nearbyHostiles = matchAwareness.getHostilesNearPoint(x, y, range * 2);
-                        const closest = _.minBy(nearbyHostiles, ({ x: hX, y: hY }) =>
-                            getDistanceBetweenPoints({ x, y }, { x: hX, y: hY }),
-                        );
-                        const closestUnit = closest ? gameApi.getUnitData(closest.unitId) ?? null : null;
-                        if (closestUnit) {
-                            manageAttackMicro(actionsApi, unit, closestUnit);
-                        } else {
-                            manageMoveMicro(actionsApi, unit, targetPoint);
-                        }
+                    const { rx: x, ry: y } = unit.tile;
+                    const range = unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
+                    const nearbyHostiles = matchAwareness
+                        .getHostilesNearPoint(x, y, range * 2)
+                        .map(({ unitId }) => gameApi.getUnitData(unitId)) as UnitData[];
+                    const bestUnit = _.maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
+                    if (bestUnit) {
+                        manageAttackMicro(actionsApi, unit, bestUnit);
+                    } else {
+                        manageMoveMicro(actionsApi, unit, targetPoint);
                     }
                 }
             }
