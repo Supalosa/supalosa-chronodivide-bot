@@ -1,13 +1,9 @@
-import { ActionsApi, GameApi, OrderType, PlayerData, Point2D, SideType } from "@chronodivide/game-api";
-import { GlobalThreat } from "../../threat/threat.js";
+import { ActionsApi, GameApi, OrderType, PlayerData, Point2D } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
-import { getUnseenStartingLocations } from "../../common/scout.js";
-import { match } from "assert";
 import { DebugLogger } from "../../common/utils.js";
-import _ from "lodash";
-import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
+import { getDistanceBetweenPoints } from "../../map/map.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -77,11 +73,10 @@ export class ScoutingSquad implements SquadBehaviour {
                     }
                 });
                 // Check that a scout is actually moving closer to the target.
-                const newMinDistance = _.min(
-                    scouts.map((unit) =>
-                        getDistanceBetweenPoints({ x: unit.tile.rx, y: unit.tile.ry }, this.scoutTarget!),
-                    ),
-                )!;
+                const distances = scouts.map((unit) =>
+                    getDistanceBetweenPoints({ x: unit.tile.rx, y: unit.tile.ry }, this.scoutTarget!),
+                );
+                const newMinDistance = Math.min(...distances);
                 if (!this.scoutMinDistance || newMinDistance < this.scoutMinDistance) {
                     logger(
                         `Scout timeout refreshed because unit moved closer to point (${newMinDistance} < ${this.scoutMinDistance})`,

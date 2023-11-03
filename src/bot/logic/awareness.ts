@@ -160,11 +160,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
             .map((other) => other.name);
 
         // Build the quadtree, if this is too slow we should consider doing this periodically.
-        const hostileUnitIds = game.getVisibleUnits(
-            playerData.name,
-            "hostile",
-            (r) => r.isSelectableCombatant || r.type === ObjectType.Building,
-        );
+        const hostileUnitIds = game.getVisibleUnits(playerData.name, "hostile");
         try {
             const hostileUnits = hostileUnitIds
                 .map((id) => game.getUnitData(id))

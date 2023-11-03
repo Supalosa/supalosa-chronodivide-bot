@@ -17,7 +17,7 @@ import { BasicGroundUnit } from "./basicGroundUnit.js";
 import { PowerPlant } from "./powerPlant.js";
 import { ResourceCollectionBuilding } from "./resourceCollectionBuilding.js";
 import { Harvester } from "./harvester.js";
-import _, { add, min, remove } from "lodash";
+import { uniqBy } from "../common/utils.js";
 
 export interface AiBuildingRules {
     getPriority(
@@ -51,28 +51,29 @@ export function numBuildingsOwnedOfName(game: GameApi, playerData: PlayerData, n
 
 /**
  * Computes a rect 'centered' around a structure of a certain size with additional radius.
- * 
+ *
  * This is essentially the placeable area around a given structure.
- * 
+ *
  * @param point Top-left location of the inner rect.
  * @param t Size of the inner rect.
  * @param adjacent Size of the outer rect.
- * @returns 
+ * @returns
  */
 function computeAdjacentRect(point: Point2D, t: Size, adjacent: number) {
     return {
         x: point.x - adjacent,
         y: point.y - adjacent,
         width: t.width + 2 * adjacent,
-        height: t.height + 2 * adjacent
+        height: t.height + 2 * adjacent,
     };
 }
 
 export function getAdjacencyTiles(
-        game: GameApi,
-        playerData: PlayerData,
-        technoRules: TechnoRules, 
-        minimumSpace: number) {
+    game: GameApi,
+    playerData: PlayerData,
+    technoRules: TechnoRules,
+    minimumSpace: number,
+) {
     const placementRules = game.getBuildingPlacementData(technoRules.name);
     const { width: newBuildingWidth, height: newBuildingHeight } = placementRules.foundation;
     const tiles = [];
@@ -84,70 +85,70 @@ export function getAdjacencyTiles(
             const { foundation, tile } = building;
             const buildingBase = {
                 x: tile.rx,
-                y: tile.ry
+                y: tile.ry,
             };
-            const buildingSize = 
-            {
+            const buildingSize = {
                 width: foundation?.width,
-                height: foundation?.height
+                height: foundation?.height,
             };
             const range = computeAdjacentRect(buildingBase, buildingSize, technoRules.adjacent);
-            const baseTile = game.mapApi.getTile(range.x, range.y)
+            const baseTile = game.mapApi.getTile(range.x, range.y);
             if (!baseTile) {
                 continue;
             }
             const adjacentTiles = game.mapApi.getTilesInRect(baseTile, {
                 width: range.width,
-                height: range.height
+                height: range.height,
             });
             tiles.push(...adjacentTiles);
-
 
             // Prevent placing the new building on tiles that would cause it to overlap with this building.
             const modifiedBase = {
                 x: buildingBase.x - (newBuildingWidth - 1),
                 y: buildingBase.y - (newBuildingHeight - 1),
-            }
+            };
             const modifiedSize = {
                 width: buildingSize.width + (newBuildingWidth - 1),
                 height: buildingSize.height + (newBuildingHeight - 1),
-            }
+            };
             const blockedRect = computeAdjacentRect(modifiedBase, modifiedSize, minimumSpace);
             const buildingTiles = adjacentTiles.filter((tile) => {
-                return (tile.rx >= blockedRect.x &&
+                return (
+                    tile.rx >= blockedRect.x &&
                     tile.rx < blockedRect.x + blockedRect.width &&
                     tile.ry >= blockedRect.y &&
-                    tile.ry < blockedRect.y + blockedRect.height);
+                    tile.ry < blockedRect.y + blockedRect.height
+                );
             });
             buildingTiles.forEach((buildingTile) => removedTiles.add(buildingTile.id));
         }
     }
     // Remove duplicate tiles.
-    const withDuplicatesRemoved = _.uniqBy(tiles, (tile) => tile.id);
+    const withDuplicatesRemoved = uniqBy(tiles, (tile) => tile.id);
     // Remove tiles containing buildings and potentially area around them removed as well.
     return withDuplicatesRemoved.filter((tile) => !removedTiles.has(tile.id));
 }
 
-
 function getTileDistances(startPoint: Point2D, tiles: Tile[]) {
-    return tiles.map((tile) => ({
-        tile,
-        distance: distance(tile.rx, tile.ry, startPoint.x, startPoint.y)
-    })).sort((a, b)=>{
-        return a.distance - b.distance
-    });;
+    return tiles
+        .map((tile) => ({
+            tile,
+            distance: distance(tile.rx, tile.ry, startPoint.x, startPoint.y),
+        }))
+        .sort((a, b) => {
+            return a.distance - b.distance;
+        });
 }
 
 function distance(x1: number, y1: number, x2: number, y2: number) {
-    var dx = x1 - x2
+    var dx = x1 - x2;
     var dy = y1 - y2;
     let tmp = dx * dx + dy * dy;
     if (0 === tmp) {
-        return 0
+        return 0;
     }
-    return Math.sqrt(tmp)
+    return Math.sqrt(tmp);
 }
-
 
 export function getDefaultPlacementLocation(
     game: GameApi,
