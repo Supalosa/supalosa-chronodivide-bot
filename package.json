@@ -1,6 +1,6 @@
 {
     "name": "@supalosa/chronodivide-bot",
-    "version": "0.2.2",
+    "version": "0.2.2a",
     "description": "Example bot for Chrono Divide",
     "repository": "https://github.com/Supalosa/supalosa-chronodivide-bot",
     "main": "dist/exampleBot.js",
@@ -14,10 +14,6 @@
     "license": "UNLICENSED",
     "devDependencies": {
         "@chronodivide/game-api": "^0.45.0",
-        "@types/lodash.countby": "^4.6.8",
-        "@types/lodash.maxby": "^4.6.8",
-        "@types/lodash.min": "^4.0.8",
-        "@types/lodash.uniqby": "^4.7.8",
         "@types/node": "^14.17.32",
         "prettier": "3.0.3",
         "typescript": "^4.3.5"
@@ -27,11 +23,6 @@
     },
     "dependencies": {
         "@datastructures-js/priority-queue": "^6.3.0",
-        "@timohausmann/quadtree-ts": "^2.0.0-beta.1",
-        "@types/luxon": "^3.3.2",
-        "lodash.countby": "^4.6.0",
-        "lodash.maxby": "^4.6.0",
-        "lodash.min": "^4.0.1",
-        "lodash.uniqby": "^4.7.0"
+        "@timohausmann/quadtree-ts": "^2.0.0-beta.1"
     }
 }

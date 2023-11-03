@@ -12,7 +12,7 @@ import {
 } from "./squadBehaviour.js";
 import { MatchAwareness } from "../awareness.js";
 import { getDistanceBetween } from "../map/map.js";
-import countBy from "lodash.countby";
+import { countBy } from "../common/utils.js";
 
 type SquadWithAction<T> = {
     squad: Squad;

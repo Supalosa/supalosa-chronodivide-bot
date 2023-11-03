@@ -1,11 +1,9 @@
-import maxBy from "lodash.maxby";
 import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
-import { getDistanceBetweenPoints } from "../../map/map.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
-import { DebugLogger } from "../../common/utils.js";
+import { DebugLogger, maxBy } from "../../common/utils.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 const GRAB_INTERVAL_TICKS = 10;

@@ -6,8 +6,7 @@ import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { RetreatMission } from "./retreatMission.js";
-import maxBy from "lodash.maxby";
-import { DebugLogger } from "../../common/utils.js";
+import { DebugLogger, maxBy } from "../../common/utils.js";
 
 export enum AttackFailReason {
     NoTargets = 0,

@@ -17,7 +17,7 @@ import { BasicGroundUnit } from "./basicGroundUnit.js";
 import { PowerPlant } from "./powerPlant.js";
 import { ResourceCollectionBuilding } from "./resourceCollectionBuilding.js";
 import { Harvester } from "./harvester.js";
-import uniqBy from "lodash.uniqby";
+import { uniqBy } from "../common/utils.js";
 
 export interface AiBuildingRules {
     getPriority(

@@ -1,5 +1,5 @@
 import { GameApi, MapApi, PlayerData, Point2D, Tile, UnitData } from "@chronodivide/game-api";
-import maxBy from "lodash.maxby";
+import { maxBy } from "../common/utils.js";
 
 const MAX_WIDTH_AND_HEIGHT = 500;
 
