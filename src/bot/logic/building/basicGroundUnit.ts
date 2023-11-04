@@ -1,4 +1,4 @@
-import { GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
+import { GameApi, GameMath, PlayerData, TechnoRules } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./buildingRules.js";
 
@@ -40,7 +40,7 @@ export class BasicGroundUnit implements AiBuildingRules {
                     priority +=
                         (this.antiGroundPower *
                             this.basePriority *
-                            Math.sqrt(
+                            GameMath.sqrt(
                                 threatCache.totalAvailableAntiGroundFirepower /
                                     Math.max(
                                         1,
@@ -60,7 +60,7 @@ export class BasicGroundUnit implements AiBuildingRules {
                     priority +=
                         (this.antiAirPower *
                             this.basePriority *
-                            Math.sqrt(
+                            GameMath.sqrt(
                                 threatCache.totalAvailableAntiAirFirepower /
                                     Math.max(1, threatCache.totalOffensiveAirThreat + threatCache.totalDefensiveThreat),
                             )) /

@@ -1,4 +1,4 @@
-import { GameApi, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { GameApi, GameMath, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { Sector, SectorCache } from "../map/sector";
 import { DebugLogger } from "./utils";
 import { PriorityQueue } from "@datastructures-js/priority-queue";
@@ -100,7 +100,7 @@ export class ScoutingManager {
                 }
                 // Make it scout closer sectors first.
                 const distanceFactor =
-                    Math.pow(x - startingSector.sectorX, 2) + Math.pow(y - startingSector.sectorY, 2);
+                    GameMath.pow(x - startingSector.sectorX, 2) + GameMath.pow(y - startingSector.sectorY, 2);
                 const sector = sectorCache.getSector(x, y);
                 if (sector) {
                     const maybeTarget = new PrioritisedScoutTarget(

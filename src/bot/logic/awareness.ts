@@ -113,11 +113,11 @@ export class MatchAwarenessImpl implements MatchAwareness {
     }
 
     private checkShouldAttack(threatCache: GlobalThreat, threatFactor: number) {
-        let scaledGroundPower = Math.pow(threatCache.totalAvailableAntiGroundFirepower, 1.025);
+        let scaledGroundPower = threatCache.totalAvailableAntiGroundFirepower * 1.1;
         let scaledGroundThreat =
             (threatFactor * threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat) * 1.1;
 
-        let scaledAirPower = Math.pow(threatCache.totalAvailableAirPower, 1.025);
+        let scaledAirPower = threatCache.totalAvailableAirPower * 1.1;
         let scaledAirThreat =
             (threatFactor * threatCache.totalOffensiveAntiAirThreat + threatCache.totalDefensiveThreat) * 1.1;
 

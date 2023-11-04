@@ -1,4 +1,4 @@
-import { GameApi, PlayerData, TechnoRules, Tile } from "@chronodivide/game-api";
+import { GameApi, GameMath, PlayerData, TechnoRules, Tile } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { BasicBuilding } from "./basicBuilding.js";
 import { getDefaultPlacementLocation } from "./buildingRules.js";
@@ -23,7 +23,7 @@ export class ResourceCollectionBuilding extends BasicBuilding {
         for (let i = 0; i < allTileResourceData.length; ++i) {
             let tileResourceData = allTileResourceData[i];
             if (tileResourceData.spawnsOre) {
-                let dist = Math.sqrt(
+                let dist = GameMath.sqrt(
                     (selectedLocation.x - tileResourceData.tile.rx) ** 2 +
                         (selectedLocation.y - tileResourceData.tile.ry) ** 2,
                 );

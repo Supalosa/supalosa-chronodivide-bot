@@ -1,6 +1,7 @@
 import {
     BuildingPlacementData,
     GameApi,
+    GameMath,
     ObjectType,
     PlayerData,
     Size,
@@ -144,7 +145,7 @@ function distance(x1: number, y1: number, x2: number, y2: number) {
     if (0 === tmp) {
         return 0;
     }
-    return Math.sqrt(tmp);
+    return GameMath.sqrt(tmp);
 }
 
 export function getDefaultPlacementLocation(

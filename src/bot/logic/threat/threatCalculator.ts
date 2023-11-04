@@ -1,4 +1,4 @@
-import { GameApi, MovementZone, ObjectType, PlayerData, UnitData } from "@chronodivide/game-api";
+import { GameApi, GameMath, MovementZone, ObjectType, PlayerData, UnitData } from "@chronodivide/game-api";
 import { GlobalThreat } from "./threat.js";
 
 export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, visibleAreaPercent: number): GlobalThreat {
@@ -75,13 +75,14 @@ function calculateFirepowerForUnit(unitData: UnitData): number {
     if (unitData.primaryWeapon) {
         threat +=
             (hpRatio *
-                ((unitData.primaryWeapon.rules.damage + 1) * Math.sqrt(unitData.primaryWeapon.rules.range + 1))) /
+                ((unitData.primaryWeapon.rules.damage + 1) * GameMath.sqrt(unitData.primaryWeapon.rules.range + 1))) /
             Math.max(unitData.primaryWeapon.cooldownTicks, 1);
     }
     if (unitData.secondaryWeapon) {
         threat +=
             (hpRatio *
-                ((unitData.secondaryWeapon.rules.damage + 1) * Math.sqrt(unitData.secondaryWeapon.rules.range + 1))) /
+                ((unitData.secondaryWeapon.rules.damage + 1) *
+                    GameMath.sqrt(unitData.secondaryWeapon.rules.range + 1))) /
             Math.max(unitData.secondaryWeapon.cooldownTicks, 1);
     }
     return Math.min(800, threat);
