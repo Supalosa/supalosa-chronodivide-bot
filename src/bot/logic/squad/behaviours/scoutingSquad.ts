@@ -4,6 +4,7 @@ import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squ
 import { MatchAwareness } from "../../awareness.js";
 import { DebugLogger } from "../../common/utils.js";
 import { getDistanceBetweenTileAndPoint } from "../../map/map.js";
+import { PrioritisedScoutTarget } from "../../common/scout.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -19,6 +20,7 @@ export class ScoutingSquad implements SquadBehaviour {
     private attemptsOnCurrentTarget: number = 0;
     private scoutTargetRefreshedAt: number = 0;
     private lastMoveCommandTick: number = 0;
+    private scoutTargetIsPermanent: boolean = false;
 
     // Minimum distance from a scout to the target.
     private scoutMinDistance?: number;
@@ -49,17 +51,19 @@ export class ScoutingSquad implements SquadBehaviour {
             return requestUnits(scoutNames, 100);
         } else if (this.scoutTarget) {
             this.hadUnit = true;
-            if (this.attemptsOnCurrentTarget > MAX_ATTEMPTS_PER_TARGET) {
-                logger(
-                    `Scout target ${this.scoutTarget.x},${this.scoutTarget.y} took too many attempts, moving to next`,
-                );
-                this.setScoutTarget(null, 0);
-                return noop();
-            }
-            if (gameApi.getCurrentTick() > this.scoutTargetRefreshedAt + MAX_TICKS_PER_TARGET) {
-                logger(`Scout target ${this.scoutTarget.x},${this.scoutTarget.y} took too long, moving to next`);
-                this.setScoutTarget(null, 0);
-                return noop();
+            if (!this.scoutTargetIsPermanent) {
+                if (this.attemptsOnCurrentTarget > MAX_ATTEMPTS_PER_TARGET) {
+                    logger(
+                        `Scout target ${this.scoutTarget.x},${this.scoutTarget.y} took too many attempts, moving to next`,
+                    );
+                    this.setScoutTarget(null, 0);
+                    return noop();
+                }
+                if (gameApi.getCurrentTick() > this.scoutTargetRefreshedAt + MAX_TICKS_PER_TARGET) {
+                    logger(`Scout target ${this.scoutTarget.x},${this.scoutTarget.y} took too long, moving to next`);
+                    this.setScoutTarget(null, 0);
+                    return noop();
+                }
             }
             const targetTile = gameApi.mapApi.getTile(this.scoutTarget.x, this.scoutTarget.y);
             if (!targetTile) {
@@ -88,20 +92,21 @@ export class ScoutingSquad implements SquadBehaviour {
                 this.setScoutTarget(null, gameApi.getCurrentTick());
             }
         } else {
-            const candidatePoint = matchAwareness.getScoutingManager().getNewScoutTarget()?.asVector2();
-            if (!candidatePoint) {
+            const nextScoutTarget = matchAwareness.getScoutingManager().getNewScoutTarget();
+            if (!nextScoutTarget) {
                 logger(`No more scouting targets available, disbanding.`);
                 return disband();
             }
-            this.setScoutTarget(candidatePoint, gameApi.getCurrentTick());
+            this.setScoutTarget(nextScoutTarget, gameApi.getCurrentTick());
         }
         return noop();
     }
 
-    setScoutTarget(point: Vector2 | null, currentTick: number) {
+    setScoutTarget(target: PrioritisedScoutTarget | null, currentTick: number) {
         this.attemptsOnCurrentTarget = 0;
         this.scoutTargetRefreshedAt = currentTick;
-        this.scoutTarget = point;
+        this.scoutTarget = target?.asVector2() ?? null;
         this.scoutMinDistance = undefined;
+        this.scoutTargetIsPermanent = target?.isPermanent ?? false;
     }
 }

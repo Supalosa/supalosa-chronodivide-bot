@@ -53,7 +53,7 @@ export interface MatchAwareness {
 
 const SECTORS_TO_UPDATE_PER_CYCLE = 8;
 
-const RALLY_POINT_UPDATE_INTERVAL_TICKS = 60;
+const RALLY_POINT_UPDATE_INTERVAL_TICKS = 90;
 
 const THREAT_UPDATE_INTERVAL_TICKS = 30;
 
@@ -141,7 +141,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
         sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE, game.mapApi, playerData);
 
-        this.scoutingManager.onAiUpdate(game, playerData);
+        this.scoutingManager.onAiUpdate(game, playerData, sectorCache);
 
         let updateRatio = sectorCache?.getSectorUpdateRatio(game.getCurrentTick() - game.getTickRate() * 60);
         if (updateRatio && updateRatio < 1.0) {
