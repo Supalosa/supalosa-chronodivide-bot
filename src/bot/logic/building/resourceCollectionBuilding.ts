@@ -1,12 +1,8 @@
-import { GameApi, PlayerData, Point2D, TechnoRules, Tile } from "@chronodivide/game-api";
+import { GameApi, GameMath, PlayerData, TechnoRules, Tile } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { BasicBuilding } from "./basicBuilding.js";
-import {
-    AiBuildingRules,
-    getDefaultPlacementLocation,
-    numBuildingsOwnedOfName,
-    numBuildingsOwnedOfType,
-} from "./buildingRules.js";
+import { getDefaultPlacementLocation } from "./buildingRules.js";
+import { Vector2 } from "three";
 
 export class ResourceCollectionBuilding extends BasicBuilding {
     constructor(basePriority: number, maxNeeded: number, onlyBuildWhenFloatingCreditsAmount?: number) {
@@ -16,7 +12,7 @@ export class ResourceCollectionBuilding extends BasicBuilding {
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules
+        technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
         // Prefer spawning close to ore.
         let selectedLocation = playerData.startLocation;
@@ -27,9 +23,9 @@ export class ResourceCollectionBuilding extends BasicBuilding {
         for (let i = 0; i < allTileResourceData.length; ++i) {
             let tileResourceData = allTileResourceData[i];
             if (tileResourceData.spawnsOre) {
-                let dist = Math.sqrt(
+                let dist = GameMath.sqrt(
                     (selectedLocation.x - tileResourceData.tile.rx) ** 2 +
-                        (selectedLocation.y - tileResourceData.tile.ry) ** 2
+                        (selectedLocation.y - tileResourceData.tile.ry) ** 2,
                 );
                 if (closeOreDist == undefined || dist < closeOreDist) {
                     closeOreDist = dist;
@@ -38,7 +34,7 @@ export class ResourceCollectionBuilding extends BasicBuilding {
             }
         }
         if (closeOre) {
-            selectedLocation = { x: closeOre.rx, y: closeOre.ry };
+            selectedLocation = new Vector2(closeOre.rx, closeOre.ry);
         }
         return getDefaultPlacementLocation(game, playerData, selectedLocation, technoRules);
     }
@@ -48,7 +44,7 @@ export class ResourceCollectionBuilding extends BasicBuilding {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number | null {
         const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;
         return Math.max(1, harvesters * 2);

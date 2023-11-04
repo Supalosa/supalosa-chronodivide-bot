@@ -1,20 +1,24 @@
-import { GameApi, PlayerData, Point2D, TechnoRules } from "@chronodivide/game-api";
+import { GameApi, PlayerData, TechnoRules, Vector2 } from "@chronodivide/game-api";
 import { getPointTowardsOtherPoint } from "../map/map.js";
 import { GlobalThreat } from "../threat/threat.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./buildingRules.js";
 
 export class AntiGroundStaticDefence implements AiBuildingRules {
-    constructor(private basePriority: number, private baseAmount: number, private strength: number) {}
+    constructor(
+        private basePriority: number,
+        private baseAmount: number,
+        private strength: number,
+    ) {}
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules
+        technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
         // Prefer front towards enemy.
         let startLocation = playerData.startLocation;
         let players = game.getPlayers();
-        let enemyFacingLocationCandidates: Point2D[] = [];
+        let enemyFacingLocationCandidates: Vector2[] = [];
         for (let i = 0; i < players.length; ++i) {
             let playerName = players[i];
             if (playerName == playerData.name) {
@@ -22,7 +26,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
             }
             let enemyPlayer = game.getPlayerData(playerName);
             enemyFacingLocationCandidates.push(
-                getPointTowardsOtherPoint(game, startLocation, enemyPlayer.startLocation, 4, 16, 1.5)
+                getPointTowardsOtherPoint(game, startLocation, enemyPlayer.startLocation, 4, 16, 1.5),
             );
         }
         let selectedLocation =
@@ -34,7 +38,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number {
         // If the enemy's ground power is increasing we should try to keep up.
         if (threatCache) {
@@ -53,7 +57,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number | null {
         return null;
     }

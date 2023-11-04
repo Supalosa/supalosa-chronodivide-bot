@@ -1,9 +1,8 @@
-import { ActionsApi, GameApi, PlayerData, Point2D, TechnoRules, Tile, UnitData } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, PlayerData, TechnoRules, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
 import { Mission } from "../mission/mission.js";
-import { GlobalThreat } from "../threat/threat.js";
 import { SquadAction, SquadBehaviour, disband } from "./squadBehaviour.js";
 import { MatchAwareness } from "../awareness.js";
-import { getDistanceBetweenPoints } from "../map/map.js";
+import { getDistanceBetweenTileAndPoint } from "../map/map.js";
 import { DebugLogger } from "../common/utils.js";
 
 export enum SquadLiveness {
@@ -18,7 +17,7 @@ export type SquadConstructionRequest = {
 };
 
 const calculateCenterOfMass: (unitTiles: Tile[]) => {
-    centerOfMass: Point2D;
+    centerOfMass: Vector2;
     maxDistance: number;
 } | null = (unitTiles) => {
     if (unitTiles.length === 0) {
@@ -34,13 +33,10 @@ const calculateCenterOfMass: (unitTiles: Tile[]) => {
         },
         { x: 0, y: 0 },
     );
-    const centerOfMass = {
-        x: Math.round(sums.x / unitTiles.length),
-        y: Math.round(sums.y / unitTiles.length),
-    };
+    const centerOfMass = new Vector2(Math.round(sums.x / unitTiles.length), Math.round(sums.y / unitTiles.length));
 
     // max distance of units to the center of mass
-    const distances = unitTiles.map((tile) => getDistanceBetweenPoints({ x: tile.rx, y: tile.ry }, centerOfMass));
+    const distances = unitTiles.map((tile) => getDistanceBetweenTileAndPoint(tile, centerOfMass));
     const maxDistance = Math.max(...distances);
     return { centerOfMass, maxDistance };
 };
@@ -49,7 +45,7 @@ export class Squad {
     private unitIds: number[] = [];
     private liveness: SquadLiveness = SquadLiveness.SquadActive;
     private lastLivenessUpdateTick: number = 0;
-    private centerOfMass: Point2D | null = null;
+    private centerOfMass: Vector2 | null = null;
     private maxDistanceToCenterOfMass: number | null = null;
 
     constructor(

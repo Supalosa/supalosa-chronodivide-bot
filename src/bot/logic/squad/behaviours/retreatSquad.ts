@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, OrderType, PlayerData, Point2D, SideType } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestSpecificUnits, requestUnits } from "../squadBehaviour.js";
@@ -11,7 +11,7 @@ export class RetreatSquad implements SquadBehaviour {
 
     constructor(
         private unitIds: number[],
-        private retreatToPoint: Point2D,
+        private retreatToPoint: Vector2,
     ) {}
 
     public onAiUpdate(

@@ -3,15 +3,15 @@ import {
     AttackState,
     ObjectType,
     OrderType,
-    Point2D,
     StanceType,
     UnitData,
+    Vector2,
     ZoneType,
 } from "@chronodivide/game-api";
 import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
 
 // Micro methods
-export function manageMoveMicro(actionsApi: ActionsApi, attacker: UnitData, attackPoint: Point2D) {
+export function manageMoveMicro(actionsApi: ActionsApi, attacker: UnitData, attackPoint: Vector2) {
     if (attacker.name === "E1") {
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (isDeployed) {
@@ -65,5 +65,5 @@ export function getAttackWeight(attacker: UnitData, target: UnitData): number | 
         return null;
     }
 
-    return 1000000 - getDistanceBetweenPoints({ x, y }, { x: hX, y: hY });
+    return 1000000 - getDistanceBetweenPoints(new Vector2(x, y), new Vector2(hX, hY));
 }

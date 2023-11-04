@@ -1,4 +1,4 @@
-import { GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
+import { GameApi, GameMath, PlayerData, TechnoRules } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./buildingRules.js";
 
@@ -7,13 +7,13 @@ export class BasicAirUnit implements AiBuildingRules {
         private basePriority: number,
         private baseAmount: number,
         private antiGroundPower: number = 1, // boolean for now, but will eventually be used in weighting.
-        private antiAirPower: number = 0
+        private antiAirPower: number = 0,
     ) {}
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules
+        technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
         return undefined;
     }
@@ -22,7 +22,7 @@ export class BasicAirUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number {
         // If the enemy's anti-air power is low we might build more.
         if (threatCache) {
@@ -48,8 +48,10 @@ export class BasicAirUnit implements AiBuildingRules {
                 1.0,
                 Math.max(
                     1,
-                    Math.sqrt(threatCache.totalAvailableAirPower / Math.max(1, threatCache.totalOffensiveAntiAirThreat))
-                )
+                    GameMath.sqrt(
+                        threatCache.totalAvailableAirPower / Math.max(1, threatCache.totalOffensiveAntiAirThreat),
+                    ),
+                ),
             );
             return this.baseAmount * priority;
         }
@@ -61,7 +63,7 @@ export class BasicAirUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number | null {
         return null;
     }

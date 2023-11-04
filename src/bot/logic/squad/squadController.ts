@@ -179,7 +179,6 @@ export class SquadController {
             .map((unit) => unit!);
 
         type AssignmentWithType = { unitName: string; squad: string; method: "type" | "grab" };
-        // [squadName][unitName]['type' | 'grab']
         const newAssignmentsByType = freeUnits
             .flatMap((freeUnit) => {
                 if (unitTypeToHighestRequest.hasOwnProperty(freeUnit.name)) {

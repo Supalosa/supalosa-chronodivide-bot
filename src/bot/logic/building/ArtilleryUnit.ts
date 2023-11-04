@@ -1,17 +1,19 @@
-import { GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
+import { GameApi, GameMath, PlayerData, TechnoRules } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./buildingRules.js";
 
 export class ArtilleryUnit implements AiBuildingRules {
-    constructor(private basePriority: number,
+    constructor(
+        private basePriority: number,
         private artilleryPower: number,
         private antiGroundPower: number,
-        private baseAmount: number) {}
+        private baseAmount: number,
+    ) {}
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules
+        technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
         return undefined;
     }
@@ -20,16 +22,15 @@ export class ArtilleryUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number {
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         let priority = this.basePriority;
         // If the enemy's defensive power is increasing we will start to build these.
         if (threatCache && threatCache.totalDefensivePower > threatCache.totalAvailableAntiGroundFirepower) {
-            priority += (
+            priority +=
                 this.artilleryPower *
-                (threatCache.totalAvailableAntiGroundFirepower / Math.max(1, threatCache.totalDefensivePower))
-            );
+                (threatCache.totalAvailableAntiGroundFirepower / Math.max(1, threatCache.totalDefensivePower));
         }
         if (threatCache && this.antiGroundPower > 0) {
             // If the enemy's power is increasing we should try to keep up.
@@ -37,19 +38,15 @@ export class ArtilleryUnit implements AiBuildingRules {
                 priority +=
                     this.antiGroundPower *
                     this.basePriority *
-                    (threatCache.totalOffensiveLandThreat /
-                        Math.max(1, threatCache.totalAvailableAntiGroundFirepower));
+                    (threatCache.totalOffensiveLandThreat / Math.max(1, threatCache.totalAvailableAntiGroundFirepower));
             } else {
                 // But also, if our power dwarfs the enemy, keep pressing the advantage.
                 priority +=
                     (this.antiGroundPower *
                         this.basePriority *
-                        Math.sqrt(
+                        GameMath.sqrt(
                             threatCache.totalAvailableAntiGroundFirepower /
-                                Math.max(
-                                    1,
-                                    threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat,
-                                ),
+                                Math.max(1, threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat),
                         )) /
                     (numOwned + 1);
             }
@@ -61,7 +58,7 @@ export class ArtilleryUnit implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number | null {
         return null;
     }

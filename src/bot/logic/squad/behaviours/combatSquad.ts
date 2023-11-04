@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, GameMath, MovementZone, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
@@ -36,12 +36,12 @@ export class CombatSquad implements SquadBehaviour {
      * @param radius
      */
     constructor(
-        private rallyArea: Point2D,
-        private targetArea: Point2D,
+        private rallyArea: Vector2,
+        private targetArea: Vector2,
         private radius: number,
     ) {}
 
-    public setAttackArea(targetArea: Point2D) {
+    public setAttackArea(targetArea: Vector2) {
         this.targetArea = targetArea;
     }
 
@@ -73,7 +73,7 @@ export class CombatSquad implements SquadBehaviour {
             );
 
             if (this.state === SquadState.Gathering) {
-                const requiredGatherRadius = Math.sqrt(groundUnits.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
+                const requiredGatherRadius = GameMath.sqrt(groundUnits.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
                 if (
                     centerOfMass &&
                     maxDistance &&
@@ -89,7 +89,7 @@ export class CombatSquad implements SquadBehaviour {
                 }
             } else {
                 const targetPoint = this.targetArea || playerData.startLocation;
-                const requiredGatherRadius = Math.sqrt(groundUnits.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
+                const requiredGatherRadius = GameMath.sqrt(groundUnits.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
                 if (
                     centerOfMass &&
                     maxDistance &&

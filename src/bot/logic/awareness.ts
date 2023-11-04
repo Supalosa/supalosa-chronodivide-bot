@@ -1,4 +1,4 @@
-import { GameApi, ObjectType, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
+import { GameApi, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector";
 import { GlobalThreat } from "./threat/threat";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
@@ -25,14 +25,14 @@ export interface MatchAwareness {
     /**
      * Returns the enemy unit IDs in a certain radius of a point
      */
-    getHostilesNearPoint2d(point: Point2D, radius: number): UnitPositionQuery[];
+    getHostilesNearPoint2d(point: Vector2, radius: number): UnitPositionQuery[];
 
     getHostilesNearPoint(x: number, y: number, radius: number): UnitPositionQuery[];
 
     /**
      * Returns the main rally point for the AI, which updates every few ticks.
      */
-    getMainRallyPoint(): Point2D;
+    getMainRallyPoint(): Vector2;
 
     onGameStart(gameApi: GameApi, playerData: PlayerData): void;
 
@@ -75,15 +75,15 @@ export class MatchAwarenessImpl implements MatchAwareness {
     constructor(
         private threatCache: GlobalThreat | null,
         private sectorCache: SectorCache,
-        private mainRallyPoint: Point2D,
+        private mainRallyPoint: Vector2,
         private logger: (message: string, sayInGame?: boolean) => void,
     ) {
-        const { x: width, y: height } = sectorCache.getMapBounds();
+        const { width, height } = sectorCache.getMapBounds();
         this.hostileQuadTree = new Quadtree({ width, height });
         this.scoutingManager = new ScoutingManager(logger);
     }
 
-    getHostilesNearPoint2d(point: Point2D, radius: number): UnitPositionQuery[] {
+    getHostilesNearPoint2d(point: Vector2, radius: number): UnitPositionQuery[] {
         return this.getHostilesNearPoint(point.x, point.y, radius);
     }
 
@@ -91,7 +91,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
         const intersections = this.hostileQuadTree.retrieve(new Circle({ x: searchX, y: searchY, r: radius }));
         return intersections
             .map(({ x, y, data: unitId }) => ({ x, y, unitId: unitId! }))
-            .filter(({ x, y }) => getDistanceBetweenPoints({ x, y }, { x: searchX, y: searchY }) <= radius)
+            .filter(({ x, y }) => getDistanceBetweenPoints(new Vector2(x, y), new Vector2(searchX, searchY)) <= radius)
             .filter(({ unitId }) => !!unitId);
     }
 
@@ -101,7 +101,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
     getSectorCache(): SectorCache {
         return this.sectorCache;
     }
-    getMainRallyPoint(): Point2D {
+    getMainRallyPoint(): Vector2 {
         return this.mainRallyPoint;
     }
     getScoutingManager(): ScoutingManager {
@@ -113,11 +113,11 @@ export class MatchAwarenessImpl implements MatchAwareness {
     }
 
     private checkShouldAttack(threatCache: GlobalThreat, threatFactor: number) {
-        let scaledGroundPower = Math.pow(threatCache.totalAvailableAntiGroundFirepower, 1.025);
+        let scaledGroundPower = threatCache.totalAvailableAntiGroundFirepower * 1.1;
         let scaledGroundThreat =
             (threatFactor * threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat) * 1.1;
 
-        let scaledAirPower = Math.pow(threatCache.totalAvailableAirPower, 1.025);
+        let scaledAirPower = threatCache.totalAvailableAirPower * 1.1;
         let scaledAirThreat =
             (threatFactor * threatCache.totalOffensiveAntiAirThreat + threatCache.totalDefensiveThreat) * 1.1;
 

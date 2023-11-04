@@ -1,13 +1,12 @@
 import {
-    OrderType,
     ApiEventType,
     Bot,
     GameApi,
     ApiEvent,
     QueueStatus,
-    Point2D,
     ObjectType,
     FactoryType,
+    Size,
 } from "@chronodivide/game-api";
 
 import { determineMapBounds } from "./logic/map/map.js";
@@ -26,7 +25,7 @@ const BOT_AUTO_SURRENDER_TIME_SECONDS = 7200; // 7200; // 2 hours (approx 30 min
 
 export class SupalosaBot extends Bot {
     private tickRatio?: number;
-    private knownMapBounds: Point2D | undefined;
+    private knownMapBounds: Size | undefined;
     private missionController: MissionController;
     private squadController: SquadController;
     private queueController: QueueController;
@@ -61,7 +60,7 @@ export class SupalosaBot extends Bot {
         );
         this.matchAwareness.onGameStart(game, myPlayer);
 
-        this.logBotStatus(`Map bounds: ${this.knownMapBounds.x}, ${this.knownMapBounds.y}`);
+        this.logBotStatus(`Map bounds: ${this.knownMapBounds.width}, ${this.knownMapBounds.height}`);
     }
 
     override onGameTick(game: GameApi) {
