@@ -1,4 +1,4 @@
-import { GameApi, ObjectType, PlayerData, Point2D, UnitData, Vector2 } from "@chronodivide/game-api";
+import { GameApi, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { CombatSquad } from "../../squad/behaviours/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
 import { Squad } from "../../squad/squad.js";

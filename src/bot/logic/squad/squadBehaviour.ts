@@ -1,5 +1,4 @@
-import { ActionsApi, GameApi, PlayerData, Point2D, Vector2 } from "@chronodivide/game-api";
-import { GlobalThreat } from "../threat/threat.js";
+import { ActionsApi, GameApi, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { Squad } from "./squad.js";
 import { MatchAwareness } from "../awareness.js";
 import { DebugLogger } from "../common/utils.js";

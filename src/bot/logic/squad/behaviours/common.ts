@@ -3,7 +3,6 @@ import {
     AttackState,
     ObjectType,
     OrderType,
-    Point2D,
     StanceType,
     UnitData,
     Vector2,
@@ -12,7 +11,7 @@ import {
 import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
 
 // Micro methods
-export function manageMoveMicro(actionsApi: ActionsApi, attacker: UnitData, attackPoint: Point2D) {
+export function manageMoveMicro(actionsApi: ActionsApi, attacker: UnitData, attackPoint: Vector2) {
     if (attacker.name === "E1") {
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (isDeployed) {

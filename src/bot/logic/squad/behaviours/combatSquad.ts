@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, MovementZone, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";

@@ -87,12 +87,12 @@ export class ScoutingManager {
 
         for (
             let x: number = Math.max(0, startingSector.sectorX - NEARBY_SECTOR_RADIUS);
-            x <= Math.min(sectorsX, startingSector.sectorX + NEARBY_SECTOR_RADIUS);
+            x < Math.min(sectorsX, startingSector.sectorX + NEARBY_SECTOR_RADIUS);
             ++x
         ) {
             for (
                 let y: number = Math.max(0, startingSector.sectorY - NEARBY_SECTOR_RADIUS);
-                y <= Math.min(sectorsY, startingSector.sectorY + NEARBY_SECTOR_RADIUS);
+                y < Math.min(sectorsY, startingSector.sectorY + NEARBY_SECTOR_RADIUS);
                 ++y
             ) {
                 if (x === startingSector?.sectorX && y === startingSector?.sectorY) {

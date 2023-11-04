@@ -1,4 +1,5 @@
 import { GameApi, GameMath, MapApi, PlayerData, Size, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
+import { maxBy } from "../common/utils.js";
 
 export function determineMapBounds(mapApi: MapApi): Size {
     return mapApi.getRealMapSize();

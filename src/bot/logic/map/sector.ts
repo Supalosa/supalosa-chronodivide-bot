@@ -54,9 +54,11 @@ export class SectorCache {
         for (let xx = 0; xx < this.sectorsX; ++xx) {
             this.sectors[xx] = new Array(this.sectorsY);
             for (let yy = 0; yy < this.sectorsY; ++yy) {
+                const tileX = xx * SECTOR_SIZE;
+                const tileY = yy * SECTOR_SIZE;
                 this.sectors[xx][yy] = new Sector(
-                    new Vector2(xx * SECTOR_SIZE, yy * SECTOR_SIZE),
-                    mapApi.getTile(xx * SECTOR_SIZE, yy * SECTOR_SIZE),
+                    new Vector2(tileX, tileY),
+                    mapApi.getTile(tileX, tileY),
                     undefined,
                     undefined,
                 );
@@ -86,7 +88,7 @@ export class SectorCache {
             if (sector) {
                 sector.sectorVisibilityLastCheckTick = currentGameTick;
                 let sp = sector.sectorStartPoint;
-                let ep = sp.add(new Vector2(SECTOR_SIZE, SECTOR_SIZE));
+                let ep = new Vector2(sp.x + SECTOR_SIZE, sp.y + SECTOR_SIZE);
                 let visibility = calculateAreaVisibility(mapApi, playerData, sp, ep);
                 if (visibility.validTiles > 0) {
                     sector.sectorVisibilityPct = visibility.visibleTiles / visibility.validTiles;
