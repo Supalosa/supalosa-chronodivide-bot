@@ -16,7 +16,7 @@ async function main() {
     Other maps:
     mp03t4 large map, no oil derricks
     */
-    const mapName = "tn04t2.map";
+    const mapName = "mp10s4.map";
     // Bot names must be unique in online mode
     const botName = `Joe${String(Date.now()).substr(-6)}`;
     const otherBotName = `Bob${String(Date.now() + 1).substr(-6)}`;
