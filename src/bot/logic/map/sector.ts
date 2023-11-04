@@ -1,6 +1,6 @@
 // A sector is a uniform-sized segment of the map.
 
-import { MapApi, PlayerData, Point2D, Tile } from "@chronodivide/game-api";
+import { MapApi, PlayerData, Size, Tile, Vector2 } from "@chronodivide/game-api";
 import { calculateAreaVisibility } from "./map.js";
 
 export const SECTOR_SIZE = 8;
@@ -11,7 +11,7 @@ export class Sector {
     private sectorLastExploredAt: number | undefined;
 
     constructor(
-        public sectorStartPoint: Point2D,
+        public sectorStartPoint: Vector2,
         public sectorStartTile: Tile | undefined,
         public sectorVisibilityPct: number | undefined,
         public sectorVisibilityLastCheckTick: number | undefined,
@@ -40,22 +40,22 @@ export class Sector {
 
 export class SectorCache {
     private sectors: Sector[][] = [];
-    private mapBounds: Point2D;
+    private mapBounds: Size;
     private sectorsX: number;
     private sectorsY: number;
     private lastUpdatedSectorX: number | undefined;
     private lastUpdatedSectorY: number | undefined;
 
-    constructor(mapApi: MapApi, mapBounds: Point2D) {
+    constructor(mapApi: MapApi, mapBounds: Size) {
         this.mapBounds = mapBounds;
-        this.sectorsX = Math.ceil(mapBounds.x / SECTOR_SIZE);
-        this.sectorsY = Math.ceil(mapBounds.y / SECTOR_SIZE);
+        this.sectorsX = Math.ceil(mapBounds.width / SECTOR_SIZE);
+        this.sectorsY = Math.ceil(mapBounds.height / SECTOR_SIZE);
         this.sectors = new Array(this.sectorsX);
         for (let xx = 0; xx < this.sectorsX; ++xx) {
             this.sectors[xx] = new Array(this.sectorsY);
             for (let yy = 0; yy < this.sectorsY; ++yy) {
                 this.sectors[xx][yy] = new Sector(
-                    { x: xx * SECTOR_SIZE, y: yy * SECTOR_SIZE },
+                    new Vector2(xx * SECTOR_SIZE, yy * SECTOR_SIZE),
                     mapApi.getTile(xx * SECTOR_SIZE, yy * SECTOR_SIZE),
                     undefined,
                     undefined,
@@ -64,7 +64,7 @@ export class SectorCache {
         }
     }
 
-    public getMapBounds(): Point2D {
+    public getMapBounds(): Size {
         return this.mapBounds;
     }
 
@@ -86,10 +86,7 @@ export class SectorCache {
             if (sector) {
                 sector.sectorVisibilityLastCheckTick = currentGameTick;
                 let sp = sector.sectorStartPoint;
-                let ep = {
-                    x: sector.sectorStartPoint.x + SECTOR_SIZE,
-                    y: sector.sectorStartPoint.y + SECTOR_SIZE,
-                };
+                let ep = sp.add(new Vector2(SECTOR_SIZE, SECTOR_SIZE));
                 let visibility = calculateAreaVisibility(mapApi, playerData, sp, ep);
                 if (visibility.validTiles > 0) {
                     sector.sectorVisibilityPct = visibility.visibleTiles / visibility.validTiles;
@@ -151,21 +148,18 @@ export class SectorCache {
         return this.sectors[sectorX][sectorY];
     }
 
-    public getSectorBounds(): Point2D {
-        return {
-            x: this.sectorsX,
-            y: this.sectorsY,
-        }
+    public getSectorBounds(): Size {
+        return { width: this.sectorsX, height: this.sectorsY };
     }
 
     public getSectorCoordinatesForWorldPosition(x: number, y: number) {
-        if (x < 0 || x >= this.mapBounds.x || y < 0 || y >= this.mapBounds.y) {
+        if (x < 0 || x >= this.mapBounds.width || y < 0 || y >= this.mapBounds.height) {
             return undefined;
         }
         return {
             sectorX: Math.floor(x / SECTOR_SIZE),
-            sectorY: Math.floor(y / SECTOR_SIZE)
-        }
+            sectorY: Math.floor(y / SECTOR_SIZE),
+        };
     }
 
     public getSectorForWorldPosition(x: number, y: number): Sector | undefined {

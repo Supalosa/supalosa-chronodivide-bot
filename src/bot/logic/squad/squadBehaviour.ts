@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, PlayerData, Point2D } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, PlayerData, Point2D, Vector2 } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { Squad } from "./squad.js";
 import { MatchAwareness } from "../awareness.js";
@@ -26,22 +26,22 @@ export type SquadActionRequestSpecificUnits = {
 };
 export type SquadActionGrabFreeCombatants = {
     type: "requestCombatants";
-    point: Point2D;
+    point: Vector2;
     radius: number;
 };
 
-export const noop = () => ({ type: "noop" } as SquadActionNoop);
+export const noop = () => ({ type: "noop" }) as SquadActionNoop;
 
-export const disband = () => ({ type: "disband" } as SquadActionDisband);
+export const disband = () => ({ type: "disband" }) as SquadActionDisband;
 
 export const requestUnits = (unitNames: string[], priority: number) =>
-    ({ type: "request", unitNames, priority } as SquadActionRequestUnits);
+    ({ type: "request", unitNames, priority }) as SquadActionRequestUnits;
 
 export const requestSpecificUnits = (unitIds: number[], priority: number) =>
-    ({ type: "requestSpecific", unitIds, priority } as SquadActionRequestSpecificUnits);
+    ({ type: "requestSpecific", unitIds, priority }) as SquadActionRequestSpecificUnits;
 
-export const grabCombatants = (point: Point2D, radius: number) =>
-    ({ type: "requestCombatants", point, radius } as SquadActionGrabFreeCombatants);
+export const grabCombatants = (point: Vector2, radius: number) =>
+    ({ type: "requestCombatants", point, radius }) as SquadActionGrabFreeCombatants;
 
 export type SquadAction =
     | SquadActionNoop
@@ -58,6 +58,6 @@ export interface SquadBehaviour {
         playerData: PlayerData,
         squad: Squad,
         matchAwareness: MatchAwareness,
-        logger: DebugLogger
+        logger: DebugLogger,
     ): SquadAction;
 }

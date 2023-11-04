@@ -1,4 +1,4 @@
-import { GameApi, PlayerData, Point2D } from "@chronodivide/game-api";
+import { GameApi, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { Sector, SectorCache } from "../map/sector";
 import { DebugLogger } from "./utils";
 import { PriorityQueue } from "@datastructures-js/priority-queue";
@@ -15,13 +15,13 @@ export const getUnseenStartingLocations = (gameApi: GameApi, playerData: PlayerD
 };
 
 class PrioritisedScoutTarget {
-    private _targetPoint2D?: Point2D;
+    private _targetPoint?: Vector2;
     private _targetSector?: Sector;
     private _priority: number;
 
-    constructor(priority: number, target: Point2D | Sector) {
+    constructor(priority: number, target: Vector2 | Sector) {
         if (target.hasOwnProperty("x") && target.hasOwnProperty("y")) {
-            this._targetPoint2D = target as Point2D;
+            this._targetPoint = target as Vector2;
         } else if (target.hasOwnProperty("sectorStartPoint")) {
             this._targetSector = target as Sector;
         } else {
@@ -34,8 +34,8 @@ class PrioritisedScoutTarget {
         return this._priority;
     }
 
-    asPoint2D() {
-        return this._targetPoint2D ?? this._targetSector?.sectorStartPoint ?? null;
+    asVector2() {
+        return this._targetPoint ?? this._targetSector?.sectorStartPoint ?? null;
     }
 
     get targetSector() {
@@ -54,7 +54,9 @@ export class ScoutingManager {
 
     constructor(private logger: DebugLogger) {
         // Order by descending priority.
-        this.scoutingQueue = new PriorityQueue((a: PrioritisedScoutTarget, b: PrioritisedScoutTarget) => b.priority - a.priority);
+        this.scoutingQueue = new PriorityQueue(
+            (a: PrioritisedScoutTarget, b: PrioritisedScoutTarget) => b.priority - a.priority,
+        );
     }
 
     onGameStart(gameApi: GameApi, playerData: PlayerData, sectorCache: SectorCache) {
@@ -70,13 +72,13 @@ export class ScoutingManager {
             })
             .map((tile) => new PrioritisedScoutTarget(ENEMY_SPAWN_POINT_PRIORITY, tile))
             .forEach((target) => {
-                this.logger(`Adding ${target.asPoint2D()?.x},${target.asPoint2D()?.y} to initial scouting queue`);
+                this.logger(`Adding ${target.asVector2()?.x},${target.asVector2()?.y} to initial scouting queue`);
                 this.scoutingQueue.enqueue(target);
             });
 
         // Queue nearby sectors.
         const { x: startX, y: startY } = playerData.startLocation;
-        const { x: sectorsX, y: sectorsY } = sectorCache.getSectorBounds();
+        const { width: sectorsX, height: sectorsY } = sectorCache.getSectorBounds();
         const startingSector = sectorCache.getSectorCoordinatesForWorldPosition(startX, startY);
 
         if (!startingSector) {
@@ -97,11 +99,15 @@ export class ScoutingManager {
                     continue;
                 }
                 // Make it scout closer sectors first.
-                const distanceFactor = Math.pow(x - startingSector.sectorX, 2) + Math.pow(y - startingSector.sectorY, 2);
+                const distanceFactor =
+                    Math.pow(x - startingSector.sectorX, 2) + Math.pow(y - startingSector.sectorY, 2);
                 const sector = sectorCache.getSector(x, y);
                 if (sector) {
-                    const maybeTarget = new PrioritisedScoutTarget(NEARBY_SECTOR_BASE_PRIORITY - distanceFactor, sector);
-                    const maybePoint = maybeTarget.asPoint2D();
+                    const maybeTarget = new PrioritisedScoutTarget(
+                        NEARBY_SECTOR_BASE_PRIORITY - distanceFactor,
+                        sector,
+                    );
+                    const maybePoint = maybeTarget.asVector2();
                     if (maybePoint && gameApi.mapApi.getTile(maybePoint.x, maybePoint.y)) {
                         this.scoutingQueue.enqueue(maybeTarget);
                     }
@@ -115,7 +121,7 @@ export class ScoutingManager {
         if (!currentHead) {
             return;
         }
-        const head = currentHead.asPoint2D();
+        const head = currentHead.asVector2();
         if (!head) {
             this.scoutingQueue.dequeue();
             return;

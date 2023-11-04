@@ -1,27 +1,14 @@
-import { GameApi, MapApi, PlayerData, Point2D, Tile, UnitData } from "@chronodivide/game-api";
-import { maxBy } from "../common/utils.js";
+import { GameApi, GameMath, MapApi, PlayerData, Size, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
 
-const MAX_WIDTH_AND_HEIGHT = 500;
-
-// Expensive one-time call to determine the size of the map.
-// The result is a point just outside the bounds of the map.
-export function determineMapBounds(mapApi: MapApi): Point2D {
-    // Probably want to ask for an API change to get this.
-    // Note that the maps is not always a rectangle!
-    const zeroTile = { rx: 0, ry: 0 } as Tile;
-    const allTiles = mapApi.getTilesInRect(zeroTile, { width: MAX_WIDTH_AND_HEIGHT, height: MAX_WIDTH_AND_HEIGHT });
-
-    const maxX = maxBy(allTiles, (tile) => tile.rx)?.rx!;
-    const maxY = maxBy(allTiles, (tile) => tile.ry)?.ry!;
-
-    return { x: maxX, y: maxY };
+export function determineMapBounds(mapApi: MapApi): Size {
+    return mapApi.getRealMapSize();
 }
 
 export function calculateAreaVisibility(
     mapApi: MapApi,
     playerData: PlayerData,
-    startPoint: Point2D,
-    endPoint: Point2D,
+    startPoint: Vector2,
+    endPoint: Vector2,
 ): { visibleTiles: number; validTiles: number } {
     let validTiles: number = 0,
         visibleTiles: number = 0;
@@ -42,29 +29,37 @@ export function calculateAreaVisibility(
 
 export function getPointTowardsOtherPoint(
     gameApi: GameApi,
-    startLocation: Point2D,
-    endLocation: Point2D,
+    startLocation: Vector2,
+    endLocation: Vector2,
     minRadius: number,
     maxRadius: number,
     randomAngle: number,
-): Point2D {
+): Vector2 {
+    // TODO: Use proper vector maths here.
     let radius = minRadius + Math.round(gameApi.generateRandom() * (maxRadius - minRadius));
-    let directionToSpawn = Math.atan2(endLocation.y - startLocation.y, endLocation.x - startLocation.x);
+    let directionToEndLocation = GameMath.atan2(endLocation.y - startLocation.y, endLocation.x - startLocation.x);
     let randomisedDirection =
-        directionToSpawn - (randomAngle * (Math.PI / 12) + 2 * randomAngle * gameApi.generateRandom() * (Math.PI / 12));
-    let candidatePointX = Math.round(startLocation.x + Math.cos(randomisedDirection) * radius);
-    let candidatePointY = Math.round(startLocation.y + Math.sin(randomisedDirection) * radius);
-    return { x: candidatePointX, y: candidatePointY };
+        directionToEndLocation -
+        (randomAngle * (Math.PI / 12) + 2 * randomAngle * gameApi.generateRandom() * (Math.PI / 12));
+    let candidatePointX = Math.round(startLocation.x + GameMath.cos(randomisedDirection) * radius);
+    let candidatePointY = Math.round(startLocation.y + GameMath.sin(randomisedDirection) * radius);
+    return new Vector2(candidatePointX, candidatePointY);
 }
 
-export function getDistanceBetweenPoints(startLocation: Point2D, endLocation: Point2D): number {
-    return Math.sqrt((startLocation.x - endLocation.x) ** 2 + (startLocation.y - endLocation.y) ** 2);
+export function getDistanceBetweenPoints(startLocation: Vector2, endLocation: Vector2): number {
+    // TODO: Remove this now we have Vector2s.
+    return startLocation.distanceTo(endLocation);
+}
+
+export function getDistanceBetweenTileAndPoint(tile: Tile, vector: Vector2): number {
+    // TODO: Remove this now we have Vector2s.
+    return new Vector2(tile.rx, tile.ry).distanceTo(vector);
 }
 
 export function getDistanceBetweenUnits(unit1: UnitData, unit2: UnitData): number {
-    return getDistanceBetweenPoints({ x: unit1.tile.rx, y: unit1.tile.ry }, { x: unit2.tile.rx, y: unit2.tile.ry });
+    return new Vector2(unit1.tile.rx, unit1.tile.ry).distanceTo(new Vector2(unit2.tile.rx, unit2.tile.ry));
 }
 
-export function getDistanceBetween(unit: UnitData, point: Point2D): number {
-    return getDistanceBetweenPoints({ x: unit.tile.rx, y: unit.tile.ry }, point);
+export function getDistanceBetween(unit: UnitData, point: Vector2): number {
+    return getDistanceBetweenPoints(new Vector2(unit.tile.rx, unit.tile.ry), point);
 }

@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, MovementZone, PlayerData, Point2D, UnitData, Vector2 } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
@@ -36,12 +36,12 @@ export class CombatSquad implements SquadBehaviour {
      * @param radius
      */
     constructor(
-        private rallyArea: Point2D,
-        private targetArea: Point2D,
+        private rallyArea: Vector2,
+        private targetArea: Vector2,
         private radius: number,
     ) {}
 
-    public setAttackArea(targetArea: Point2D) {
+    public setAttackArea(targetArea: Vector2) {
         this.targetArea = targetArea;
     }
 

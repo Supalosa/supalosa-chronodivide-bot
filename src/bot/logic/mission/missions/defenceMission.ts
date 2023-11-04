@@ -1,4 +1,4 @@
-import { GameApi, PlayerData, Point2D } from "@chronodivide/game-api";
+import { GameApi, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
@@ -21,7 +21,7 @@ export class DefenceMission extends Mission<DefenceFailReason> {
     constructor(
         uniqueName: string,
         priority: number,
-        private defenceArea: Point2D,
+        private defenceArea: Vector2,
         private radius: number,
         logger: DebugLogger,
     ) {
@@ -46,7 +46,7 @@ export class DefenceMission extends Mission<DefenceFailReason> {
                         foundTargets.length
                     } found in area ${this.radius})`,
                 );
-                this.combatSquad?.setAttackArea({ x: foundTargets[0].x, y: foundTargets[0].y });
+                this.combatSquad?.setAttackArea(new Vector2(foundTargets[0].x, foundTargets[0].y));
             }
         }
         return noop();

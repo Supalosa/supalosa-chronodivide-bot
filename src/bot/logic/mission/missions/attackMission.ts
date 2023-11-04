@@ -1,4 +1,4 @@
-import { GameApi, ObjectType, PlayerData, Point2D, UnitData } from "@chronodivide/game-api";
+import { GameApi, ObjectType, PlayerData, Point2D, UnitData, Vector2 } from "@chronodivide/game-api";
 import { CombatSquad } from "../../squad/behaviours/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
 import { Squad } from "../../squad/squad.js";
@@ -24,8 +24,8 @@ export class AttackMission extends Mission<AttackFailReason> {
     constructor(
         uniqueName: string,
         priority: number,
-        private rallyArea: Point2D,
-        private attackArea: Point2D,
+        private rallyArea: Vector2,
+        private attackArea: Vector2,
         private radius: number,
         logger: DebugLogger,
     ) {
@@ -76,7 +76,7 @@ export class AttackMissionFactory implements MissionFactory {
         return "AttackMissionFactory";
     }
 
-    generateTarget(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): Point2D | null {
+    generateTarget(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): Vector2 | null {
         // Randomly decide between harvester and base.
         try {
             const tryFocusHarvester = gameApi.generateRandomInt(0, 1) === 0;
@@ -87,7 +87,7 @@ export class AttackMissionFactory implements MissionFactory {
 
             const maxUnit = maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
             if (maxUnit) {
-                return { x: maxUnit.tile.rx, y: maxUnit.tile.ry };
+                return new Vector2(maxUnit.tile.rx, maxUnit.tile.ry);
             }
         } catch (err) {
             // There's a crash here when accessing a building that got destroyed. Will catch and ignore or now.

@@ -6,6 +6,7 @@ import {
     Point2D,
     StanceType,
     UnitData,
+    Vector2,
     ZoneType,
 } from "@chronodivide/game-api";
 import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
@@ -65,5 +66,5 @@ export function getAttackWeight(attacker: UnitData, target: UnitData): number | 
         return null;
     }
 
-    return 1000000 - getDistanceBetweenPoints({ x, y }, { x: hX, y: hY });
+    return 1000000 - getDistanceBetweenPoints(new Vector2(x, y), new Vector2(hX, hY));
 }

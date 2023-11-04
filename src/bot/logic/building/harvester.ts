@@ -1,12 +1,15 @@
-import { GameApi, PlayerData, Point2D, TechnoRules, Tile } from "@chronodivide/game-api";
+import { GameApi, PlayerData, TechnoRules } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
-import { BasicBuilding } from "./basicBuilding.js";
 import { BasicGroundUnit } from "./basicGroundUnit.js";
 
 const IDEAL_HARVESTERS_PER_REFINERY = 2;
 
 export class Harvester extends BasicGroundUnit {
-    constructor(basePriority: number, baseAmount: number, private minNeeded: number) {
+    constructor(
+        basePriority: number,
+        baseAmount: number,
+        private minNeeded: number,
+    ) {
         super(basePriority, baseAmount, 0, 0);
     }
 
@@ -15,7 +18,7 @@ export class Harvester extends BasicGroundUnit {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number {
         const refineries = game.getVisibleUnits(playerData.name, "self", (r) => r.refinery).length;
         const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;

@@ -1,9 +1,9 @@
-import { ActionsApi, GameApi, OrderType, PlayerData, Point2D } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
 import { DebugLogger } from "../../common/utils.js";
-import { getDistanceBetweenPoints } from "../../map/map.js";
+import { getDistanceBetweenTileAndPoint } from "../../map/map.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -15,7 +15,7 @@ const MAX_ATTEMPTS_PER_TARGET = 5;
 const MAX_TICKS_PER_TARGET = 600;
 
 export class ScoutingSquad implements SquadBehaviour {
-    private scoutTarget: Point2D | null = null;
+    private scoutTarget: Vector2 | null = null;
     private attemptsOnCurrentTarget: number = 0;
     private scoutTargetRefreshedAt: number = 0;
     private lastMoveCommandTick: number = 0;
@@ -73,9 +73,7 @@ export class ScoutingSquad implements SquadBehaviour {
                     }
                 });
                 // Check that a scout is actually moving closer to the target.
-                const distances = scouts.map((unit) =>
-                    getDistanceBetweenPoints({ x: unit.tile.rx, y: unit.tile.ry }, this.scoutTarget!),
-                );
+                const distances = scouts.map((unit) => getDistanceBetweenTileAndPoint(unit.tile, this.scoutTarget!));
                 const newMinDistance = Math.min(...distances);
                 if (!this.scoutMinDistance || newMinDistance < this.scoutMinDistance) {
                     logger(
@@ -90,7 +88,7 @@ export class ScoutingSquad implements SquadBehaviour {
                 this.setScoutTarget(null, gameApi.getCurrentTick());
             }
         } else {
-            const candidatePoint = matchAwareness.getScoutingManager().getNewScoutTarget()?.asPoint2D();
+            const candidatePoint = matchAwareness.getScoutingManager().getNewScoutTarget()?.asVector2();
             if (!candidatePoint) {
                 logger(`No more scouting targets available, disbanding.`);
                 return disband();
@@ -100,7 +98,7 @@ export class ScoutingSquad implements SquadBehaviour {
         return noop();
     }
 
-    setScoutTarget(point: Point2D | null, currentTick: number) {
+    setScoutTarget(point: Vector2 | null, currentTick: number) {
         this.attemptsOnCurrentTarget = 0;
         this.scoutTargetRefreshedAt = currentTick;
         this.scoutTarget = point;

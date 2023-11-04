@@ -3,10 +3,10 @@ import {
     GameApi,
     ObjectType,
     PlayerData,
-    Point2D,
     Size,
     TechnoRules,
     Tile,
+    Vector2,
 } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { AntiGroundStaticDefence } from "./antiGroundStaticDefence.js";
@@ -59,7 +59,7 @@ export function numBuildingsOwnedOfName(game: GameApi, playerData: PlayerData, n
  * @param adjacent Size of the outer rect.
  * @returns
  */
-function computeAdjacentRect(point: Point2D, t: Size, adjacent: number) {
+function computeAdjacentRect(point: Vector2, t: Size, adjacent: number) {
     return {
         x: point.x - adjacent,
         y: point.y - adjacent,
@@ -83,10 +83,7 @@ export function getAdjacencyTiles(
         const building = game.getUnitData(buildingId);
         if (building?.rules?.baseNormal) {
             const { foundation, tile } = building;
-            const buildingBase = {
-                x: tile.rx,
-                y: tile.ry,
-            };
+            const buildingBase = new Vector2(tile.rx, tile.ry);
             const buildingSize = {
                 width: foundation?.width,
                 height: foundation?.height,
@@ -103,10 +100,10 @@ export function getAdjacencyTiles(
             tiles.push(...adjacentTiles);
 
             // Prevent placing the new building on tiles that would cause it to overlap with this building.
-            const modifiedBase = {
-                x: buildingBase.x - (newBuildingWidth - 1),
-                y: buildingBase.y - (newBuildingHeight - 1),
-            };
+            const modifiedBase = new Vector2(
+                buildingBase.x - (newBuildingWidth - 1),
+                buildingBase.y - (newBuildingHeight - 1),
+            );
             const modifiedSize = {
                 width: buildingSize.width + (newBuildingWidth - 1),
                 height: buildingSize.height + (newBuildingHeight - 1),
@@ -129,7 +126,7 @@ export function getAdjacencyTiles(
     return withDuplicatesRemoved.filter((tile) => !removedTiles.has(tile.id));
 }
 
-function getTileDistances(startPoint: Point2D, tiles: Tile[]) {
+function getTileDistances(startPoint: Vector2, tiles: Tile[]) {
     return tiles
         .map((tile) => ({
             tile,
@@ -153,7 +150,7 @@ function distance(x1: number, y1: number, x2: number, y2: number) {
 export function getDefaultPlacementLocation(
     game: GameApi,
     playerData: PlayerData,
-    startPoint: Point2D,
+    startPoint: Vector2,
     technoRules: TechnoRules,
     minSpace: number = 1,
 ): { rx: number; ry: number } | undefined {
