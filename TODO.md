@@ -2,7 +2,6 @@
 
 Urgent
 
--   remove lodash usage
 -   make scouts more resilient, i.e. bot doesn't become idle if it can't find your base after 5 attempts
 -   maybe not spam move commands for scouting and attacking missions
 -   don't spam repair
