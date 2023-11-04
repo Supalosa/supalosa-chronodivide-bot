@@ -14,12 +14,16 @@ export const getUnseenStartingLocations = (gameApi: GameApi, playerData: PlayerD
     return unseenStartingLocations;
 };
 
-class PrioritisedScoutTarget {
+export class PrioritisedScoutTarget {
     private _targetPoint?: Vector2;
     private _targetSector?: Sector;
     private _priority: number;
 
-    constructor(priority: number, target: Vector2 | Sector) {
+    constructor(
+        priority: number,
+        target: Vector2 | Sector,
+        private permanent: boolean = false,
+    ) {
         if (target.hasOwnProperty("x") && target.hasOwnProperty("y")) {
             this._targetPoint = target as Vector2;
         } else if (target.hasOwnProperty("sectorStartPoint")) {
@@ -41,6 +45,10 @@ class PrioritisedScoutTarget {
     get targetSector() {
         return this._targetSector;
     }
+
+    get isPermanent() {
+        return this.permanent;
+    }
 }
 
 const ENEMY_SPAWN_POINT_PRIORITY = 100;
@@ -60,7 +68,7 @@ export class ScoutingManager {
     }
 
     onGameStart(gameApi: GameApi, playerData: PlayerData, sectorCache: SectorCache) {
-        // Queue hostile starting locations with high priority.
+        // Queue hostile starting locations with high priority and as permanent scouting candidates.
         gameApi.mapApi
             .getStartingLocations()
             .filter((startingLocation) => {
@@ -70,7 +78,7 @@ export class ScoutingManager {
                 let tile = gameApi.mapApi.getTile(startingLocation.x, startingLocation.y);
                 return tile ? !gameApi.mapApi.isVisibleTile(tile, playerData.name) : false;
             })
-            .map((tile) => new PrioritisedScoutTarget(ENEMY_SPAWN_POINT_PRIORITY, tile))
+            .map((tile) => new PrioritisedScoutTarget(ENEMY_SPAWN_POINT_PRIORITY, tile, true))
             .forEach((target) => {
                 this.logger(`Adding ${target.asVector2()?.x},${target.asVector2()?.y} to initial scouting queue`);
                 this.scoutingQueue.enqueue(target);

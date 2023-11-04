@@ -1,6 +1,6 @@
 import { GameApi, GameMath, PlayerData, TechnoRules } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
-import { AiBuildingRules, getDefaultPlacementLocation, numBuildingsOwnedOfType } from "./buildingRules.js";
+import { AiBuildingRules, numBuildingsOwnedOfType } from "./buildingRules.js";
 
 export class ArtilleryUnit implements AiBuildingRules {
     constructor(
