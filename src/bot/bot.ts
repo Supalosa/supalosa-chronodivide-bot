@@ -33,14 +33,16 @@ export class SupalosaBot extends Bot {
 
     private matchAwareness: MatchAwareness | null = null;
 
-    private enableLogging: boolean;
-
-    constructor(name: string, country: string, enableLogging = true) {
+    constructor(
+        name: string,
+        country: string,
+        private tryAllyWith: string[] = [],
+        private enableLogging = true,
+    ) {
         super(name, country);
         this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
         this.squadController = new SquadController((message, sayInGame) => this.logBotStatus(message, sayInGame));
         this.queueController = new QueueController();
-        this.enableLogging = enableLogging;
     }
 
     override onGameStart(game: GameApi) {
@@ -61,6 +63,8 @@ export class SupalosaBot extends Bot {
         this.matchAwareness.onGameStart(game, myPlayer);
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.width}, ${this.knownMapBounds.height}`);
+
+        this.tryAllyWith.forEach((playerName) => this.actionsApi.toggleAlliance(playerName, true));
     }
 
     override onGameTick(game: GameApi) {

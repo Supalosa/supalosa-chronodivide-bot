@@ -118,7 +118,7 @@ export class CombatSquad implements SquadBehaviour {
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
                         actionBatcher.push(manageAttackMicro(unit, bestUnit));
-                        this.debugLastTarget = bestUnit.id.toString();
+                        this.debugLastTarget = `Unit ${bestUnit.id.toString()}`;
                     } else {
                         actionBatcher.push(manageMoveMicro(unit, targetPoint));
                         this.debugLastTarget = `@${targetPoint.x},${targetPoint.y}`;
