@@ -16,6 +16,8 @@ export function pad(n: any, format = "0000") {
     return format.substring(0, format.length - str.length) + str;
 }
 
+// So we don't need lodash
+
 export function maxBy<T>(array: T[], predicate: (arg: T) => number | null): T | null {
     if (array.length === 0) {
         return null;
