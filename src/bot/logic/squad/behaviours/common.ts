@@ -23,18 +23,16 @@ export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): Batch
     return { unitId: attacker.id, orderType: OrderType.Move, point: attackPoint };
 }
 
-export function manageAttackMicro(actionsApi: ActionsApi, attacker: UnitData, target: UnitData) {
+export function manageAttackMicro(attacker: UnitData, target: UnitData): BatchableAction {
     const distance = getDistanceBetweenUnits(attacker, target);
     if (attacker.name === "E1") {
         // Para (deployed weapon) range is 5.
         const deployedWeaponRange = attacker.secondaryWeapon?.maxRange || 5;
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (!isDeployed && (distance <= deployedWeaponRange || attacker.attackState === AttackState.JustFired)) {
-            actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
-            return;
+            return { unitId: attacker.id, orderType: OrderType.DeploySelected };
         } else if (isDeployed && distance > deployedWeaponRange) {
-            actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
-            return;
+            return { unitId: attacker.id, orderType: OrderType.DeploySelected };
         }
     }
     let targetData = target;
@@ -46,7 +44,7 @@ export function manageAttackMicro(actionsApi: ActionsApi, attacker: UnitData, ta
         // Special case for mirage tank/spy as otherwise they just sit next to it.
         orderType = OrderType.Attack;
     }
-    actionsApi.orderUnits([attacker.id], orderType, target.id);
+    return { unitId: attacker.id, orderType, targetId: target.id };
 }
 
 /**

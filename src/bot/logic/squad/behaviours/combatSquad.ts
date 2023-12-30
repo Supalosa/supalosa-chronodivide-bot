@@ -111,7 +111,7 @@ export class CombatSquad implements SquadBehaviour {
                         .map(({ unitId }) => gameApi.getUnitData(unitId)) as UnitData[];
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
-                        manageAttackMicro(actionsApi, unit, bestUnit);
+                        actionBatcher.push(manageAttackMicro(unit, bestUnit));
                     } else {
                         actionBatcher.push(manageMoveMicro(unit, targetPoint));
                     }
