@@ -69,6 +69,7 @@ export class SquadController {
                 a.squad.getMission()?.removeSquad();
                 a.squad.getUnitIds().forEach((unitId) => {
                     this.unitIdToSquad.delete(unitId);
+                    actionsApi.setUnitDebugText(unitId, undefined);
                 });
                 disbandedSquads.add(a.squad.getName());
             });
@@ -247,8 +248,11 @@ export class SquadController {
         this.squads.push(squad);
     }
 
-    public debugSquads(gameApi: GameApi) {
+    // return text to display for global debug
+    public debugSquads(gameApi: GameApi, actionsApi: ActionsApi): string {
         const unitsInSquad = (unitIds: number[]) => countBy(unitIds, (unitId) => gameApi.getUnitData(unitId)?.name);
+
+        let globalDebugText = "";
 
         this.squads.forEach((squad) => {
             this.logger(
@@ -256,6 +260,12 @@ export class SquadController {
                     .map(([unitName, count]) => `${unitName} x ${count}`)
                     .join(", ")}`,
             );
+            squad.getUnitIds().forEach((unitId) => actionsApi.setUnitDebugText(unitId, squad.getName()));
+            const squadDebugText = squad.getGlobalDebugText();
+            if (squadDebugText) {
+                globalDebugText += squad.getName() + ": " + squadDebugText + "\n";
+            }
         });
+        return globalDebugText;
     }
 }

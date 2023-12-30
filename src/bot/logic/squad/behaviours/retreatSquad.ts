@@ -43,4 +43,8 @@ export class RetreatSquad implements SquadBehaviour {
             return requestSpecificUnits(this.unitIds, 1000);
         }
     }
+
+    public getGlobalDebugText(): string | undefined {
+        return undefined;
+    }
 }

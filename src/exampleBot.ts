@@ -16,10 +16,13 @@ async function main() {
     Other maps:
     mp03t4 large map, no oil derricks
     */
-    const mapName = "mp01t4.map";
+    const mapName = "mp03t4.map";
     // Bot names must be unique in online mode
-    const botName = `Joe${String(Date.now()).substr(-6)}`;
-    const otherBotName = `Bob${String(Date.now() + 1).substr(-6)}`;
+    const timestamp = String(Date.now()).substr(-6);
+    const firstBotName = `Joe${timestamp}`;
+    const secondBotName = `Bob${timestamp}`;
+    const thirdBotName = `Mike${timestamp}`;
+    const fourthBotName = `Charlie${timestamp}`;
 
     await cdapi.init(process.env.MIX_DIR || "./");
 
@@ -44,11 +47,22 @@ async function main() {
         online: true as true,
         serverUrl: process.env.SERVER_URL!,
         clientUrl: process.env.CLIENT_URL!,
-        agents: [new SupalosaBot(botName, "Americans"), { name: otherBotName, country: "French" }] as [Bot, ...Agent[]],
+        agents: [new SupalosaBot(firstBotName, "Americans"), { name: secondBotName, country: "French" }] as [
+            Bot,
+            ...Agent[],
+        ],
     };
 
+    const debugBot = new SupalosaBot(secondBotName, "Russians", [secondBotName], true);
+    debugBot.setDebugMode(true);
+
     const offlineSettings = {
-        agents: [new SupalosaBot(botName, "French", false), new SupalosaBot(otherBotName, "Russians", true)],
+        agents: [
+            new SupalosaBot(firstBotName, "French", [firstBotName], false),
+            debugBot,
+            new SupalosaBot(thirdBotName, "Russians", [fourthBotName], false),
+            new SupalosaBot(fourthBotName, "French", [thirdBotName], false),
+        ],
     };
 
     const game = await cdapi.createGame({

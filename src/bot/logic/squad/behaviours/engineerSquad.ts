@@ -51,4 +51,8 @@ export class EngineerSquad implements SquadBehaviour {
         }
         return noop();
     }
+
+    public getGlobalDebugText(): string | undefined {
+        return undefined;
+    }
 }

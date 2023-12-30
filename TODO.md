@@ -2,7 +2,6 @@
 
 Urgent
 
--   handle multiple opponents or allies
 -   leader pathfinding
 
 Medium priority
