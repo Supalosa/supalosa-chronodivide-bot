@@ -2,6 +2,7 @@ import {
     BuildingPlacementData,
     GameApi,
     GameMath,
+    LandType,
     ObjectType,
     PlayerData,
     Size,
@@ -51,21 +52,23 @@ export function numBuildingsOwnedOfName(game: GameApi, playerData: PlayerData, n
 }
 
 /**
- * Computes a rect 'centered' around a structure of a certain size with additional radius.
+ * Computes a rect 'centered' around a structure of a certain size with an additional radius (`adjacent`).
+ * The radius is optionally expanded by the size of the new building.
  *
- * This is essentially the placeable area around a given structure.
+ * This is essentially the candidate placement around a given structure.
  *
  * @param point Top-left location of the inner rect.
  * @param t Size of the inner rect.
- * @param adjacent Size of the outer rect.
+ * @param adjacent Amount to expand the building's inner rect by (so buildings must be adjacent by this many tiles)
+ * @param newBuildingSize? Size of the new building
  * @returns
  */
-function computeAdjacentRect(point: Vector2, t: Size, adjacent: number) {
+function computeAdjacentRect(point: Vector2, t: Size, adjacent: number, newBuildingSize?: Size) {
     return {
-        x: point.x - adjacent,
-        y: point.y - adjacent,
-        width: t.width + 2 * adjacent,
-        height: t.height + 2 * adjacent,
+        x: point.x - adjacent - (newBuildingSize?.width || 0),
+        y: point.y - adjacent - (newBuildingSize?.height || 0),
+        width: t.width + 2 * adjacent + (newBuildingSize?.width || 0),
+        height: t.height + 2 * adjacent + (newBuildingSize?.height || 0),
     };
 }
 
@@ -73,6 +76,7 @@ export function getAdjacencyTiles(
     game: GameApi,
     playerData: PlayerData,
     technoRules: TechnoRules,
+    onWater: boolean,
     minimumSpace: number,
 ): Tile[] {
     const placementRules = game.getBuildingPlacementData(technoRules.name);
@@ -92,15 +96,17 @@ export function getAdjacencyTiles(
             width: foundation?.width,
             height: foundation?.height,
         };
-        const range = computeAdjacentRect(buildingBase, buildingSize, technoRules.adjacent);
+        const range = computeAdjacentRect(buildingBase, buildingSize, technoRules.adjacent, placementRules.foundation);
         const baseTile = game.mapApi.getTile(range.x, range.y);
         if (!baseTile) {
             continue;
         }
-        const adjacentTiles = game.mapApi.getTilesInRect(baseTile, {
-            width: range.width,
-            height: range.height,
-        });
+        const adjacentTiles = game.mapApi
+            .getTilesInRect(baseTile, {
+                width: range.width,
+                height: range.height,
+            })
+            .filter((tile) => !onWater || tile.landType === LandType.Water);
         tiles.push(...adjacentTiles);
 
         // Prevent placing the new building on tiles that would cause it to overlap with this building.
@@ -155,6 +161,7 @@ export function getDefaultPlacementLocation(
     playerData: PlayerData,
     idealPoint: Vector2,
     technoRules: TechnoRules,
+    onWater: boolean = false,
     minSpace: number = 1,
 ): { rx: number; ry: number } | undefined {
     // Closest possible location near `startPoint`.
@@ -162,7 +169,7 @@ export function getDefaultPlacementLocation(
     if (!size) {
         return undefined;
     }
-    const tiles = getAdjacencyTiles(game, playerData, technoRules, minSpace);
+    const tiles = getAdjacencyTiles(game, playerData, technoRules, onWater, minSpace);
     const tileDistances = getTileDistances(idealPoint, tiles);
 
     for (let tileDistance of tileDistances) {
