@@ -2,8 +2,6 @@
 
 Urgent
 
--   maybe not spam move commands for scouting and attacking missions
--   don't spam repair
 -   handle multiple opponents or allies
 -   leader pathfinding
 

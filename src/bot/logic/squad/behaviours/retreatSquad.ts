@@ -3,6 +3,7 @@ import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestSpecificUnits, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
+import { ActionBatcher } from "./actionBatcher.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -17,6 +18,7 @@ export class RetreatSquad implements SquadBehaviour {
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
+        actionBatcher: ActionBatcher,
         playerData: PlayerData,
         squad: Squad,
         matchAwareness: MatchAwareness,

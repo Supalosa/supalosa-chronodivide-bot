@@ -91,7 +91,9 @@ export class QueueController {
             if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
                 return;
             }
-            actionsApi.toggleRepairWrench(unitId);
+            if (unit.hitPoints < unit.maxHitPoints) {
+                actionsApi.toggleRepairWrench(unitId);
+            }
         });
     }
 

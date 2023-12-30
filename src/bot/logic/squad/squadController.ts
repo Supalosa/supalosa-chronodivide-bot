@@ -13,6 +13,7 @@ import {
 import { MatchAwareness } from "../awareness.js";
 import { getDistanceBetween } from "../map/map.js";
 import { countBy } from "../common/utils.js";
+import { ActionBatcher } from "./behaviours/actionBatcher.js";
 
 type SquadWithAction<T> = {
     squad: Squad;
@@ -47,12 +48,16 @@ export class SquadController {
             });
         });
 
+        // Batch actions to reduce spamming of actions for larger armies.
+        const actionBatcher = new ActionBatcher();
+
         const squadActions: SquadWithAction<SquadAction>[] = this.squads.map((squad) => {
             return {
                 squad,
-                action: squad.onAiUpdate(gameApi, actionsApi, playerData, matchAwareness, this.logger),
+                action: squad.onAiUpdate(gameApi, actionsApi, actionBatcher, playerData, matchAwareness, this.logger),
             };
         });
+
         // Handle disbands and merges.
         const isDisband = (a: SquadAction): a is SquadActionDisband => a.type === "disband";
         const isMerge = (a: SquadAction): a is SquadActionMergeInto => a.type === "mergeInto";
@@ -229,6 +234,8 @@ export class SquadController {
                     .join(", ")}`,
             );
         });
+
+        actionBatcher.resolve(actionsApi);
     }
 
     private addUnitToSquad(squad: Squad, unit: UnitData) {

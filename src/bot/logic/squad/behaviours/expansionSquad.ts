@@ -3,6 +3,7 @@ import { GlobalThreat } from "../../threat/threat.js";
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestSpecificUnits, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
+import { ActionBatcher } from "./actionBatcher.js";
 
 const DEPLOY_COOLDOWN_TICKS = 30;
 
@@ -17,15 +18,15 @@ export class ExpansionSquad implements SquadBehaviour {
      * @param selectedMcv ID of the MCV to try to expand with. If that unit dies, the squad will disband. If no value is provided,
      * the mission requests an MCV.
      */
-    constructor(private selectedMcv: number | null) {
-    };
+    constructor(private selectedMcv: number | null) {}
 
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
+        actionBatcher: ActionBatcher,
         playerData: PlayerData,
         squad: Squad,
-        matchAwareness: MatchAwareness
+        matchAwareness: MatchAwareness,
     ): SquadAction {
         const mcvTypes = ["AMCV", "SMCV"];
         const mcvs = squad.getUnitsOfTypes(gameApi, ...mcvTypes);
@@ -46,7 +47,7 @@ export class ExpansionSquad implements SquadBehaviour {
         ) {
             actionsApi.orderUnits(
                 mcvs.map((mcv) => mcv.id),
-                OrderType.DeploySelected
+                OrderType.DeploySelected,
             );
             // Add a cooldown to deploy attempts.
             this.hasAttemptedDeployWith = {
