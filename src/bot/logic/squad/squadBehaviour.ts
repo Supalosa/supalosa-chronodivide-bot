@@ -2,6 +2,7 @@ import { ActionsApi, GameApi, PlayerData, Vector2 } from "@chronodivide/game-api
 import { Squad } from "./squad.js";
 import { MatchAwareness } from "../awareness.js";
 import { DebugLogger } from "../common/utils.js";
+import { ActionBatcher } from "./behaviours/actionBatcher.js";
 
 export type SquadActionNoop = {
     type: "noop";
@@ -54,6 +55,7 @@ export interface SquadBehaviour {
     onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
+        actionBatcher: ActionBatcher,
         playerData: PlayerData,
         squad: Squad,
         matchAwareness: MatchAwareness,

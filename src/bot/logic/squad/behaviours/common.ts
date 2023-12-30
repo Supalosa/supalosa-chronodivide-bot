@@ -9,16 +9,18 @@ import {
     ZoneType,
 } from "@chronodivide/game-api";
 import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
+import { BatchableAction } from "./actionBatcher.js";
 
 // Micro methods
-export function manageMoveMicro(actionsApi: ActionsApi, attacker: UnitData, attackPoint: Vector2) {
+export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): BatchableAction {
     if (attacker.name === "E1") {
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (isDeployed) {
-            actionsApi.orderUnits([attacker.id], OrderType.DeploySelected);
+            return { unitId: attacker.id, orderType: OrderType.DeploySelected };
         }
     }
-    actionsApi.orderUnits([attacker.id], OrderType.Move, attackPoint.x, attackPoint.y);
+
+    return { unitId: attacker.id, orderType: OrderType.Move, point: attackPoint };
 }
 
 export function manageAttackMicro(actionsApi: ActionsApi, attacker: UnitData, target: UnitData) {

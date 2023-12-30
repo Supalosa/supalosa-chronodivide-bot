@@ -2,6 +2,7 @@ import { ActionsApi, GameApi, OrderType, PlayerData, SideType } from "@chronodiv
 import { Squad } from "../squad.js";
 import { SquadAction, SquadBehaviour, disband, noop, requestSpecificUnits, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
+import { ActionBatcher } from "./actionBatcher.js";
 
 const CAPTURE_COOLDOWN_TICKS = 30;
 
@@ -15,15 +16,15 @@ export class EngineerSquad implements SquadBehaviour {
     /**
      * @param captureTarget ID of the target to try and capture/send engineer into.
      */
-    constructor(private captureTarget: number) {
-    };
+    constructor(private captureTarget: number) {}
 
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
+        actionBatcher: ActionBatcher,
         playerData: PlayerData,
         squad: Squad,
-        matchAwareness: MatchAwareness
+        matchAwareness: MatchAwareness,
     ): SquadAction {
         const engineerTypes = ["ENGINEER", "SENGINEER"];
         const engineers = squad.getUnitsOfTypes(gameApi, ...engineerTypes);
@@ -40,7 +41,7 @@ export class EngineerSquad implements SquadBehaviour {
             actionsApi.orderUnits(
                 engineers.map((engineer) => engineer.id),
                 OrderType.Capture,
-                this.captureTarget
+                this.captureTarget,
             );
             // Add a cooldown to deploy attempts.
             this.hasAttemptedCaptureWith = {

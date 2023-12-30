@@ -5,6 +5,7 @@ import { MatchAwareness } from "../../awareness.js";
 import { DebugLogger } from "../../common/utils.js";
 import { getDistanceBetweenTileAndPoint } from "../../map/map.js";
 import { PrioritisedScoutTarget } from "../../common/scout.js";
+import { ActionBatcher } from "./actionBatcher.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -30,6 +31,7 @@ export class ScoutingSquad implements SquadBehaviour {
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
+        actionBatcher: ActionBatcher,
         playerData: PlayerData,
         squad: Squad,
         matchAwareness: MatchAwareness,

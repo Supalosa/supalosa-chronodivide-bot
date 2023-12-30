@@ -65,3 +65,20 @@ export function countBy<T>(array: T[], predicate: (arg: T) => string | undefined
         {} as Record<string, number>,
     );
 }
+
+export function groupBy<K extends string, V>(array: V[], predicate: (arg: V) => K): { [key in K]: V[] } {
+    return array.reduce(
+        (prev, newVal) => {
+            const val = predicate(newVal);
+            if (val === undefined) {
+                return prev;
+            }
+            if (!prev.hasOwnProperty(val)) {
+                prev[val] = [];
+            }
+            prev[val].push(newVal);
+            return prev;
+        },
+        {} as Record<K, V[]>,
+    );
+}

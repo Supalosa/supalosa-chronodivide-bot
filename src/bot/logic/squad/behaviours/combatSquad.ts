@@ -4,6 +4,7 @@ import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehav
 import { MatchAwareness } from "../../awareness.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
 import { DebugLogger, maxBy } from "../../common/utils.js";
+import { ActionBatcher } from "./actionBatcher.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 const GRAB_INTERVAL_TICKS = 10;
@@ -48,6 +49,7 @@ export class CombatSquad implements SquadBehaviour {
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
+        actionBatcher: ActionBatcher,
         playerData: PlayerData,
         squad: Squad,
         matchAwareness: MatchAwareness,
@@ -81,7 +83,7 @@ export class CombatSquad implements SquadBehaviour {
                     maxDistance > requiredGatherRadius
                 ) {
                     units.forEach((unit) => {
-                        manageMoveMicro(actionsApi, unit, centerOfMass);
+                        actionBatcher.push(manageMoveMicro(unit, centerOfMass));
                     });
                 } else {
                     logger(`CombatSquad ${squad.getName()} switching back to attack mode (${maxDistance})`);
@@ -111,7 +113,7 @@ export class CombatSquad implements SquadBehaviour {
                     if (bestUnit) {
                         manageAttackMicro(actionsApi, unit, bestUnit);
                     } else {
-                        manageMoveMicro(actionsApi, unit, targetPoint);
+                        actionBatcher.push(manageMoveMicro(unit, targetPoint));
                     }
                 }
             }
