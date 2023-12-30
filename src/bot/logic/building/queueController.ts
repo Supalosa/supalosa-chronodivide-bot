@@ -120,14 +120,20 @@ export class QueueController {
             // Consider placing it.
             const objectReady: TechnoRules = queueData.items[0].rules;
             if (queueType == QueueType.Structures || queueType == QueueType.Armory) {
-                logger(`Complete ${queueTypeToName(queueType)}: ${objectReady.name}`);
                 let location: { rx: number; ry: number } | undefined = this.getBestLocationForStructure(
                     game,
                     playerData,
                     objectReady,
                 );
                 if (location !== undefined) {
+                    logger(
+                        `Completed: ${queueTypeToName(queueType)}: ${objectReady.name}, placing at ${location.rx},${
+                            location.ry
+                        }`,
+                    );
                     actionsApi.placeBuilding(objectReady.name, location.rx, location.ry);
+                } else {
+                    logger(`Completed: ${queueTypeToName(queueType)}: ${objectReady.name} but nowhere to place it`);
                 }
             }
         } else if (queueData.status == QueueStatus.Active && queueData.items.length > 0 && decision != null) {
