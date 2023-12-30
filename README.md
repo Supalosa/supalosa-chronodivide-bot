@@ -50,14 +50,25 @@ npm publish
 
 # ignore me
 
+```
+# dev pc
 export GAMEPATH="G:\Origin\Ra2_YurisRevenge\Command and Conquer Red Alert II"
-
+# dev laptop
 export GAMEPATH="D:\EA Games\Command and Conquer Red Alert II"
 
 ---
 
+# run without any debug
 npm run build && npx cross-env MIX_DIR="${GAMEPATH}" npm start
+
+# run with attached debugger
 npm run build && npx cross-env MIX_DIR="${GAMEPATH}" npm --node-options="${NODE_OPTIONS} --inspect" start
+
+# run with attached debugger and verbose API logging
+npm run build && DEBUG_LOGGING="action" npx cross-env MIX_DIR="${GAMEPATH}" npm --node-options="${NODE_OPTIONS} --inspect" start
+
+# DEBUG_LOGGING can also be narrowed down to a specific logger, e.g. "action" or "move"
+```
 
 ---
 
