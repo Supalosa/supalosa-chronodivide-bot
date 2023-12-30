@@ -30,6 +30,8 @@ export class CombatSquad implements SquadBehaviour {
     private lastCommand: number | null = null;
     private state = SquadState.Gathering;
 
+    private debugLastTarget: string | undefined;
+
     /**
      *
      * @param rallyArea the initial location to grab combatants
@@ -41,6 +43,10 @@ export class CombatSquad implements SquadBehaviour {
         private targetArea: Vector2,
         private radius: number,
     ) {}
+
+    public getGlobalDebugText(): string | undefined {
+        return this.debugLastTarget ?? "<none>";
+    }
 
     public setAttackArea(targetArea: Vector2) {
         this.targetArea = targetArea;
@@ -112,8 +118,10 @@ export class CombatSquad implements SquadBehaviour {
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
                         actionBatcher.push(manageAttackMicro(unit, bestUnit));
+                        this.debugLastTarget = bestUnit.id.toString();
                     } else {
                         actionBatcher.push(manageMoveMicro(unit, targetPoint));
+                        this.debugLastTarget = `@${targetPoint.x},${targetPoint.y}`;
                     }
                 }
             }

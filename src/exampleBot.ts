@@ -47,8 +47,11 @@ async function main() {
         agents: [new SupalosaBot(botName, "Americans"), { name: otherBotName, country: "French" }] as [Bot, ...Agent[]],
     };
 
+    const debugBot = new SupalosaBot(otherBotName, "Russians", true);
+    debugBot.setDebugMode(true);
+
     const offlineSettings = {
-        agents: [new SupalosaBot(botName, "French", false), new SupalosaBot(otherBotName, "Russians", true)],
+        agents: [new SupalosaBot(botName, "French", false), debugBot],
     };
 
     const game = await cdapi.createGame({

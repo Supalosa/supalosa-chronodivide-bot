@@ -13,7 +13,7 @@ export enum AttackFailReason {
     DefenceTooStrong = 1,
 }
 
-const NO_TARGET_IDLE_TIMEOUT_TICKS = 60;
+const NO_TARGET_IDLE_TIMEOUT_TICKS = 600;
 
 /**
  * A mission that tries to attack a certain area.

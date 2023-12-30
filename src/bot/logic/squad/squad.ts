@@ -158,4 +158,8 @@ export class Squad {
     public getLiveness() {
         return this.liveness;
     }
+
+    public getGlobalDebugText(): string | undefined {
+        return this.behaviour.getGlobalDebugText();
+    }
 }

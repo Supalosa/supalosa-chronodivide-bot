@@ -17,7 +17,7 @@ import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queue
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { formatTimeDuration } from "./logic/common/utils.js";
 
-const DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS = 60;
+const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
 // Number of ticks per second at the base speed.
 const NATURAL_TICK_RATE = 15;
@@ -70,8 +70,8 @@ export class SupalosaBot extends Bot {
 
         const threatCache = this.matchAwareness.getThreatCache();
 
-        if ((game.getCurrentTick() / NATURAL_TICK_RATE) % DEBUG_TIMESTAMP_OUTPUT_INTERVAL_SECONDS === 0) {
-            this.logDebugState(game);
+        if ((game.getCurrentTick() / NATURAL_TICK_RATE) % DEBUG_STATE_UPDATE_INTERVAL_SECONDS === 0) {
+            this.updateDebugState(game);
         }
 
         if (game.getCurrentTick() % this.tickRatio! === 0) {
@@ -138,10 +138,11 @@ export class SupalosaBot extends Bot {
         }
     }
 
-    private logDebugState(game: GameApi) {
-        if (!this.enableLogging) {
+    private updateDebugState(game: GameApi) {
+        if (!this.getDebugMode()) {
             return;
         }
+
         const myPlayer = game.getPlayerData(this.name);
         const queueState = QUEUES.reduce((prev, queueType) => {
             if (this.productionApi.getQueueData(queueType).size === 0) {
@@ -158,12 +159,18 @@ export class SupalosaBot extends Bot {
                 "]"
             );
         }, "");
-        this.logBotStatus(`----- Cash: ${myPlayer.credits} ----- | Queues: ${queueState}`);
+        let globalDebugText = `Cash: ${myPlayer.credits} | Queues: ${queueState}\n`;
         const harvesters = game.getVisibleUnits(this.name, "self", (r) => r.harvester).length;
-        this.logBotStatus(`Harvesters: ${harvesters}`);
-        this.squadController.debugSquads(this.gameApi);
-        this.logBotStatus(`----- End -----`);
+        globalDebugText += `Harvesters: ${harvesters}\n`;
+        globalDebugText += this.squadController.debugSquads(this.gameApi, this.actionsApi);
         this.missionController.logDebugOutput();
+
+        // Tag enemy units with IDs
+        game.getVisibleUnits(this.name, "hostile").forEach((unitId) => {
+            this.actionsApi.setUnitDebugText(unitId, unitId.toString());
+        });
+
+        this.actionsApi.setGlobalDebugText(globalDebugText);
     }
 
     override onGameEvent(ev: ApiEvent) {

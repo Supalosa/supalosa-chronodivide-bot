@@ -111,4 +111,8 @@ export class ScoutingSquad implements SquadBehaviour {
         this.scoutMinDistance = undefined;
         this.scoutTargetIsPermanent = target?.isPermanent ?? false;
     }
+
+    public getGlobalDebugText(): string | undefined {
+        return undefined;
+    }
 }

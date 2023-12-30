@@ -61,4 +61,6 @@ export interface SquadBehaviour {
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
     ): SquadAction;
+
+    getGlobalDebugText(): string | undefined;
 }
