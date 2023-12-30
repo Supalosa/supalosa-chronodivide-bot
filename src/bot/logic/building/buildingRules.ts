@@ -74,7 +74,7 @@ export function getAdjacencyTiles(
     playerData: PlayerData,
     technoRules: TechnoRules,
     minimumSpace: number,
-) {
+): Tile[] {
     const placementRules = game.getBuildingPlacementData(technoRules.name);
     const { width: newBuildingWidth, height: newBuildingHeight } = placementRules.foundation;
     const tiles = [];
@@ -82,44 +82,46 @@ export function getAdjacencyTiles(
     const removedTiles = new Set<string>();
     for (let buildingId of buildings) {
         const building = game.getUnitData(buildingId);
-        if (building?.rules?.baseNormal) {
-            const { foundation, tile } = building;
-            const buildingBase = new Vector2(tile.rx, tile.ry);
-            const buildingSize = {
-                width: foundation?.width,
-                height: foundation?.height,
-            };
-            const range = computeAdjacentRect(buildingBase, buildingSize, technoRules.adjacent);
-            const baseTile = game.mapApi.getTile(range.x, range.y);
-            if (!baseTile) {
-                continue;
-            }
-            const adjacentTiles = game.mapApi.getTilesInRect(baseTile, {
-                width: range.width,
-                height: range.height,
-            });
-            tiles.push(...adjacentTiles);
-
-            // Prevent placing the new building on tiles that would cause it to overlap with this building.
-            const modifiedBase = new Vector2(
-                buildingBase.x - (newBuildingWidth - 1),
-                buildingBase.y - (newBuildingHeight - 1),
-            );
-            const modifiedSize = {
-                width: buildingSize.width + (newBuildingWidth - 1),
-                height: buildingSize.height + (newBuildingHeight - 1),
-            };
-            const blockedRect = computeAdjacentRect(modifiedBase, modifiedSize, minimumSpace);
-            const buildingTiles = adjacentTiles.filter((tile) => {
-                return (
-                    tile.rx >= blockedRect.x &&
-                    tile.rx < blockedRect.x + blockedRect.width &&
-                    tile.ry >= blockedRect.y &&
-                    tile.ry < blockedRect.y + blockedRect.height
-                );
-            });
-            buildingTiles.forEach((buildingTile) => removedTiles.add(buildingTile.id));
+        if (!building?.rules?.baseNormal) {
+            // This building is not considered for adjacency checks.
+            continue;
         }
+        const { foundation, tile } = building;
+        const buildingBase = new Vector2(tile.rx, tile.ry);
+        const buildingSize = {
+            width: foundation?.width,
+            height: foundation?.height,
+        };
+        const range = computeAdjacentRect(buildingBase, buildingSize, technoRules.adjacent);
+        const baseTile = game.mapApi.getTile(range.x, range.y);
+        if (!baseTile) {
+            continue;
+        }
+        const adjacentTiles = game.mapApi.getTilesInRect(baseTile, {
+            width: range.width,
+            height: range.height,
+        });
+        tiles.push(...adjacentTiles);
+
+        // Prevent placing the new building on tiles that would cause it to overlap with this building.
+        const modifiedBase = new Vector2(
+            buildingBase.x - (newBuildingWidth - 1),
+            buildingBase.y - (newBuildingHeight - 1),
+        );
+        const modifiedSize = {
+            width: buildingSize.width + (newBuildingWidth - 1),
+            height: buildingSize.height + (newBuildingHeight - 1),
+        };
+        const blockedRect = computeAdjacentRect(modifiedBase, modifiedSize, minimumSpace);
+        const buildingTiles = adjacentTiles.filter((tile) => {
+            return (
+                tile.rx >= blockedRect.x &&
+                tile.rx < blockedRect.x + blockedRect.width &&
+                tile.ry >= blockedRect.y &&
+                tile.ry < blockedRect.y + blockedRect.height
+            );
+        });
+        buildingTiles.forEach((buildingTile) => removedTiles.add(buildingTile.id));
     }
     // Remove duplicate tiles.
     const withDuplicatesRemoved = uniqBy(tiles, (tile) => tile.id);
@@ -151,17 +153,17 @@ function distance(x1: number, y1: number, x2: number, y2: number) {
 export function getDefaultPlacementLocation(
     game: GameApi,
     playerData: PlayerData,
-    startPoint: Vector2,
+    idealPoint: Vector2,
     technoRules: TechnoRules,
     minSpace: number = 1,
 ): { rx: number; ry: number } | undefined {
-    // Random location, preferably near start location.
+    // Closest possible location near `startPoint`.
     const size: BuildingPlacementData = game.getBuildingPlacementData(technoRules.name);
     if (!size) {
         return undefined;
     }
     const tiles = getAdjacencyTiles(game, playerData, technoRules, minSpace);
-    const tileDistances = getTileDistances(startPoint, tiles);
+    const tileDistances = getTileDistances(idealPoint, tiles);
 
     for (let tileDistance of tileDistances) {
         if (tileDistance.tile && game.canPlaceBuilding(playerData.name, technoRules.name, tileDistance.tile)) {
@@ -186,6 +188,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["ENGINEER", new BasicBuilding(10, 1, 1000)], // Engineer
     ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["GAAIRC", new BasicBuilding(10, 1, 500)], // Airforce Command
+    ["AMRADR", new BasicBuilding(10, 1, 500)], // Airforce Command (USA)
 
     ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
     ["GAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
