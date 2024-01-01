@@ -1,6 +1,7 @@
 import {
     ActionsApi,
     GameApi,
+    GameMath,
     PlayerData,
     ProductionApi,
     QueueStatus,
@@ -43,9 +44,16 @@ export const queueTypeToName = (queue: QueueType) => {
     }
 };
 
-const DEBUG_BUILD_QUEUES = true;
+type QueueState = {
+    queue: QueueType;
+    /** sorted in ascending order (last item is the topItem) */
+    items: TechnoRulesWithPriority[];
+    topItem: TechnoRulesWithPriority | undefined;
+};
 
 export class QueueController {
+    private queueStates: QueueState[] = [];
+
     constructor() {}
 
     public onAiUpdate(
@@ -56,21 +64,25 @@ export class QueueController {
         threatCache: GlobalThreat | null,
         logger: (message: string) => void,
     ) {
-        const decisions = QUEUES.map((queueType) => {
+        this.queueStates = QUEUES.map((queueType) => {
             const options = productionApi.getAvailableObjects(queueType);
+            const items = this.getPrioritiesForBuildingOptions(game, options, threatCache, playerData);
+            const topItem = items.length > 0 ? items[items.length - 1] : undefined;
             return {
                 queue: queueType,
-                decision: this.getBestOptionForBuilding(game, options, threatCache, playerData, logger),
+                items,
+                // only if the top item has a  priority above zero
+                topItem: topItem && topItem.priority > 0 ? topItem : undefined,
             };
-        }).filter((decision) => decision.decision != null);
-        let totalWeightAcrossQueues = decisions
-            .map((decision) => decision.decision?.priority!)
+        });
+        const totalWeightAcrossQueues = this.queueStates
+            .map((decision) => decision.topItem?.priority!)
             .reduce((pV, cV) => pV + cV, 0);
-        let totalCostAcrossQueues = decisions
-            .map((decision) => decision.decision?.unit.cost!)
+        const totalCostAcrossQueues = this.queueStates
+            .map((decision) => decision.topItem?.unit.cost!)
             .reduce((pV, cV) => pV + cV, 0);
 
-        decisions.forEach((decision) => {
+        this.queueStates.forEach((decision) => {
             this.updateBuildQueue(
                 game,
                 productionApi,
@@ -78,7 +90,7 @@ export class QueueController {
                 playerData,
                 threatCache,
                 decision.queue,
-                decision.decision,
+                decision.topItem,
                 totalWeightAcrossQueues,
                 totalCostAcrossQueues,
                 logger,
@@ -139,20 +151,24 @@ export class QueueController {
                 }
             }
         } else if (queueData.status == QueueStatus.Active && queueData.items.length > 0 && decision != null) {
-            // Consider cancelling if something else is significantly higher priority.
-            const current = queueData.items[0].rules;
-            const options = productionApi.getAvailableObjects(queueType);
-            if (decision.unit != current) {
+            // Consider cancelling if something else is significantly higher priority than what is currently being produced.
+            const currentProduction = queueData.items[0].rules;
+            if (decision.unit != currentProduction) {
                 // Changing our mind.
-                let currentItemPriority = this.getPriorityForBuildingOption(current, game, playerData, threatCache);
+                let currentItemPriority = this.getPriorityForBuildingOption(
+                    currentProduction,
+                    game,
+                    playerData,
+                    threatCache,
+                );
                 let newItemPriority = decision.priority;
                 if (newItemPriority > currentItemPriority * 2) {
                     logger(
-                        `Dequeueing queue ${queueTypeToName(queueData.type)} unit ${current.name} because ${
+                        `Dequeueing queue ${queueTypeToName(queueData.type)} unit ${currentProduction.name} because ${
                             decision.unit.name
                         } has 2x higher priority.`,
                     );
-                    actionsApi.unqueueFromProduction(queueData.type, current.name, current.type, 1);
+                    actionsApi.unqueueFromProduction(queueData.type, currentProduction.name, currentProduction.type, 1);
                 }
             } else {
                 // Not changing our mind, but maybe other queues are more important for now.
@@ -181,32 +197,22 @@ export class QueueController {
         }
     }
 
-    private getBestOptionForBuilding(
+    private getPrioritiesForBuildingOptions(
         game: GameApi,
         options: TechnoRules[],
         threatCache: GlobalThreat | null,
         playerData: PlayerData,
-        logger: (message: string) => void,
-    ): TechnoRulesWithPriority | undefined {
+    ): TechnoRulesWithPriority[] {
         let priorityQueue: TechnoRulesWithPriority[] = [];
         options.forEach((option) => {
             let priority = this.getPriorityForBuildingOption(option, game, playerData, threatCache);
-            if (priority > 0) {
+            if (priority >= 0) {
                 priorityQueue.push({ unit: option, priority: priority });
             }
         });
 
-        priorityQueue = priorityQueue.sort((a, b) => {
-            return a.priority - b.priority;
-        });
-        if (priorityQueue.length > 0) {
-            if (DEBUG_BUILD_QUEUES && game.getCurrentTick() % 100 === 0) {
-                let queueString = priorityQueue.map((item) => item.unit.name + "(" + item.priority + ")").join(", ");
-                logger(`Build priority currently: ${queueString}`);
-            }
-        }
-
-        return priorityQueue.pop();
+        priorityQueue = priorityQueue.sort((a, b) => a.priority - b.priority);
+        return priorityQueue;
     }
 
     private getPriorityForBuildingOption(
@@ -238,5 +244,37 @@ export class QueueController {
             // fallback placement logic
             return getDefaultPlacementLocation(game, playerData, playerData.startLocation, objectReady);
         }
+    }
+
+    public getGlobalDebugText(gameApi: GameApi, productionApi: ProductionApi) {
+        const productionState = QUEUES.reduce((prev, queueType) => {
+            if (productionApi.getQueueData(queueType).size === 0) {
+                return prev;
+            }
+            const paused = productionApi.getQueueData(queueType).status === QueueStatus.OnHold;
+            return (
+                prev +
+                " [" +
+                queueTypeToName(queueType) +
+                (paused ? " PAUSED" : "") +
+                ": " +
+                productionApi
+                    .getQueueData(queueType)
+                    .items.map((item) => item.rules.name + (item.quantity > 1 ? "x" + item.quantity : "")) +
+                "]"
+            );
+        }, "");
+
+        const queueStates = this.queueStates
+            .filter((queueState) => queueState.items.length > 0)
+            .map((queueState) => {
+                let queueString = queueState.items
+                    .map((item) => item.unit.name + "(" + Math.round(item.priority * 10) / 10 + ")")
+                    .join(", ");
+                return `${queueTypeToName(queueState.queue)} Prios: ${queueString}\n`;
+            })
+            .join("");
+
+        return `Production: ${productionState}\n${queueStates}`;
     }
 }

@@ -146,28 +146,16 @@ export class SupalosaBot extends Bot {
         if (!this.getDebugMode()) {
             return;
         }
-
+        // Update the global debug text.
         const myPlayer = game.getPlayerData(this.name);
-        const queueState = QUEUES.reduce((prev, queueType) => {
-            if (this.productionApi.getQueueData(queueType).size === 0) {
-                return prev;
-            }
-            const paused = this.productionApi.getQueueData(queueType).status === QueueStatus.OnHold;
-            return (
-                prev +
-                " [" +
-                queueTypeToName(queueType) +
-                (paused ? " PAUSED" : "") +
-                ": " +
-                this.productionApi.getQueueData(queueType).items.map((item) => item.rules.name + "x" + item.quantity) +
-                "]"
-            );
-        }, "");
-        let globalDebugText = `Cash: ${myPlayer.credits} | Queues: ${queueState}\n`;
         const harvesters = game.getVisibleUnits(this.name, "self", (r) => r.harvester).length;
-        globalDebugText += `Harvesters: ${harvesters}\n`;
-        globalDebugText += this.squadController.debugSquads(this.gameApi, this.actionsApi);
-        this.missionController.logDebugOutput();
+
+        let globalDebugText = `Cash: ${myPlayer.credits} | Harvesters: ${harvesters}\n`;
+        globalDebugText += this.queueController.getGlobalDebugText(this.gameApi, this.productionApi);
+        globalDebugText += this.squadController.getGlobalDebugText(this.gameApi);
+        globalDebugText += this.matchAwareness?.getGlobalDebugText();
+
+        this.squadController.updateDebugText(this.actionsApi);
 
         // Tag enemy units with IDs
         game.getVisibleUnits(this.name, "hostile").forEach((unitId) => {

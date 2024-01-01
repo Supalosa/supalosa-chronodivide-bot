@@ -20,6 +20,7 @@ import { PowerPlant } from "./powerPlant.js";
 import { ResourceCollectionBuilding } from "./resourceCollectionBuilding.js";
 import { Harvester } from "./harvester.js";
 import { uniqBy } from "../common/utils.js";
+import { AntiAirStaticDefence } from "./antiAirStaticDefence.js";
 
 export interface AiBuildingRules {
     getPriority(
@@ -204,7 +205,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["ATESLA", new AntiGroundStaticDefence(5, 1, 10)], // Prism Cannon
     ["GAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
-    ["E1", new BasicGroundUnit(2, 3, 0.25, 0)], // GI
+    ["E1", new BasicGroundUnit(2, 2, 0.2, 0)], // GI
     ["MTNK", new BasicGroundUnit(10, 3, 2, 0)], // Grizzly Tank
     ["MGTK", new BasicGroundUnit(10, 1, 2.5, 0)], // Mirage Tank
     ["FV", new BasicGroundUnit(5, 2, 0.5, 1)], // IFV
@@ -229,10 +230,11 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 
     ["NALASR", new AntiGroundStaticDefence(5, 1, 5)], // Sentry Gun
+    ["NAFLAK", new AntiAirStaticDefence(5, 1, 5)], // Flak Cannon
     ["TESLA", new AntiGroundStaticDefence(5, 1, 10)], // Tesla Coil
     ["NAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
-    ["E2", new BasicGroundUnit(2, 3, 0.25, 0)], // Conscript
+    ["E2", new BasicGroundUnit(2, 2, 0.2, 0)], // Conscript
     ["HTNK", new BasicGroundUnit(10, 3, 3, 0)], // Rhino Tank
     ["APOC", new BasicGroundUnit(6, 1, 5, 0)], // Apocalypse Tank
     ["HTK", new BasicGroundUnit(5, 2, 0.33, 1.5)], // Flak Track

@@ -6,13 +6,13 @@ export class BasicBuilding implements AiBuildingRules {
     constructor(
         protected basePriority: number,
         protected maxNeeded: number,
-        protected onlyBuildWhenFloatingCreditsAmount?: number
+        protected onlyBuildWhenFloatingCreditsAmount?: number,
     ) {}
 
     getPlacementLocation(
         game: GameApi,
         playerData: PlayerData,
-        technoRules: TechnoRules
+        technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
         return getDefaultPlacementLocation(game, playerData, playerData.startLocation, technoRules);
     }
@@ -21,7 +21,7 @@ export class BasicBuilding implements AiBuildingRules {
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number {
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         const calcMaxCount = this.getMaxCount(game, playerData, technoRules, threatCache);
@@ -29,18 +29,20 @@ export class BasicBuilding implements AiBuildingRules {
             return -100;
         }
 
+        const priority = this.basePriority * (1.0 - numOwned / this.maxNeeded);
+
         if (this.onlyBuildWhenFloatingCreditsAmount && playerData.credits < this.onlyBuildWhenFloatingCreditsAmount) {
-            return -100;
+            return priority * (playerData.credits / this.onlyBuildWhenFloatingCreditsAmount);
         }
 
-        return this.basePriority * (1.0 - numOwned / this.maxNeeded);
+        return priority;
     }
 
     getMaxCount(
         game: GameApi,
         playerData: PlayerData,
         technoRules: TechnoRules,
-        threatCache: GlobalThreat | null
+        threatCache: GlobalThreat | null,
     ): number | null {
         return this.maxNeeded;
     }

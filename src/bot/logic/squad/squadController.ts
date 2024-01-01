@@ -249,7 +249,7 @@ export class SquadController {
     }
 
     // return text to display for global debug
-    public debugSquads(gameApi: GameApi, actionsApi: ActionsApi): string {
+    public getGlobalDebugText(gameApi: GameApi): string {
         const unitsInSquad = (unitIds: number[]) => countBy(unitIds, (unitId) => gameApi.getUnitData(unitId)?.name);
 
         let globalDebugText = "";
@@ -260,12 +260,17 @@ export class SquadController {
                     .map(([unitName, count]) => `${unitName} x ${count}`)
                     .join(", ")}`,
             );
-            squad.getUnitIds().forEach((unitId) => actionsApi.setUnitDebugText(unitId, squad.getName()));
             const squadDebugText = squad.getGlobalDebugText();
             if (squadDebugText) {
                 globalDebugText += squad.getName() + ": " + squadDebugText + "\n";
             }
         });
         return globalDebugText;
+    }
+
+    public updateDebugText(actionsApi: ActionsApi) {
+        this.squads.forEach((squad) => {
+            squad.getUnitIds().forEach((unitId) => actionsApi.setUnitDebugText(unitId, squad.getName()));
+        });
     }
 }

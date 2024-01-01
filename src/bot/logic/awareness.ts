@@ -49,6 +49,8 @@ export interface MatchAwareness {
     shouldAttack(): boolean;
 
     getScoutingManager(): ScoutingManager;
+
+    getGlobalDebugText(): string | undefined;
 }
 
 const SECTORS_TO_UPDATE_PER_CYCLE = 8;
@@ -178,21 +180,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 this.logger(`${Math.round(visibility * 1000.0) / 10}% of tiles visible. Calculating threat.`);
                 // Update the global threat cache
                 this.threatCache = calculateGlobalThreat(game, playerData, visibility);
-                this.logger(
-                    `Threat LAND: Them ${Math.round(this.threatCache.totalOffensiveLandThreat)}, us: ${Math.round(
-                        this.threatCache.totalAvailableAntiGroundFirepower,
-                    )}.`,
-                );
-                this.logger(
-                    `Threat DEFENSIVE: Them ${Math.round(this.threatCache.totalDefensiveThreat)}, us: ${Math.round(
-                        this.threatCache.totalDefensivePower,
-                    )}.`,
-                );
-                this.logger(
-                    `Threat AIR: Them ${Math.round(this.threatCache.totalOffensiveAirThreat)}, us: ${Math.round(
-                        this.threatCache.totalAvailableAntiAirFirepower,
-                    )}.`,
-                );
 
                 // As the game approaches 2 hours, be more willing to attack. (15 ticks per second)
                 const gameLengthFactor = Math.max(0, 1.0 - game.getCurrentTick() / (15 * 7200.0));
@@ -229,5 +216,22 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 0,
             );
         }
+    }
+
+    public getGlobalDebugText(): string | undefined {
+        if (!this.threatCache) {
+            return undefined;
+        }
+        return (
+            `Threat LAND: Them ${Math.round(this.threatCache.totalOffensiveLandThreat)}, us: ${Math.round(
+                this.threatCache.totalAvailableAntiGroundFirepower,
+            )}.\n` +
+            `Threat DEFENSIVE: Them ${Math.round(this.threatCache.totalDefensiveThreat)}, us: ${Math.round(
+                this.threatCache.totalDefensivePower,
+            )}.\n` +
+            `Threat AIR: Them ${Math.round(this.threatCache.totalOffensiveAirThreat)}, us: ${Math.round(
+                this.threatCache.totalAvailableAntiAirFirepower,
+            )}.`
+        );
     }
 }

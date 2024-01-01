@@ -97,8 +97,4 @@ export class MissionController {
     public disbandMission(missionName: string) {
         this.forceDisbandedMissions.push(missionName);
     }
-
-    public logDebugOutput() {
-        this.logger(`Missions (${this.missions.length}): ${this.missions.map((m) => m.getUniqueName()).join(", ")}`);
-    }
 }
