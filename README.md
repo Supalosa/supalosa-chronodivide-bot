@@ -70,6 +70,14 @@ npm run build && DEBUG_LOGGING="action" npx cross-env MIX_DIR="${GAMEPATH}" npm 
 # DEBUG_LOGGING can also be narrowed down to a specific logger, e.g. "action" or "move"
 ```
 
+If you want to render the ingame debug text while watching replays, type the following into the dev console:
+This will debug the bot in the _second_ position. (You cannot debug the first bot, because setting `debug_bot` to `0` will disable debugging).
+
+```
+r.debug_bot = 1;
+r.debug_text = true;
+```
+
 ---
 
 ladder maps: https://github.com/chronodivide/pvpgn-server/blob/26bbbe39613751cff696a73f087ce5b4cd938fc8/conf/bnmaps.conf.in#L321-L328
