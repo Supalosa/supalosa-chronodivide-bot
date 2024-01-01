@@ -3,6 +3,7 @@
 Urgent
 
 -   leader pathfinding
+-   fix spamming of conscript/GI that means the AI never techs up (it keeps cancelling the NARADR/GAAIRC/AMRADR due to low funds)
 
 Medium priority
 
