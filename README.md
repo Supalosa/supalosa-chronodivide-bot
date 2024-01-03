@@ -1,5 +1,7 @@
 # Supalosa's Chrono Divide Bot
 
+[中文版文档](README-CN.md)
+
 [Chrono Divide](https://chronodivide.com/) is a ground-up rebuild of Red Alert 2 in the browser. It is feature-complete and allows for online skirmish play against other players.
 It also provides [an API to build bots](https://discord.com/channels/771701199812558848/842700851520339988), as there is no built-in AI yet.
 
