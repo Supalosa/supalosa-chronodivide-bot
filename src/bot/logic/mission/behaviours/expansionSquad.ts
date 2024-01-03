@@ -1,14 +1,13 @@
-import { ActionsApi, GameApi, OrderType, PlayerData, SideType } from "@chronodivide/game-api";
-import { GlobalThreat } from "../../threat/threat.js";
-import { Squad } from "../squad.js";
-import { SquadAction, SquadBehaviour, disband, noop, requestSpecificUnits, requestUnits } from "../squadBehaviour.js";
+import { ActionsApi, GameApi, OrderType, PlayerData } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
-import { ActionBatcher } from "./actionBatcher.js";
+import { ActionBatcher } from "../actionBatcher.js";
+import { MissionBehaviour } from "../missions/missionBehaviour.js";
+import { Mission, MissionAction, disbandMission, noop, requestSpecificUnits, requestUnits } from "../mission.js";
 
 const DEPLOY_COOLDOWN_TICKS = 30;
 
 // Expansion or initial base.
-export class ExpansionSquad implements SquadBehaviour {
+export class ExpansionSquad implements MissionBehaviour {
     private hasAttemptedDeployWith: {
         unitId: number;
         gameTick: number;
@@ -25,15 +24,15 @@ export class ExpansionSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         actionBatcher: ActionBatcher,
         playerData: PlayerData,
-        squad: Squad,
+        mission: Mission<ExpansionSquad>,
         matchAwareness: MatchAwareness,
-    ): SquadAction {
+    ): MissionAction {
         const mcvTypes = ["AMCV", "SMCV"];
-        const mcvs = squad.getUnitsOfTypes(gameApi, ...mcvTypes);
+        const mcvs = mission.getUnitsOfTypes(gameApi, ...mcvTypes);
         if (mcvs.length === 0) {
             // Perhaps we deployed already (or the unit was destroyed), end the mission.
             if (this.hasAttemptedDeployWith !== null) {
-                return disband();
+                return disbandMission();
             }
             // We need an mcv!
             if (this.selectedMcv) {

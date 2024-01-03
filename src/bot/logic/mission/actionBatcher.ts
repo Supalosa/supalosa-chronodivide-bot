@@ -1,7 +1,7 @@
 // Used to group related actions together to minimise actionApi calls. For example, if multiple units
 
 import { ActionsApi, OrderType, Vector2 } from "@chronodivide/game-api";
-import { groupBy } from "../../common/utils.js";
+import { groupBy } from "../common/utils.js";
 
 // are ordered to move to the same location, all of them will be ordered to move in a single action.
 export type BatchableAction = {

@@ -1,19 +1,9 @@
-import {
-    ApiEventType,
-    Bot,
-    GameApi,
-    ApiEvent,
-    QueueStatus,
-    ObjectType,
-    FactoryType,
-    Size,
-} from "@chronodivide/game-api";
+import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, Size } from "@chronodivide/game-api";
 
 import { determineMapBounds } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
 import { MissionController } from "./logic/mission/missionController.js";
-import { SquadController } from "./logic/squad/squadController.js";
-import { QUEUES, QueueController, queueTypeToName } from "./logic/building/queueController.js";
+import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { formatTimeDuration } from "./logic/common/utils.js";
 
@@ -27,7 +17,6 @@ export class SupalosaBot extends Bot {
     private tickRatio?: number;
     private knownMapBounds: Size | undefined;
     private missionController: MissionController;
-    private squadController: SquadController;
     private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
 
@@ -41,7 +30,6 @@ export class SupalosaBot extends Bot {
     ) {
         super(name, country);
         this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
-        this.squadController = new SquadController((message, sayInGame) => this.logBotStatus(message, sayInGame));
         this.queueController = new QueueController();
     }
 
@@ -115,14 +103,9 @@ export class SupalosaBot extends Bot {
                 (message) => this.logBotStatus(message),
             );
 
-            // Mission logic every 6 ticks
-            if (this.gameApi.getCurrentTick() % 6 === 0) {
-                this.missionController.onAiUpdate(game, myPlayer, this.matchAwareness, this.squadController);
-            }
-
-            // Squad logic every 3 ticks
+            // Mission logic every 3 ticks
             if (this.gameApi.getCurrentTick() % 3 === 0) {
-                this.squadController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
+                this.missionController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
             }
         }
     }
@@ -152,10 +135,10 @@ export class SupalosaBot extends Bot {
 
         let globalDebugText = `Cash: ${myPlayer.credits} | Harvesters: ${harvesters}\n`;
         globalDebugText += this.queueController.getGlobalDebugText(this.gameApi, this.productionApi);
-        globalDebugText += this.squadController.getGlobalDebugText(this.gameApi);
+        globalDebugText += this.missionController.getGlobalDebugText(this.gameApi);
         globalDebugText += this.matchAwareness?.getGlobalDebugText();
 
-        this.squadController.updateDebugText(this.actionsApi);
+        this.missionController.updateDebugText(this.actionsApi);
 
         // Tag enemy units with IDs
         game.getVisibleUnits(this.name, "hostile").forEach((unitId) => {

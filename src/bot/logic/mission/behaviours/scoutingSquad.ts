@@ -1,11 +1,11 @@
 import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
-import { Squad } from "../squad.js";
-import { SquadAction, SquadBehaviour, disband, noop, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
 import { DebugLogger } from "../../common/utils.js";
 import { getDistanceBetweenTileAndPoint } from "../../map/map.js";
 import { PrioritisedScoutTarget } from "../../common/scout.js";
-import { ActionBatcher } from "./actionBatcher.js";
+import { ActionBatcher } from "../actionBatcher.js";
+import { MissionBehaviour } from "../missions/missionBehaviour.js";
+import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -16,7 +16,7 @@ const MAX_ATTEMPTS_PER_TARGET = 5;
 // Every time a unit gets closer to the target, the timer refreshes.
 const MAX_TICKS_PER_TARGET = 600;
 
-export class ScoutingSquad implements SquadBehaviour {
+export class ScoutingSquad implements MissionBehaviour {
     private scoutTarget: Vector2 | null = null;
     private attemptsOnCurrentTarget: number = 0;
     private scoutTargetRefreshedAt: number = 0;
@@ -33,15 +33,15 @@ export class ScoutingSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         actionBatcher: ActionBatcher,
         playerData: PlayerData,
-        squad: Squad,
+        mission: Mission<ScoutingSquad>,
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
-    ): SquadAction {
+    ): MissionAction {
         const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
-        const scouts = squad.getUnitsOfTypes(gameApi, ...scoutNames);
+        const scouts = mission.getUnitsOfTypes(gameApi, ...scoutNames);
 
         if ((matchAwareness.getSectorCache().getOverallVisibility() || 0) > 0.9) {
-            return disband();
+            return disbandMission();
         }
 
         if (scouts.length === 0) {
@@ -97,7 +97,7 @@ export class ScoutingSquad implements SquadBehaviour {
             const nextScoutTarget = matchAwareness.getScoutingManager().getNewScoutTarget();
             if (!nextScoutTarget) {
                 logger(`No more scouting targets available, disbanding.`);
-                return disband();
+                return disbandMission();
             }
             this.setScoutTarget(nextScoutTarget, gameApi.getCurrentTick());
         }

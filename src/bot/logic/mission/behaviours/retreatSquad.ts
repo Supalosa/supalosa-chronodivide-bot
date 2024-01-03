@@ -1,13 +1,12 @@
 import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
-import { GlobalThreat } from "../../threat/threat.js";
-import { Squad } from "../squad.js";
-import { SquadAction, SquadBehaviour, disband, noop, requestSpecificUnits, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
-import { ActionBatcher } from "./actionBatcher.js";
+import { ActionBatcher } from "../actionBatcher.js";
+import { MissionBehaviour } from "../missions/missionBehaviour.js";
+import { Mission, MissionAction, disbandMission, requestSpecificUnits } from "../mission.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
-export class RetreatSquad implements SquadBehaviour {
+export class RetreatSquad implements MissionBehaviour {
     private createdAt: number | null = null;
 
     constructor(
@@ -20,25 +19,25 @@ export class RetreatSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         actionBatcher: ActionBatcher,
         playerData: PlayerData,
-        squad: Squad,
+        mission: Mission<RetreatSquad>,
         matchAwareness: MatchAwareness,
-    ): SquadAction {
+    ): MissionAction {
         if (!this.createdAt) {
             this.createdAt = gameApi.getCurrentTick();
         }
-        if (squad.getUnitIds().length > 0) {
+        if (mission.getUnitIds().length > 0) {
             // Only send the order once we have managed to claim some units.
             actionsApi.orderUnits(
-                squad.getUnitIds(),
+                mission.getUnitIds(),
                 OrderType.AttackMove,
                 this.retreatToPoint.x,
                 this.retreatToPoint.y,
             );
-            return disband();
+            return disbandMission();
         }
         if (this.createdAt && gameApi.getCurrentTick() > this.createdAt + 240) {
             // Disband automatically after 240 ticks in case we couldn't actually claim any units.
-            return disband();
+            return disbandMission();
         } else {
             return requestSpecificUnits(this.unitIds, 1000);
         }

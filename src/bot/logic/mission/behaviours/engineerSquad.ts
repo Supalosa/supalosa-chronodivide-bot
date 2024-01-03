@@ -1,13 +1,13 @@
 import { ActionsApi, GameApi, OrderType, PlayerData, SideType } from "@chronodivide/game-api";
-import { Squad } from "../squad.js";
-import { SquadAction, SquadBehaviour, disband, noop, requestSpecificUnits, requestUnits } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
-import { ActionBatcher } from "./actionBatcher.js";
+import { ActionBatcher } from "../actionBatcher.js";
+import { MissionBehaviour } from "../missions/missionBehaviour.js";
+import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 
 const CAPTURE_COOLDOWN_TICKS = 30;
 
 // Capture squad
-export class EngineerSquad implements SquadBehaviour {
+export class EngineerSquad implements MissionBehaviour {
     private hasAttemptedCaptureWith: {
         unitId: number;
         gameTick: number;
@@ -23,15 +23,15 @@ export class EngineerSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         actionBatcher: ActionBatcher,
         playerData: PlayerData,
-        squad: Squad,
+        mission: Mission<EngineerSquad>,
         matchAwareness: MatchAwareness,
-    ): SquadAction {
+    ): MissionAction {
         const engineerTypes = ["ENGINEER", "SENGINEER"];
-        const engineers = squad.getUnitsOfTypes(gameApi, ...engineerTypes);
+        const engineers = mission.getUnitsOfTypes(gameApi, ...engineerTypes);
         if (engineers.length === 0) {
             // Perhaps we deployed already (or the unit was destroyed), end the mission.
             if (this.hasAttemptedCaptureWith !== null) {
-                return disband();
+                return disbandMission();
             }
             return requestUnits(engineerTypes, 100);
         } else if (

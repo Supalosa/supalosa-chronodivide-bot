@@ -1,9 +1,8 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
-import { GlobalThreat } from "../../threat/threat.js";
 import { Mission } from "../mission.js";
-import { ExpansionSquad } from "../../squad/behaviours/expansionSquad.js";
+import { ExpansionSquad } from "../behaviours/expansionSquad.js";
 import { MissionFactory } from "../missionFactories.js";
-import { OneTimeMission } from "./oneTimeMission.js";
+import { OneTimeMission } from "./basicMission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger } from "../../common/utils.js";
@@ -11,10 +10,9 @@ import { DebugLogger } from "../../common/utils.js";
 /**
  * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.
  */
-export class ExpansionMission extends OneTimeMission {
-    constructor(uniqueName: string, priority: number, selectedMcv: number | null, 
-        logger: DebugLogger) {
-        super(uniqueName, priority, () => new ExpansionSquad(selectedMcv), logger);
+export class ExpansionMission extends OneTimeMission<ExpansionSquad> {
+    constructor(uniqueName: string, priority: number, selectedMcv: number | null, logger: DebugLogger) {
+        super(uniqueName, priority, new ExpansionSquad(selectedMcv), logger);
     }
 }
 
@@ -28,11 +26,11 @@ export class ExpansionMissionFactory implements MissionFactory {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
-        logger: DebugLogger
+        logger: DebugLogger,
     ): void {
         // At this point, only expand if we have a loose MCV.
         const mcvs = gameApi.getVisibleUnits(playerData.name, "self", (r) =>
-            gameApi.getGeneralRules().baseUnit.includes(r.name)
+            gameApi.getGeneralRules().baseUnit.includes(r.name),
         );
         mcvs.forEach((mcv) => {
             missionController.addMission(new ExpansionMission("expand-with-" + mcv, 100, mcv, logger));
@@ -43,9 +41,8 @@ export class ExpansionMissionFactory implements MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        failedMission: Mission,
+        failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,
-    ): void {
-    }
+    ): void {}
 }
