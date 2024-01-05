@@ -13,7 +13,7 @@ export abstract class OneTimeMission<T extends MissionBehaviour, U = undefined> 
         super(uniqueName, priority, behaviour, logger);
     }
 
-    onAiUpdate(
+    _onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,

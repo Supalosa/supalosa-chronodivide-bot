@@ -47,7 +47,7 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
     ) {}
 
     // TODO call this
-    protected todoUpdateCentreOfMass(gameApi: GameApi) {
+    protected updateCenterOfMass(gameApi: GameApi) {
         const movableUnitTiles = this.unitIds
             .map((unitId) => gameApi.getUnitData(unitId))
             .filter((unit) => unit?.canMove)
@@ -67,19 +67,19 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
         return this.behaviour;
     }
 
-    // TODO: fix this weird indirection
-    public publicOnAiUpdate(
+    public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
-        this.todoUpdateCentreOfMass(gameApi);
-        return this.onAiUpdate(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+        this.updateCenterOfMass(gameApi);
+        return this._onAiUpdate(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
     }
 
-    abstract onAiUpdate(
+    // TODO: fix this weird indirection
+    abstract _onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,

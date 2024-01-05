@@ -3,7 +3,6 @@ import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
-import { Squad } from "../../squad/squad.js";
 import { CombatSquad } from "../behaviours/combatSquad.js";
 import { RetreatMission } from "./retreatMission.js";
 import { DebugLogger } from "../../common/utils.js";
@@ -28,7 +27,7 @@ export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
         super(uniqueName, priority, new CombatSquad(rallyArea, defenceArea, radius), logger);
     }
 
-    onAiUpdate(
+    _onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,

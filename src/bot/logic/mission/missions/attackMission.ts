@@ -1,7 +1,6 @@
 import { ActionsApi, GameApi, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { CombatSquad } from "../behaviours/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
-import { Squad } from "../../squad/squad.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
@@ -35,7 +34,7 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
         super(uniqueName, priority, new CombatSquad(rallyArea, attackArea, radius), logger);
     }
 
-    onAiUpdate(
+    _onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,

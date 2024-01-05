@@ -6,7 +6,6 @@ import { MatchAwareness } from "../../awareness.js";
 import { Mission } from "../mission.js";
 import { AttackMission } from "./attackMission.js";
 import { MissionController } from "../missionController.js";
-import { getUnseenStartingLocations } from "../../common/scout.js";
 import { DebugLogger } from "../../common/utils.js";
 
 /**
