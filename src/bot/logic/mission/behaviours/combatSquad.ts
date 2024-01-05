@@ -1,10 +1,10 @@
 import { ActionsApi, GameApi, GameMath, MovementZone, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
-import { Squad } from "../squad.js";
-import { SquadAction, SquadBehaviour, grabCombatants, noop } from "../squadBehaviour.js";
 import { MatchAwareness } from "../../awareness.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
 import { DebugLogger, maxBy } from "../../common/utils.js";
-import { ActionBatcher } from "./actionBatcher.js";
+import { ActionBatcher } from "../actionBatcher.js";
+import { MissionBehaviour } from "../missions/missionBehaviour.js";
+import { Mission, MissionAction, grabCombatants, noop } from "../mission.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 const GRAB_INTERVAL_TICKS = 10;
@@ -25,7 +25,7 @@ enum SquadState {
     Attacking,
 }
 
-export class CombatSquad implements SquadBehaviour {
+export class CombatSquad implements MissionBehaviour {
     private lastGrab: number | null = null;
     private lastCommand: number | null = null;
     private state = SquadState.Gathering;
@@ -57,21 +57,21 @@ export class CombatSquad implements SquadBehaviour {
         actionsApi: ActionsApi,
         actionBatcher: ActionBatcher,
         playerData: PlayerData,
-        squad: Squad,
+        mission: Mission<CombatSquad, any>,
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
-    ): SquadAction {
+    ): MissionAction {
         if (
-            squad.getUnitIds().length > 0 &&
+            mission.getUnitIds().length > 0 &&
             (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
         ) {
             this.lastCommand = gameApi.getCurrentTick();
-            const centerOfMass = squad.getCenterOfMass();
-            const maxDistance = squad.getMaxDistanceToCenterOfMass();
-            const units = squad.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
+            const centerOfMass = mission.getCenterOfMass();
+            const maxDistance = mission.getMaxDistanceToCenterOfMass();
+            const units = mission.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
 
             // Only use ground units for center of mass.
-            const groundUnits = squad.getUnitsMatching(
+            const groundUnits = mission.getUnitsMatching(
                 gameApi,
                 (r) =>
                     r.rules.isSelectableCombatant &&
@@ -92,7 +92,7 @@ export class CombatSquad implements SquadBehaviour {
                         actionBatcher.push(manageMoveMicro(unit, centerOfMass));
                     });
                 } else {
-                    logger(`CombatSquad ${squad.getName()} switching back to attack mode (${maxDistance})`);
+                    logger(`CombatSquad ${mission.getUniqueName()} switching back to attack mode (${maxDistance})`);
                     this.state = SquadState.Attacking;
                 }
             } else {
@@ -105,7 +105,7 @@ export class CombatSquad implements SquadBehaviour {
                     maxDistance > requiredGatherRadius
                 ) {
                     // Switch back to gather mode
-                    logger(`CombatSquad ${squad.getName()} switching back to gather (${maxDistance})`);
+                    logger(`CombatSquad ${mission.getUniqueName()} switching back to gather (${maxDistance})`);
                     this.state = SquadState.Gathering;
                     return noop();
                 }
@@ -129,7 +129,7 @@ export class CombatSquad implements SquadBehaviour {
 
         if (!this.lastGrab || gameApi.getCurrentTick() > this.lastGrab + GRAB_INTERVAL_TICKS) {
             this.lastGrab = gameApi.getCurrentTick();
-            return grabCombatants(squad.getCenterOfMass() ?? this.rallyArea, GRAB_RADIUS);
+            return grabCombatants(mission.getCenterOfMass() ?? this.rallyArea, GRAB_RADIUS);
         } else {
             return noop();
         }

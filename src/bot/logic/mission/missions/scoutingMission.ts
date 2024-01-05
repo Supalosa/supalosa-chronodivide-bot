@@ -1,21 +1,19 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
-import { ScoutingSquad } from "../../squad/behaviours/scoutingSquad.js";
+import { ScoutingSquad } from "../behaviours/scoutingSquad.js";
 import { MissionFactory } from "../missionFactories.js";
-import { OneTimeMission } from "./oneTimeMission.js";
+import { OneTimeMission } from "./basicMission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { Mission } from "../mission.js";
 import { AttackMission } from "./attackMission.js";
 import { MissionController } from "../missionController.js";
-import { getUnseenStartingLocations } from "../../common/scout.js";
 import { DebugLogger } from "../../common/utils.js";
 
 /**
  * A mission that tries to scout around the map with a cheap, fast unit (usually attack dogs)
  */
-export class ScoutingMission extends OneTimeMission {
-    constructor(uniqueName: string, priority: number, 
-        logger: DebugLogger) {
-        super(uniqueName, priority, () => new ScoutingSquad(), logger);
+export class ScoutingMission extends OneTimeMission<ScoutingSquad> {
+    constructor(uniqueName: string, priority: number, logger: DebugLogger) {
+        super(uniqueName, priority, new ScoutingSquad(), logger);
     }
 }
 
@@ -33,7 +31,7 @@ export class ScoutingMissionFactory implements MissionFactory {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
-        logger: DebugLogger
+        logger: DebugLogger,
     ): void {
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
             return;
@@ -50,10 +48,10 @@ export class ScoutingMissionFactory implements MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        failedMission: Mission,
+        failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,
-        logger: DebugLogger
+        logger: DebugLogger,
     ): void {
         if (failedMission instanceof AttackMission) {
             missionController.addMission(new ScoutingMission("globalScout", 100, logger));

@@ -25,7 +25,7 @@ export interface MissionFactory {
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
-        logger: DebugLogger
+        logger: DebugLogger,
     ): void;
 
     /**
@@ -35,10 +35,10 @@ export interface MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        failedMission: Mission,
+        failedMission: Mission<any, any>,
         failureReason: any,
         missionController: MissionController,
-        logger: DebugLogger
+        logger: DebugLogger,
     ): void;
 }
 

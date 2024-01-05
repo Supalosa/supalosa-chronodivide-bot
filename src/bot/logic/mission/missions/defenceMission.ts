@@ -1,12 +1,12 @@
-import { GameApi, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
-import { Squad } from "../../squad/squad.js";
-import { CombatSquad } from "../../squad/behaviours/combatSquad.js";
+import { CombatSquad } from "../behaviours/combatSquad.js";
 import { RetreatMission } from "./retreatMission.js";
 import { DebugLogger } from "../../common/utils.js";
+import { ActionBatcher } from "../actionBatcher.js";
 
 export enum DefenceFailReason {
     NoTargets,
@@ -15,39 +15,53 @@ export enum DefenceFailReason {
 /**
  * A mission that tries to defend a certain area.
  */
-export class DefenceMission extends Mission<DefenceFailReason> {
-    private combatSquad?: CombatSquad;
-
+export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
     constructor(
         uniqueName: string,
         priority: number,
+        rallyArea: Vector2,
         private defenceArea: Vector2,
         private radius: number,
         logger: DebugLogger,
     ) {
-        super(uniqueName, priority, logger);
+        super(uniqueName, priority, new CombatSquad(rallyArea, defenceArea, radius), logger);
     }
 
-    onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction {
-        if (this.getSquad() === null && !this.combatSquad) {
-            this.combatSquad = new CombatSquad(matchAwareness.getMainRallyPoint(), this.defenceArea, this.radius);
-            return this.setSquad(new Squad("defenceSquad-" + this.getUniqueName(), this.combatSquad, this));
-        } else {
-            // Dispatch missions.
-            const foundTargets = matchAwareness.getHostilesNearPoint2d(this.defenceArea, this.radius);
+    _onAiUpdate(
+        gameApi: GameApi,
+        actionsApi: ActionsApi,
+        playerData: PlayerData,
+        matchAwareness: MatchAwareness,
+        actionBatcher: ActionBatcher,
+    ): MissionAction {
+        // Dispatch missions.
+        const foundTargets = matchAwareness.getHostilesNearPoint2d(this.defenceArea, this.radius);
 
-            if (foundTargets.length === 0) {
-                this.logger(`(Defence Mission ${this.getUniqueName()}): No targets found, disbanding.`);
-                return disbandMission(DefenceFailReason.NoTargets);
-            } else {
-                const targetUnit = gameApi.getUnitData(foundTargets[0].unitId);
-                this.logger(
-                    `(Defence Mission ${this.getUniqueName()}): Focused on target ${targetUnit?.name} (${
-                        foundTargets.length
-                    } found in area ${this.radius})`,
-                );
-                this.combatSquad?.setAttackArea(new Vector2(foundTargets[0].x, foundTargets[0].y));
-            }
+        const update = this.getBehaviour.onAiUpdate(
+            gameApi,
+            actionsApi,
+            actionBatcher,
+            playerData,
+            this,
+            matchAwareness,
+            this.logger,
+        );
+
+        if (update.type !== "noop") {
+            return update;
+        }
+
+        if (foundTargets.length === 0) {
+            this.logger(`(Defence Mission ${this.getUniqueName()}): No targets found, disbanding.`);
+            return disbandMission(DefenceFailReason.NoTargets);
+        } else {
+            const targetUnit = gameApi.getUnitData(foundTargets[0].unitId);
+            this.logger(
+                `(Defence Mission ${this.getUniqueName()}): Focused on target ${targetUnit?.name} (${
+                    foundTargets.length
+                } found in area ${this.radius})`,
+            );
+            this.getBehaviour.setAttackArea(new Vector2(foundTargets[0].x, foundTargets[0].y));
         }
         return noop();
     }
@@ -95,16 +109,17 @@ export class DefenceMissionFactory implements MissionFactory {
                 new DefenceMission(
                     "globalDefence",
                     1000,
+                    matchAwareness.getMainRallyPoint(),
                     playerData.startLocation,
                     defendableRadius * 1.2,
                     logger,
-                ).then((reason, squad) => {
+                ).then((unitIds, squad) => {
                     missionController.addMission(
                         new RetreatMission(
                             "retreat-from-globalDefence" + gameApi.getCurrentTick(),
                             100,
                             matchAwareness.getMainRallyPoint(),
-                            squad?.getUnitIds() ?? [],
+                            unitIds,
                             logger,
                         ),
                     );
@@ -117,7 +132,7 @@ export class DefenceMissionFactory implements MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        failedMission: Mission,
+        failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,
     ): void {}

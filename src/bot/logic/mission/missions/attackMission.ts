@@ -1,12 +1,12 @@
-import { GameApi, GameMath, MapApi, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
-import { CombatSquad } from "../../squad/behaviours/combatSquad.js";
+import { ActionsApi, GameApi, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { CombatSquad } from "../behaviours/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
-import { Squad } from "../../squad/squad.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { RetreatMission } from "./retreatMission.js";
 import { DebugLogger, maxBy } from "../../common/utils.js";
+import { ActionBatcher } from "../actionBatcher.js";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -19,9 +19,8 @@ const NO_TARGET_IDLE_TIMEOUT_TICKS = 900;
 /**
  * A mission that tries to attack a certain area.
  */
-export class AttackMission extends Mission<AttackFailReason> {
+export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
     private lastTargetSeenAt = 0;
-    private behaviour: CombatSquad | undefined;
     private hasPickedNewTarget: boolean = false;
 
     constructor(
@@ -32,35 +31,51 @@ export class AttackMission extends Mission<AttackFailReason> {
         private radius: number,
         logger: DebugLogger,
     ) {
-        super(uniqueName, priority, logger);
+        super(uniqueName, priority, new CombatSquad(rallyArea, attackArea, radius), logger);
     }
 
-    onAiUpdate(gameApi: GameApi, playerData: PlayerData, matchAwareness: MatchAwareness): MissionAction {
-        if (this.getSquad() === null) {
-            this.behaviour = new CombatSquad(this.rallyArea, this.attackArea, this.radius);
-            return this.setSquad(new Squad(this.getUniqueName(), this.behaviour, this));
-        } else {
-            // Dispatch missions.
-            if (!matchAwareness.shouldAttack()) {
-                return disbandMission(AttackFailReason.DefenceTooStrong);
-            }
+    _onAiUpdate(
+        gameApi: GameApi,
+        actionsApi: ActionsApi,
+        playerData: PlayerData,
+        matchAwareness: MatchAwareness,
+        actionBatcher: ActionBatcher,
+    ): MissionAction {
+        // Dispatch missions.
+        if (!matchAwareness.shouldAttack()) {
+            return disbandMission(AttackFailReason.DefenceTooStrong);
+        }
 
-            const foundTargets = matchAwareness.getHostilesNearPoint2d(this.attackArea, this.radius);
+        const foundTargets = matchAwareness.getHostilesNearPoint2d(this.attackArea, this.radius);
 
-            if (foundTargets.length > 0) {
-                this.lastTargetSeenAt = gameApi.getCurrentTick();
-                this.hasPickedNewTarget = false;
-            } else if (gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_IDLE_TIMEOUT_TICKS) {
-                return disbandMission(AttackFailReason.NoTargets);
-            } else if (
-                !this.hasPickedNewTarget &&
-                gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_RETARGET_TICKS
-            ) {
-                const newTarget = generateTarget(gameApi, playerData, matchAwareness);
-                if (newTarget) {
-                    this.behaviour?.setAttackArea(newTarget);
-                    this.hasPickedNewTarget = true;
-                }
+        // TODO: maybe we don't need the Behaviour indirection anymore.
+        const update = this.getBehaviour.onAiUpdate(
+            gameApi,
+            actionsApi,
+            actionBatcher,
+            playerData,
+            this,
+            matchAwareness,
+            this.logger,
+        );
+
+        if (update.type !== "noop") {
+            return update;
+        }
+
+        if (foundTargets.length > 0) {
+            this.lastTargetSeenAt = gameApi.getCurrentTick();
+            this.hasPickedNewTarget = false;
+        } else if (gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_IDLE_TIMEOUT_TICKS) {
+            return disbandMission(AttackFailReason.NoTargets);
+        } else if (
+            !this.hasPickedNewTarget &&
+            gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_RETARGET_TICKS
+        ) {
+            const newTarget = generateTarget(gameApi, playerData, matchAwareness);
+            if (newTarget) {
+                this.getBehaviour.setAttackArea(newTarget);
+                this.hasPickedNewTarget = true;
             }
         }
         return noop();
@@ -171,13 +186,13 @@ export class AttackMissionFactory implements MissionFactory {
                 attackArea,
                 attackRadius,
                 logger,
-            ).then((reason, squad) => {
+            ).then((unitIds, reason) => {
                 missionController.addMission(
                     new RetreatMission(
                         "retreat-from-" + squadName + gameApi.getCurrentTick(),
                         100,
                         matchAwareness.getMainRallyPoint(),
-                        squad?.getUnitIds() ?? [],
+                        unitIds,
                         logger,
                     ),
                 );
@@ -192,7 +207,7 @@ export class AttackMissionFactory implements MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        failedMission: Mission,
+        failedMission: Mission<any, any>,
         failureReason: any,
         missionController: MissionController,
     ): void {}
