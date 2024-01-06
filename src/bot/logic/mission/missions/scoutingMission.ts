@@ -1,7 +1,7 @@
 import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { ScoutingSquad } from "../behaviours/scoutingSquad.js";
 import { MissionFactory } from "../missionFactories.js";
-import { OneTimeMission } from "./basicMission.js";
+import { BasicMission } from "./basicMission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { Mission } from "../mission.js";
 import { AttackMission } from "./attackMission.js";
@@ -11,7 +11,7 @@ import { DebugLogger } from "../../common/utils.js";
 /**
  * A mission that tries to scout around the map with a cheap, fast unit (usually attack dogs)
  */
-export class ScoutingMission extends OneTimeMission<ScoutingSquad> {
+export class ScoutingMission extends BasicMission<ScoutingSquad> {
     constructor(uniqueName: string, priority: number, logger: DebugLogger) {
         super(uniqueName, priority, new ScoutingSquad(), logger);
     }

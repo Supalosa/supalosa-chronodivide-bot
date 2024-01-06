@@ -3,7 +3,7 @@ import { GlobalThreat } from "../../threat/threat.js";
 import { Mission } from "../mission.js";
 import { ExpansionSquad } from "../behaviours/expansionSquad.js";
 import { MissionFactory } from "../missionFactories.js";
-import { OneTimeMission } from "./basicMission.js";
+import { BasicMission } from "./basicMission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger } from "../../common/utils.js";
@@ -12,7 +12,7 @@ import { EngineerSquad } from "../behaviours/engineerSquad.js";
 /**
  * A mission that tries to send an engineer into a building (e.g. to capture tech building or repair bridge)
  */
-export class EngineerMission extends OneTimeMission<EngineerSquad> {
+export class EngineerMission extends BasicMission<EngineerSquad> {
     constructor(uniqueName: string, priority: number, selectedTechBuilding: number, logger: DebugLogger) {
         super(uniqueName, priority, new EngineerSquad(selectedTechBuilding), logger);
     }
