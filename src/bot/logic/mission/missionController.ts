@@ -66,7 +66,7 @@ export class MissionController {
         // Poll missions for requested actions.
         const missionActions: MissionWithAction<any>[] = this.missions.map((mission) => ({
             mission,
-            action: mission.publicOnAiUpdate(gameApi, actionsApi, playerData, matchAwareness, actionBatcher),
+            action: mission.onAiUpdate(gameApi, actionsApi, playerData, matchAwareness, actionBatcher),
         }));
 
         // Handle disbands and merges.

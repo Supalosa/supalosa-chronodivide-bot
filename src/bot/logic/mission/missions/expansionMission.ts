@@ -2,7 +2,7 @@ import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { Mission } from "../mission.js";
 import { ExpansionSquad } from "../behaviours/expansionSquad.js";
 import { MissionFactory } from "../missionFactories.js";
-import { OneTimeMission } from "./basicMission.js";
+import { BasicMission } from "./basicMission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger } from "../../common/utils.js";
@@ -10,7 +10,7 @@ import { DebugLogger } from "../../common/utils.js";
 /**
  * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.
  */
-export class ExpansionMission extends OneTimeMission<ExpansionSquad> {
+export class ExpansionMission extends BasicMission<ExpansionSquad> {
     constructor(uniqueName: string, priority: number, selectedMcv: number | null, logger: DebugLogger) {
         super(uniqueName, priority, new ExpansionSquad(selectedMcv), logger);
     }
