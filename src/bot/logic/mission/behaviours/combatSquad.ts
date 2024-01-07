@@ -1,7 +1,7 @@
 import { ActionsApi, GameApi, GameMath, MovementZone, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
-import { DebugLogger, maxBy } from "../../common/utils.js";
+import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { MissionBehaviour } from "../missions/missionBehaviour.js";
 import { Mission, MissionAction, grabCombatants, noop } from "../mission.js";
@@ -109,12 +109,20 @@ export class CombatSquad implements MissionBehaviour {
                     this.state = SquadState.Gathering;
                     return noop();
                 }
+                // The unit with the shortest range chooses the target. Otherwise, a base range of 5 is chosen.
+                const getRangeForUnit = (unit: UnitData) =>
+                    unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
+                const attackLeader = minBy(units, getRangeForUnit);
+                if (!attackLeader) {
+                    return noop();
+                }
+                // Find units within double the range of the leader.
+                const nearbyHostiles = matchAwareness
+                    .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, getRangeForUnit(attackLeader) * 2)
+                    .map(({ unitId }) => gameApi.getUnitData(unitId))
+                    .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
+
                 for (const unit of units) {
-                    const { rx: x, ry: y } = unit.tile;
-                    const range = unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
-                    const nearbyHostiles = matchAwareness
-                        .getHostilesNearPoint(x, y, range * 2)
-                        .map(({ unitId }) => gameApi.getUnitData(unitId)) as UnitData[];
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
                         actionBatcher.push(manageAttackMicro(unit, bestUnit));

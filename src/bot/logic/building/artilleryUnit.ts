@@ -24,6 +24,8 @@ export class ArtilleryUnit implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | null,
     ): number {
+        // disabled
+        return 0; /*
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         let priority = this.basePriority;
         // If the enemy's defensive power is increasing we will start to build these.
@@ -51,7 +53,7 @@ export class ArtilleryUnit implements AiBuildingRules {
                     (numOwned + 1);
             }
         }
-        return priority * (1.0 - numOwned / this.baseAmount);
+        return priority * (1.0 - numOwned / this.baseAmount);*/
     }
 
     getMaxCount(

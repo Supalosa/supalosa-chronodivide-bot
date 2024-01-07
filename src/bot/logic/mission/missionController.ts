@@ -1,7 +1,7 @@
 // Meta-controller for forming and controlling missions.
 // Missions are groups of zero or more units that aim to accomplish a particular goal.
 
-import { ActionsApi, GameApi, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import {
     Mission,
     MissionAction,
@@ -13,7 +13,7 @@ import {
 import { MatchAwareness } from "../awareness.js";
 import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 import { ActionBatcher } from "./actionBatcher.js";
-import { countBy } from "../common/utils.js";
+import { countBy, isSelectableCombatant } from "../common/utils.js";
 import { MissionBehaviour } from "./missions/missionBehaviour.js";
 
 // `missingUnitTypes` priority decays by this much every update loop.
@@ -44,17 +44,22 @@ export class MissionController {
         this.missionFactories = createMissionFactories();
     }
 
-    private resetUnitIdMap() {
+    private updateUnitIds(gameApi: GameApi) {
         // Check for units in multiple missions, this shouldn't happen.
         this.unitIdToMission = new Map();
         this.missions.forEach((mission) => {
+            const toRemove: number[] = [];
             mission.getUnitIds().forEach((unitId) => {
                 if (this.unitIdToMission.has(unitId)) {
                     this.logger(`WARNING: unit ${unitId} is in multiple missions, please debug.`);
+                } else if (!gameApi.getGameObjectData(unitId)) {
+                    // say, if a unit was killed
+                    toRemove.push(unitId);
                 } else {
                     this.unitIdToMission.set(unitId, mission);
                 }
             });
+            toRemove.forEach((unitId) => mission.removeUnit(unitId));
         });
     }
 
@@ -67,7 +72,7 @@ export class MissionController {
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
 
-        this.resetUnitIdMap();
+        this.updateUnitIds(gameApi);
 
         // Batch actions to reduce spamming of actions for larger armies.
         const actionBatcher = new ActionBatcher();
@@ -123,7 +128,7 @@ export class MissionController {
         const newMissionAssignments = Object.entries(unitIdToHighestRequest)
             .flatMap(([id, request]) => {
                 const unitId = Number.parseInt(id);
-                const unit = gameApi.getUnitData(unitId);
+                const unit = gameApi.getGameObjectData(unitId);
                 const { mission: requestingMission } = request;
                 const missionName = requestingMission.getUniqueName();
                 if (!unit) {
@@ -188,7 +193,7 @@ export class MissionController {
         // Find un-assigned units and distribute them among all the requesting missions.
         const unitIds = gameApi.getVisibleUnits(playerData.name, "self");
         const freeUnits = unitIds
-            .map((unitId) => gameApi.getUnitData(unitId))
+            .map((unitId) => gameApi.getGameObjectData(unitId))
             .filter((unit) => !!unit && !this.unitIdToMission.has(unit.id || 0))
             .map((unit) => unit!);
 
@@ -207,8 +212,9 @@ export class MissionController {
                     ] as AssignmentWithType[];
                 } else if (grabRequests.length > 0) {
                     const grantedMission = grabRequests.find((request) => {
+                        const canGrabUnit = isSelectableCombatant(freeUnit);
                         return (
-                            freeUnit.rules.isSelectableCombatant &&
+                            canGrabUnit &&
                             request.action.point.distanceTo(new Vector2(freeUnit.tile.rx, freeUnit.tile.ry)) <=
                                 request.action.radius
                         );
@@ -311,7 +317,7 @@ export class MissionController {
         return this.requestedUnitTypes;
     }
 
-    private addUnitToMission(mission: Mission<any, any>, unit: UnitData) {
+    private addUnitToMission(mission: Mission<any, any>, unit: GameObjectData) {
         mission.addUnit(unit.id);
         this.unitIdToMission.set(unit.id, mission);
     }
@@ -340,7 +346,8 @@ export class MissionController {
 
     // return text to display for global debug
     public getGlobalDebugText(gameApi: GameApi): string {
-        const unitsInMission = (unitIds: number[]) => countBy(unitIds, (unitId) => gameApi.getUnitData(unitId)?.name);
+        const unitsInMission = (unitIds: number[]) =>
+            countBy(unitIds, (unitId) => gameApi.getGameObjectData(unitId)?.name);
 
         let globalDebugText = "";
 
@@ -360,7 +367,9 @@ export class MissionController {
 
     public updateDebugText(actionsApi: ActionsApi) {
         this.missions.forEach((mission) => {
-            mission.getUnitIds().forEach((unitId) => actionsApi.setUnitDebugText(unitId, mission.getUniqueName()));
+            mission
+                .getUnitIds()
+                .forEach((unitId) => actionsApi.setUnitDebugText(unitId, `${unitId}: ${mission.getUniqueName()}`));
         });
     }
 }

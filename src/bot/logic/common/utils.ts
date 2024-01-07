@@ -1,8 +1,20 @@
+import { GameObjectData, TechnoRules, UnitData } from "@chronodivide/game-api";
+
 export type DebugLogger = (message: string, sayInGame?: boolean) => void;
 
 const SOVIET_COUNTRY_NAMES = ["Africans", "Arabs", "Confederation", "Russians"];
 
 export const isSoviet = (countryName: string) => SOVIET_COUNTRY_NAMES.includes(countryName);
+
+export const isOwnedByNeutral = (unitData: UnitData | undefined) => unitData?.owner === "@@NEUTRAL@@";
+
+// TODO: this is not totally correct. It does not apply for garrisoned buildings.
+export const isPlayerOwnedTechnoRules = (rules: TechnoRules | undefined) => !!rules && rules?.techLevel > 0;
+
+// Return if the given unit would have .isSelectableCombatant = true.
+// Usable on GameObjectData (which is faster to get than TechnoRules)
+export const isSelectableCombatant = (rules: GameObjectData | undefined) =>
+    !!(rules?.rules as any)?.isSelectableCombatant;
 
 // Thanks use-strict!
 export function formatTimeDuration(timeSeconds: number, skipZeroHours = false) {
@@ -21,6 +33,21 @@ export function pad(n: any, format = "0000") {
 }
 
 // So we don't need lodash
+export function minBy<T>(array: T[], predicate: (arg: T) => number | null): T | null {
+    if (array.length === 0) {
+        return null;
+    }
+    let minIdx = 0;
+    let minVal = predicate(array[0]);
+    for (let i = 1; i < array.length; ++i) {
+        const newVal = predicate(array[i]);
+        if (minVal === null || (newVal !== null && newVal < minVal)) {
+            minIdx = i;
+            minVal = newVal;
+        }
+    }
+    return array[minIdx];
+}
 
 export function maxBy<T>(array: T[], predicate: (arg: T) => number | null): T | null {
     if (array.length === 0) {

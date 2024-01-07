@@ -23,6 +23,10 @@
     -   If a naval map is detected, we should try to bias towards naval units and various naval strategies (amphibious transports etc)
 -   Feature: Superweapon usage
     -   Self-explanatory
+-   Correctness: `isPlayerOwnedTechnoRules` does not account for garrisoned buildings
+    -   `src/bot/common/utils.ts`:`isPlayerOwnedTechnoRules` is used to determine if a given `TechnoRules` is likely to be a player-controlled unit or not.
+    -   If you garrison a building or mind control a neutral unit, this doesn't work.
+    -   There is an upcoming API change to add an `"enemy"` player filter to `getVisibleUnits` that should obviate this function completey.
 
 ## Low priority
 

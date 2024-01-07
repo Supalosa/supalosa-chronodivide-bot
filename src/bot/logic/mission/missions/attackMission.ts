@@ -5,7 +5,7 @@ import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { RetreatMission } from "./retreatMission.js";
-import { DebugLogger, countBy, isSoviet, maxBy } from "../../common/utils.js";
+import { DebugLogger, countBy, isPlayerOwnedTechnoRules, isSoviet, maxBy } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getSovietComposition } from "../../composition/sovietCompositions.js";
 import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
@@ -40,8 +40,8 @@ function calculateTargetComposition(
     }
 }
 
-const ATTACK_MISSION_PRIORITY_RAMP = 1.0005;
-const ATTACK_MISSION_MAX_PRIORITY = 20;
+const ATTACK_MISSION_PRIORITY_RAMP = 1.01;
+const ATTACK_MISSION_MAX_PRIORITY = 50;
 
 /**
  * A mission that tries to attack a certain area.
@@ -55,9 +55,10 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
     constructor(
         uniqueName: string,
         private priority: number,
-        private rallyArea: Vector2,
+        rallyArea: Vector2,
         private attackArea: Vector2,
         private radius: number,
+        private composition: UnitComposition,
         logger: DebugLogger,
     ) {
         super(uniqueName, new CombatSquad(rallyArea, attackArea, radius), logger);
@@ -87,10 +88,9 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
-        const targetComposition: UnitComposition = calculateTargetComposition(gameApi, playerData, matchAwareness);
         const currentComposition: UnitComposition = countBy(this.getUnits(gameApi), (unit) => unit.name);
 
-        const missingUnits = Object.entries(targetComposition).filter(([unitType, targetAmount]) => {
+        const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
             return !currentComposition[unitType] || currentComposition[unitType] < targetAmount;
         });
 
@@ -114,7 +114,8 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
-        if (!matchAwareness.shouldAttack()) {
+        if (this.getUnitIds().length === 0) {
+            // TODO: disband directly (we no longer retreat when losing)
             this.state = AttackMissionState.Retreating;
         }
 
@@ -190,7 +191,7 @@ function generateTarget(
     try {
         const tryFocusHarvester = gameApi.generateRandomInt(0, 1) === 0;
         const enemyUnits = gameApi
-            .getVisibleUnits(playerData.name, "hostile")
+            .getVisibleUnits(playerData.name, "hostile", isPlayerOwnedTechnoRules)
             .map((unitId) => gameApi.getUnitData(unitId))
             .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
@@ -263,6 +264,8 @@ export class AttackMissionFactory implements MissionFactory {
         // TODO: not using a fixed value here. But performance slows to a crawl when this is unique.
         const squadName = "globalAttack";
 
+        const composition: UnitComposition = calculateTargetComposition(gameApi, playerData, matchAwareness);
+
         const tryAttack = missionController.addMission(
             new AttackMission(
                 squadName,
@@ -270,6 +273,7 @@ export class AttackMissionFactory implements MissionFactory {
                 matchAwareness.getMainRallyPoint(),
                 attackArea,
                 attackRadius,
+                composition,
                 logger,
             ).then((unitIds, reason) => {
                 missionController.addMission(
