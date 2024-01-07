@@ -14,7 +14,7 @@ import { EngineerSquad } from "../behaviours/engineerSquad.js";
  */
 export class EngineerMission extends BasicMission<EngineerSquad> {
     constructor(uniqueName: string, priority: number, selectedTechBuilding: number, logger: DebugLogger) {
-        super(uniqueName, priority, new EngineerSquad(selectedTechBuilding), logger);
+        super(uniqueName, new EngineerSquad(selectedTechBuilding, priority), logger);
     }
 }
 

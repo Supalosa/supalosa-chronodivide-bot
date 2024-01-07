@@ -7,7 +7,7 @@ import { MissionBehaviour } from "../missions/missionBehaviour.js";
 import { Mission, MissionAction, grabCombatants, noop } from "../mission.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
-const GRAB_INTERVAL_TICKS = 10;
+const GRAB_INTERVAL_TICKS = 64;
 
 const GRAB_RADIUS = 20;
 

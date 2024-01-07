@@ -24,6 +24,9 @@ export class BasicAirUnit implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | null,
     ): number {
+        // Disabled
+        return 0;
+        /*
         // If the enemy's anti-air power is low we might build more.
         if (threatCache) {
             let priority = 0;
@@ -56,7 +59,7 @@ export class BasicAirUnit implements AiBuildingRules {
             return this.baseAmount * priority;
         }
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
-        return this.basePriority * (1.0 - numOwned / this.baseAmount);
+        return this.basePriority * (1.0 - numOwned / this.baseAmount);*/
     }
 
     getMaxCount(

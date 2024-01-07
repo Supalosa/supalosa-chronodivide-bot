@@ -1,7 +1,7 @@
 import { ActionsApi, GameApi, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
-import { Mission, MissionAction, disbandMission, noop } from "../mission.js";
+import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
 import { CombatSquad } from "../behaviours/combatSquad.js";
 import { RetreatMission } from "./retreatMission.js";
@@ -18,13 +18,13 @@ export enum DefenceFailReason {
 export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
     constructor(
         uniqueName: string,
-        priority: number,
+        private priority: number,
         rallyArea: Vector2,
         private defenceArea: Vector2,
         private radius: number,
         logger: DebugLogger,
     ) {
-        super(uniqueName, priority, new CombatSquad(rallyArea, defenceArea, radius), logger);
+        super(uniqueName, new CombatSquad(rallyArea, defenceArea, radius), logger);
     }
 
     _onAiUpdate(
@@ -63,7 +63,8 @@ export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
             );
             this.getBehaviour.setAttackArea(new Vector2(foundTargets[0].x, foundTargets[0].y));
         }
-        return noop();
+        return requestUnits(["E1", "E2"], this.priority);
+        //return noop();
     }
 }
 
@@ -117,7 +118,6 @@ export class DefenceMissionFactory implements MissionFactory {
                     missionController.addMission(
                         new RetreatMission(
                             "retreat-from-globalDefence" + gameApi.getCurrentTick(),
-                            100,
                             matchAwareness.getMainRallyPoint(),
                             unitIds,
                             logger,

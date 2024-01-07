@@ -1,5 +1,9 @@
 export type DebugLogger = (message: string, sayInGame?: boolean) => void;
 
+const SOVIET_COUNTRY_NAMES = ["Africans", "Arabs", "Confederation", "Russians"];
+
+export const isSoviet = (countryName: string) => SOVIET_COUNTRY_NAMES.includes(countryName);
+
 // Thanks use-strict!
 export function formatTimeDuration(timeSeconds: number, skipZeroHours = false) {
     let h = Math.floor(timeSeconds / 3600);

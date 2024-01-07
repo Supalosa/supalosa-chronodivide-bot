@@ -24,6 +24,10 @@ export class BasicGroundUnit implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | null,
     ): number {
+        // Temporary, Priority is disabled for basic ground units.
+        if (1 + 1 > 1) {
+            return 0;
+        }
         const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         if (threatCache) {
             let priority = this.basePriority;

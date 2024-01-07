@@ -12,7 +12,7 @@ import { DebugLogger } from "../../common/utils.js";
  */
 export class ExpansionMission extends BasicMission<ExpansionSquad> {
     constructor(uniqueName: string, priority: number, selectedMcv: number | null, logger: DebugLogger) {
-        super(uniqueName, priority, new ExpansionSquad(selectedMcv), logger);
+        super(uniqueName, new ExpansionSquad(selectedMcv, priority), logger);
     }
 }
 

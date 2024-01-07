@@ -93,6 +93,13 @@ export class SupalosaBot extends Bot {
                 this.actionsApi.quitGame();
             }
 
+            // Mission logic every 3 ticks
+            if (this.gameApi.getCurrentTick() % 3 === 0) {
+                this.missionController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
+            }
+
+            const unitTypeRequests = this.missionController.getRequestedUnitTypes();
+
             // Build logic.
             this.queueController.onAiUpdate(
                 game,
@@ -100,13 +107,9 @@ export class SupalosaBot extends Bot {
                 this.actionsApi,
                 myPlayer,
                 threatCache,
+                unitTypeRequests,
                 (message) => this.logBotStatus(message),
             );
-
-            // Mission logic every 3 ticks
-            if (this.gameApi.getCurrentTick() % 3 === 0) {
-                this.missionController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
-            }
         }
     }
 

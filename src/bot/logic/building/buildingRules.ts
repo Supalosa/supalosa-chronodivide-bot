@@ -184,7 +184,7 @@ export function getDefaultPlacementLocation(
 // Priority 0 = don't build.
 export type TechnoRulesWithPriority = { unit: TechnoRules; priority: number };
 
-export const DEFAULT_BUILDING_PRIORITY = 1;
+export const DEFAULT_BUILDING_PRIORITY = 0;
 
 export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Allied
@@ -235,6 +235,9 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
     ["E2", new BasicGroundUnit(2, 2, 0.2, 0)], // Conscript
+    ["FLAKT", new BasicGroundUnit(2, 2, 0.1, 0.3)], // Flak Trooper
+    ["YURI", new BasicGroundUnit(1, 1, 1, 0)], // Yuri
+    ["DOG", new BasicGroundUnit(1, 1, 0, 0)], // Soviet Attack Dog
     ["HTNK", new BasicGroundUnit(10, 3, 3, 0)], // Rhino Tank
     ["APOC", new BasicGroundUnit(6, 1, 5, 0)], // Apocalypse Tank
     ["HTK", new BasicGroundUnit(5, 2, 0.33, 1.5)], // Flak Track

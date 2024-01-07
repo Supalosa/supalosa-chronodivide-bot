@@ -68,8 +68,8 @@ async function main() {
 
     const offlineSettings1v1 = {
         agents: [
-            new SupalosaBot(firstBotName, "French", [], false),
-            new SupalosaBot(secondBotName, "Russians", [], true).setDebugMode(true),
+            new SupalosaBot(firstBotName, "French", [], true).setDebugMode(true),
+            new SupalosaBot(secondBotName, "Russians", [], false),
         ],
     };
 
