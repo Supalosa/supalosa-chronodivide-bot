@@ -5,7 +5,14 @@ import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { RetreatMission } from "./retreatMission.js";
-import { DebugLogger, countBy, isPlayerOwnedTechnoRules, isSoviet, maxBy } from "../../common/utils.js";
+import {
+    DebugLogger,
+    countBy,
+    isOwnedByNeutral,
+    isPlayerOwnedTechnoRules,
+    isSoviet,
+    maxBy,
+} from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getSovietComposition } from "../../composition/sovietCompositions.js";
 import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
@@ -117,9 +124,13 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
         if (this.getUnitIds().length === 0) {
             // TODO: disband directly (we no longer retreat when losing)
             this.state = AttackMissionState.Retreating;
+            return noop();
         }
 
-        const foundTargets = matchAwareness.getHostilesNearPoint2d(this.attackArea, this.radius);
+        const foundTargets = matchAwareness
+            .getHostilesNearPoint2d(this.attackArea, this.radius)
+            .map((unit) => gameApi.getUnitData(unit.unitId))
+            .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
         // TODO: maybe we don't need the Behaviour indirection anymore.
         const update = this.getBehaviour.onAiUpdate(
