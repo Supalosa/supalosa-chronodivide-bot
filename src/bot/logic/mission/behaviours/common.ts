@@ -2,12 +2,15 @@ import { AttackState, ObjectType, OrderType, StanceType, UnitData, Vector2, Zone
 import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
 import { BatchableAction } from "../actionBatcher.js";
 
+const NONCE_GI_DEPLOY = 0;
+const NONCE_GI_UNDEPLOY = 1;
+
 // Micro methods
 export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): BatchableAction {
     if (attacker.name === "E1") {
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (isDeployed) {
-            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected);
+            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected, NONCE_GI_UNDEPLOY);
         }
     }
 
@@ -21,9 +24,9 @@ export function manageAttackMicro(attacker: UnitData, target: UnitData): Batchab
         const deployedWeaponRange = attacker.secondaryWeapon?.maxRange || 5;
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (!isDeployed && (distance <= deployedWeaponRange || attacker.attackState === AttackState.JustFired)) {
-            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected);
+            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected, NONCE_GI_DEPLOY);
         } else if (isDeployed && distance > deployedWeaponRange) {
-            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected);
+            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected, NONCE_GI_UNDEPLOY);
         }
     }
     let targetData = target;
