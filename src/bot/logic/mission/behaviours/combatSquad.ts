@@ -100,7 +100,7 @@ export class CombatSquad implements MissionBehaviour {
                     maxDistance > requiredGatherRadius
                 ) {
                     units.forEach((unit) => {
-                        actionBatcher.push(manageMoveMicro(unit, centerOfMass));
+                        this.submitActionIfNew(actionBatcher, manageMoveMicro(unit, centerOfMass));
                     });
                 } else {
                     logger(`CombatSquad ${mission.getUniqueName()} switching back to attack mode (${maxDistance})`);

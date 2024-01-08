@@ -10,18 +10,20 @@ export class BatchableAction {
         private _orderType: OrderType,
         private _point?: Vector2,
         private _targetId?: number,
+        // If you don't want this action to be swallowed by dedupe, provide a unique nonce
+        private _nonce: number = 0,
     ) {}
 
-    static noTarget(unitId: number, orderType: OrderType) {
-        return new BatchableAction(unitId, orderType, undefined, undefined);
+    static noTarget(unitId: number, orderType: OrderType, nonce: number = 0) {
+        return new BatchableAction(unitId, orderType, undefined, undefined, nonce);
     }
 
-    static toPoint(unitId: number, orderType: OrderType, point: Vector2) {
+    static toPoint(unitId: number, orderType: OrderType, point: Vector2, nonce: number = 0) {
         return new BatchableAction(unitId, orderType, point, undefined);
     }
 
-    static toTargetId(unitId: number, orderType: OrderType, targetId: number) {
-        return new BatchableAction(unitId, orderType, undefined, targetId);
+    static toTargetId(unitId: number, orderType: OrderType, targetId: number, nonce: number = 0) {
+        return new BatchableAction(unitId, orderType, undefined, targetId, nonce);
     }
 
     public get unitId() {
@@ -51,6 +53,9 @@ export class BatchableAction {
             return false;
         }
         if (this._targetId !== other._targetId) {
+            return false;
+        }
+        if (this._nonce !== other._nonce) {
             return false;
         }
         return true;
@@ -107,7 +112,7 @@ export class ActionBatcher {
                 );
             });
             // Actions with no targets
-            const noTargets = commands.filter((command) => !command.targetId && !command.unitId);
+            const noTargets = commands.filter((command) => !command.targetId && !command.point);
             if (noTargets.length > 0) {
                 actionsApi.orderUnits(
                     noTargets.map((action) => action.unitId),
