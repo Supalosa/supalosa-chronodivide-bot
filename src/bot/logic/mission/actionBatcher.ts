@@ -4,12 +4,58 @@ import { ActionsApi, OrderType, Vector2 } from "@chronodivide/game-api";
 import { groupBy } from "../common/utils.js";
 
 // are ordered to move to the same location, all of them will be ordered to move in a single action.
-export type BatchableAction = {
-    unitId: number;
-    orderType: OrderType;
-    point?: Vector2;
-    targetId?: number;
-};
+export class BatchableAction {
+    private constructor(
+        private _unitId: number,
+        private _orderType: OrderType,
+        private _point?: Vector2,
+        private _targetId?: number,
+    ) {}
+
+    static noTarget(unitId: number, orderType: OrderType) {
+        return new BatchableAction(unitId, orderType, undefined, undefined);
+    }
+
+    static toPoint(unitId: number, orderType: OrderType, point: Vector2) {
+        return new BatchableAction(unitId, orderType, point, undefined);
+    }
+
+    static toTargetId(unitId: number, orderType: OrderType, targetId: number) {
+        return new BatchableAction(unitId, orderType, undefined, targetId);
+    }
+
+    public get unitId() {
+        return this._unitId;
+    }
+
+    public get orderType() {
+        return this._orderType;
+    }
+
+    public get point() {
+        return this._point;
+    }
+
+    public get targetId() {
+        return this._targetId;
+    }
+
+    public isSameAs(other: BatchableAction) {
+        if (this._unitId !== other._unitId) {
+            return false;
+        }
+        if (this._orderType !== other._orderType) {
+            return false;
+        }
+        if (this._point !== other._point) {
+            return false;
+        }
+        if (this._targetId !== other._targetId) {
+            return false;
+        }
+        return true;
+    }
+}
 
 export class ActionBatcher {
     private actions: BatchableAction[];
@@ -60,6 +106,14 @@ export class ActionBatcher {
                     vector.y,
                 );
             });
+            // Actions with no targets
+            const noTargets = commands.filter((command) => !command.targetId && !command.unitId);
+            if (noTargets.length > 0) {
+                actionsApi.orderUnits(
+                    noTargets.map((action) => action.unitId),
+                    commandType,
+                );
+            }
         });
     }
 }

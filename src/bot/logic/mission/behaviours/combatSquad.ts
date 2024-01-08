@@ -1,8 +1,17 @@
-import { ActionsApi, GameApi, GameMath, MovementZone, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    AttackState,
+    GameApi,
+    GameMath,
+    MovementZone,
+    PlayerData,
+    UnitData,
+    Vector2,
+} from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
 import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../common/utils.js";
-import { ActionBatcher } from "../actionBatcher.js";
+import { ActionBatcher, BatchableAction } from "../actionBatcher.js";
 import { MissionBehaviour } from "../missions/missionBehaviour.js";
 import { Mission, MissionAction, grabCombatants, noop } from "../mission.js";
 
@@ -31,6 +40,8 @@ export class CombatSquad implements MissionBehaviour {
     private state = SquadState.Gathering;
 
     private debugLastTarget: string | undefined;
+
+    private lastOrderGiven: { [unitId: number]: BatchableAction } = {};
 
     /**
      *
@@ -125,10 +136,10 @@ export class CombatSquad implements MissionBehaviour {
                 for (const unit of units) {
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
-                        actionBatcher.push(manageAttackMicro(unit, bestUnit));
+                        this.submitActionIfNew(actionBatcher, manageAttackMicro(unit, bestUnit));
                         this.debugLastTarget = `Unit ${bestUnit.id.toString()}`;
                     } else {
-                        actionBatcher.push(manageMoveMicro(unit, targetPoint));
+                        this.submitActionIfNew(actionBatcher, manageMoveMicro(unit, targetPoint));
                         this.debugLastTarget = `@${targetPoint.x},${targetPoint.y}`;
                     }
                 }
@@ -140,6 +151,18 @@ export class CombatSquad implements MissionBehaviour {
             return grabCombatants(mission.getCenterOfMass() ?? this.rallyArea, GRAB_RADIUS);
         } else {
             return noop();
+        }
+    }
+
+    /**
+     * Sends an action to the acitonBatcher if and only if the action is different from the last action we submitted to it.
+     * Prevents spamming redundant orders, which affects performance and can also ccause the unit to sit around doing nothing.
+     */
+    private submitActionIfNew(actionBatcher: ActionBatcher, action: BatchableAction) {
+        const lastAction = this.lastOrderGiven[action.unitId];
+        if (!lastAction || !lastAction.isSameAs(action)) {
+            actionBatcher.push(action);
+            this.lastOrderGiven[action.unitId] = action;
         }
     }
 }

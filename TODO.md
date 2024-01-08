@@ -27,6 +27,12 @@
     -   `src/bot/common/utils.ts`:`isPlayerOwnedTechnoRules` is used to determine if a given `TechnoRules` is likely to be a player-controlled unit or not.
     -   If you garrison a building or mind control a neutral unit, this doesn't work.
     -   There is an upcoming API change to add an `"enemy"` player filter to `getVisibleUnits` that should obviate this function completey.
+-   Performance/Feature: Debounce `BatchableActions` in `actionBatcher`
+    -   We have an `actionBatcher` to group up actions taken by units in a given tick, and submit them all at once. For example, if 5 units are being told to attack the same unit, it is submitted as one action with 5 IDs.
+    -   This improves performance and reduces the replay size.
+    -   There is further opportunity to improve this by remembering actions assigned _across_ ticks and do not submit them if the same action was submitted most recently.
+    -   This might simplify some mission logic (we can just spam unit `BatchableActions` safely) and also significantly reduce replay size.
+    -   There is a light version of this in `combatSquad`, where it remembers the last order given for a unit and doesn't submit the same order twice in a row.
 
 ## Low priority
 

@@ -7,11 +7,11 @@ export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): Batch
     if (attacker.name === "E1") {
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (isDeployed) {
-            return { unitId: attacker.id, orderType: OrderType.DeploySelected };
+            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected);
         }
     }
 
-    return { unitId: attacker.id, orderType: OrderType.Move, point: attackPoint };
+    return BatchableAction.toPoint(attacker.id, OrderType.AttackMove, attackPoint);
 }
 
 export function manageAttackMicro(attacker: UnitData, target: UnitData): BatchableAction {
@@ -21,9 +21,9 @@ export function manageAttackMicro(attacker: UnitData, target: UnitData): Batchab
         const deployedWeaponRange = attacker.secondaryWeapon?.maxRange || 5;
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (!isDeployed && (distance <= deployedWeaponRange || attacker.attackState === AttackState.JustFired)) {
-            return { unitId: attacker.id, orderType: OrderType.DeploySelected };
+            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected);
         } else if (isDeployed && distance > deployedWeaponRange) {
-            return { unitId: attacker.id, orderType: OrderType.DeploySelected };
+            return BatchableAction.noTarget(attacker.id, OrderType.DeploySelected);
         }
     }
     let targetData = target;
@@ -35,7 +35,7 @@ export function manageAttackMicro(attacker: UnitData, target: UnitData): Batchab
         // Special case for mirage tank/spy as otherwise they just sit next to it.
         orderType = OrderType.Attack;
     }
-    return { unitId: attacker.id, orderType, targetId: target.id };
+    return BatchableAction.toTargetId(attacker.id, orderType, target.id);
 }
 
 /**

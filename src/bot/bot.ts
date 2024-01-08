@@ -11,7 +11,7 @@ const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
 // Number of ticks per second at the base speed.
 const NATURAL_TICK_RATE = 15;
-const BOT_AUTO_SURRENDER_TIME_SECONDS = 3600; // 7200 = 2 hours (approx 30 mins in real time, given a game speed of 4)
+const BOT_AUTO_SURRENDER_TIME_SECONDS = 7200; // 7200 = 2 hours (approx 30 mins in real time, given a game speed of 4)
 
 export class SupalosaBot extends Bot {
     private tickRatio?: number;
