@@ -262,7 +262,7 @@ export class AttackMissionFactory implements MissionFactory {
             return;
         }
 
-        const attackRadius = 15;
+        const attackRadius = 10;
 
         const includeEnemyBases = gameApi.getCurrentTick() > this.lastAttackAt + BASE_ATTACK_COOLDOWN_TICKS;
 
