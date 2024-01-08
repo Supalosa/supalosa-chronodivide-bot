@@ -55,6 +55,9 @@ export class BatchableAction {
         if (this._targetId !== other._targetId) {
             return false;
         }
+        if (this._nonce !== other._nonce) {
+            return false;
+        }
         return true;
     }
 }
