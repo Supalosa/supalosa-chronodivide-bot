@@ -2,9 +2,6 @@
 
 ## Urgent
 
--   Refactor: Change how production is prioritised.
-    -   Currently, each unit type defines its own priorities `AiBuildingRules.getPriority()`
-    -   This leads to spamming of conscript/GI, and sometimes tanks, that means the AI never techs due to the `onlyBuildWithFloatingCreditAmounts` of `NARADR/GAAIRC/AMRADR`.
 -   Refactor: Remove "behaviour" (`missionBehaviour`) paradigm.
     -   This is only used to reuse logic between `attackMission` and `defenceMission` so the concept doesn't need to leak to the other mission types.
     -   There is some awkward "call the behaviour's `onAiUpdate`, then do our own thing in `onAiUpdate`" in mission update loops that could be solved.
