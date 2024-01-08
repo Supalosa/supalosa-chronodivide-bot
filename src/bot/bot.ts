@@ -144,7 +144,7 @@ export class SupalosaBot extends Bot {
         this.missionController.updateDebugText(this.actionsApi);
 
         // Tag enemy units with IDs
-        game.getVisibleUnits(this.name, "hostile").forEach((unitId) => {
+        game.getVisibleUnits(this.name, "enemy").forEach((unitId) => {
             this.actionsApi.setUnitDebugText(unitId, unitId.toString());
         });
 

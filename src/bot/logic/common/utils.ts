@@ -8,9 +8,6 @@ export const isSoviet = (countryName: string) => SOVIET_COUNTRY_NAMES.includes(c
 
 export const isOwnedByNeutral = (unitData: UnitData | undefined) => unitData?.owner === "@@NEUTRAL@@";
 
-// TODO: this is not totally correct. It does not apply for garrisoned buildings.
-export const isPlayerOwnedTechnoRules = (rules: TechnoRules | undefined) => !!rules && rules?.techLevel > 0;
-
 // Return if the given unit would have .isSelectableCombatant = true.
 // Usable on GameObjectData (which is faster to get than TechnoRules)
 export const isSelectableCombatant = (rules: GameObjectData | undefined) =>
