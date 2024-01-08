@@ -16,7 +16,10 @@ export class EngineerSquad implements MissionBehaviour {
     /**
      * @param captureTarget ID of the target to try and capture/send engineer into.
      */
-    constructor(private captureTarget: number) {}
+    constructor(
+        private captureTarget: number,
+        private priority: number,
+    ) {}
 
     public onAiUpdate(
         gameApi: GameApi,
@@ -33,7 +36,7 @@ export class EngineerSquad implements MissionBehaviour {
             if (this.hasAttemptedCaptureWith !== null) {
                 return disbandMission();
             }
-            return requestUnits(engineerTypes, 100);
+            return requestUnits(engineerTypes, this.priority);
         } else if (
             !this.hasAttemptedCaptureWith ||
             gameApi.getCurrentTick() > this.hasAttemptedCaptureWith.gameTick + CAPTURE_COOLDOWN_TICKS

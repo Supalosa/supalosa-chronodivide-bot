@@ -13,7 +13,7 @@ import { DebugLogger } from "../../common/utils.js";
  */
 export class ScoutingMission extends BasicMission<ScoutingSquad> {
     constructor(uniqueName: string, priority: number, logger: DebugLogger) {
-        super(uniqueName, priority, new ScoutingSquad(), logger);
+        super(uniqueName, new ScoutingSquad(priority), logger);
     }
 }
 

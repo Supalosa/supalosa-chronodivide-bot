@@ -24,34 +24,8 @@ export class ArtilleryUnit implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | null,
     ): number {
-        const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
-        let priority = this.basePriority;
-        // If the enemy's defensive power is increasing we will start to build these.
-        if (threatCache && threatCache.totalDefensivePower > threatCache.totalAvailableAntiGroundFirepower) {
-            priority +=
-                this.artilleryPower *
-                (threatCache.totalAvailableAntiGroundFirepower / Math.max(1, threatCache.totalDefensivePower));
-        }
-        if (threatCache && this.antiGroundPower > 0) {
-            // If the enemy's power is increasing we should try to keep up.
-            if (threatCache.totalOffensiveLandThreat > threatCache.totalAvailableAntiGroundFirepower) {
-                priority +=
-                    this.antiGroundPower *
-                    this.basePriority *
-                    (threatCache.totalOffensiveLandThreat / Math.max(1, threatCache.totalAvailableAntiGroundFirepower));
-            } else {
-                // But also, if our power dwarfs the enemy, keep pressing the advantage.
-                priority +=
-                    (this.antiGroundPower *
-                        this.basePriority *
-                        GameMath.sqrt(
-                            threatCache.totalAvailableAntiGroundFirepower /
-                                Math.max(1, threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat),
-                        )) /
-                    (numOwned + 1);
-            }
-        }
-        return priority * (1.0 - numOwned / this.baseAmount);
+        // Units aren't built automatically, but are instead requested by missions.
+        return 0;
     }
 
     getMaxCount(

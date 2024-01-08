@@ -24,39 +24,8 @@ export class BasicAirUnit implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | null,
     ): number {
-        // If the enemy's anti-air power is low we might build more.
-        if (threatCache) {
-            let priority = 0;
-            if (
-                this.antiGroundPower > 0 &&
-                threatCache.totalOffensiveLandThreat > threatCache.totalAvailableAntiGroundFirepower
-            ) {
-                priority +=
-                    this.basePriority *
-                    (threatCache.totalOffensiveLandThreat / Math.max(1, threatCache.totalAvailableAntiGroundFirepower));
-            }
-            if (
-                this.antiAirPower > 0 &&
-                threatCache.totalOffensiveAirThreat > threatCache.totalAvailableAntiAirFirepower
-            ) {
-                priority +=
-                    this.basePriority *
-                    (threatCache.totalOffensiveAirThreat / Math.max(1, threatCache.totalAvailableAntiAirFirepower));
-            }
-            // sqrt so we don't build too much of one unit type.
-            priority += Math.min(
-                1.0,
-                Math.max(
-                    1,
-                    GameMath.sqrt(
-                        threatCache.totalAvailableAirPower / Math.max(1, threatCache.totalOffensiveAntiAirThreat),
-                    ),
-                ),
-            );
-            return this.baseAmount * priority;
-        }
-        const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
-        return this.basePriority * (1.0 - numOwned / this.baseAmount);
+        // Units aren't built automatically, but are instead requested by missions.
+        return 0;
     }
 
     getMaxCount(

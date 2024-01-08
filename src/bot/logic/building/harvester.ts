@@ -3,6 +3,7 @@ import { GlobalThreat } from "../threat/threat.js";
 import { BasicGroundUnit } from "./basicGroundUnit.js";
 
 const IDEAL_HARVESTERS_PER_REFINERY = 2;
+const MAX_HARVESTERS_PER_REFINERY = 4;
 
 export class Harvester extends BasicGroundUnit {
     constructor(
@@ -23,7 +24,7 @@ export class Harvester extends BasicGroundUnit {
         const refineries = game.getVisibleUnits(playerData.name, "self", (r) => r.refinery).length;
         const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;
 
-        const boost = harvesters < this.minNeeded ? 3 : 1;
+        const boost = harvesters < this.minNeeded ? 3 : harvesters > refineries * MAX_HARVESTERS_PER_REFINERY ? 0 : 1;
 
         return this.basePriority * (refineries / Math.max(harvesters / IDEAL_HARVESTERS_PER_REFINERY, 1)) * boost;
     }

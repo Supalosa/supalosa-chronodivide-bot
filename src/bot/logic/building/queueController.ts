@@ -15,6 +15,7 @@ import {
     DEFAULT_BUILDING_PRIORITY,
     getDefaultPlacementLocation,
 } from "./buildingRules.js";
+import { DebugLogger } from "../common/utils";
 
 export const QUEUES = [
     QueueType.Structures,
@@ -62,11 +63,19 @@ export class QueueController {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         threatCache: GlobalThreat | null,
+        unitTypeRequests: Map<string, number>,
         logger: (message: string) => void,
     ) {
         this.queueStates = QUEUES.map((queueType) => {
             const options = productionApi.getAvailableObjects(queueType);
-            const items = this.getPrioritiesForBuildingOptions(game, options, threatCache, playerData);
+            const items = this.getPrioritiesForBuildingOptions(
+                game,
+                options,
+                threatCache,
+                playerData,
+                unitTypeRequests,
+                logger,
+            );
             const topItem = items.length > 0 ? items[items.length - 1] : undefined;
             return {
                 queue: queueType,
@@ -202,12 +211,19 @@ export class QueueController {
         options: TechnoRules[],
         threatCache: GlobalThreat | null,
         playerData: PlayerData,
+        unitTypeRequests: Map<string, number>,
+        logger: DebugLogger,
     ): TechnoRulesWithPriority[] {
         let priorityQueue: TechnoRulesWithPriority[] = [];
         options.forEach((option) => {
-            let priority = this.getPriorityForBuildingOption(option, game, playerData, threatCache);
-            if (priority >= 0) {
-                priorityQueue.push({ unit: option, priority: priority });
+            const calculatedPriority = this.getPriorityForBuildingOption(option, game, playerData, threatCache);
+            // Get the higher of the dynamic and the mission priority for the unit.
+            const actualPriority = Math.max(
+                calculatedPriority,
+                unitTypeRequests.get(option.name) ?? calculatedPriority,
+            );
+            if (actualPriority >= 0) {
+                priorityQueue.push({ unit: option, priority: actualPriority });
             }
         });
 

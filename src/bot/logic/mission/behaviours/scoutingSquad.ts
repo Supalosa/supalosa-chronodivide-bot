@@ -28,6 +28,8 @@ export class ScoutingSquad implements MissionBehaviour {
 
     private hadUnit: boolean = false;
 
+    constructor(private priority: number) {}
+
     public onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
@@ -50,7 +52,7 @@ export class ScoutingSquad implements MissionBehaviour {
                 this.attemptsOnCurrentTarget++;
                 this.hadUnit = false;
             }
-            return requestUnits(scoutNames, 100);
+            return requestUnits(scoutNames, this.priority);
         } else if (this.scoutTarget) {
             this.hadUnit = true;
             if (!this.scoutTargetIsPermanent) {

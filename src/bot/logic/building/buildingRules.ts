@@ -184,7 +184,7 @@ export function getDefaultPlacementLocation(
 // Priority 0 = don't build.
 export type TechnoRulesWithPriority = { unit: TechnoRules; priority: number };
 
-export const DEFAULT_BUILDING_PRIORITY = 1;
+export const DEFAULT_BUILDING_PRIORITY = 0;
 
 export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Allied
@@ -193,7 +193,6 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GAWEAP", new BasicBuilding(15, 1)], // War Factory
     ["GAPILE", new BasicBuilding(12, 1)], // Barracks
     ["CMIN", new Harvester(15, 4, 2)], // Chrono Miner
-    ["ENGINEER", new BasicBuilding(10, 1, 1000)], // Engineer
     ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["GAAIRC", new BasicBuilding(10, 1, 500)], // Airforce Command
     ["AMRADR", new BasicBuilding(10, 1, 500)], // Airforce Command (USA)
@@ -206,6 +205,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
     ["E1", new BasicGroundUnit(2, 2, 0.2, 0)], // GI
+    ["ENGINEER", new BasicGroundUnit(1, 0, 0)], // Engineer
     ["MTNK", new BasicGroundUnit(10, 3, 2, 0)], // Grizzly Tank
     ["MGTK", new BasicGroundUnit(10, 1, 2.5, 0)], // Mirage Tank
     ["FV", new BasicGroundUnit(5, 2, 0.5, 1)], // IFV
@@ -221,7 +221,6 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NAWEAP", new BasicBuilding(15, 1)], // War Factory
     ["NAHAND", new BasicBuilding(12, 1)], // Barracks
     ["HARV", new Harvester(15, 4, 2)], // War Miner
-    ["SENGINEER", new BasicBuilding(10, 1, 1000)], // Soviet Engineer
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(10, 1, 500)], // Radar
     ["NANRCT", new PowerPlant()], // Nuclear Reactor
@@ -235,6 +234,10 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
     ["E2", new BasicGroundUnit(2, 2, 0.2, 0)], // Conscript
+    ["SENGINEER", new BasicGroundUnit(1, 0, 0)], // Soviet Engineer
+    ["FLAKT", new BasicGroundUnit(2, 2, 0.1, 0.3)], // Flak Trooper
+    ["YURI", new BasicGroundUnit(1, 1, 1, 0)], // Yuri
+    ["DOG", new BasicGroundUnit(1, 1, 0, 0)], // Soviet Attack Dog
     ["HTNK", new BasicGroundUnit(10, 3, 3, 0)], // Rhino Tank
     ["APOC", new BasicGroundUnit(6, 1, 5, 0)], // Apocalypse Tank
     ["HTK", new BasicGroundUnit(5, 2, 0.33, 1.5)], // Flak Track

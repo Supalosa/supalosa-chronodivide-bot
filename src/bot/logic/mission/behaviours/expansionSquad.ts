@@ -17,7 +17,10 @@ export class ExpansionSquad implements MissionBehaviour {
      * @param selectedMcv ID of the MCV to try to expand with. If that unit dies, the squad will disband. If no value is provided,
      * the mission requests an MCV.
      */
-    constructor(private selectedMcv: number | null) {}
+    constructor(
+        private selectedMcv: number | null,
+        private priority: number,
+    ) {}
 
     public onAiUpdate(
         gameApi: GameApi,
@@ -36,9 +39,9 @@ export class ExpansionSquad implements MissionBehaviour {
             }
             // We need an mcv!
             if (this.selectedMcv) {
-                return requestSpecificUnits([this.selectedMcv], 100);
+                return requestSpecificUnits([this.selectedMcv], this.priority);
             } else {
-                return requestUnits(mcvTypes, 100);
+                return requestUnits(mcvTypes, this.priority);
             }
         } else if (
             !this.hasAttemptedDeployWith ||

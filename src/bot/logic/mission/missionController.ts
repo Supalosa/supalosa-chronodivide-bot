@@ -1,7 +1,7 @@
 // Meta-controller for forming and controlling missions.
 // Missions are groups of zero or more units that aim to accomplish a particular goal.
 
-import { ActionsApi, GameApi, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import {
     Mission,
     MissionAction,
@@ -13,8 +13,12 @@ import {
 import { MatchAwareness } from "../awareness.js";
 import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 import { ActionBatcher } from "./actionBatcher.js";
-import { countBy } from "../common/utils.js";
+import { countBy, isSelectableCombatant } from "../common/utils.js";
 import { MissionBehaviour } from "./missions/missionBehaviour.js";
+
+// `missingUnitTypes` priority decays by this much every update loop.
+const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
+const MISSING_UNIT_TYPE_REQUEST_DECAY_FLAT_RATE = 1;
 
 type MissionWithAction<T extends MissionAction> = {
     mission: Mission<any>;
@@ -29,23 +33,33 @@ export class MissionController {
     // is periodically cleaned in the update loop.
     private unitIdToMission: Map<number, Mission<any, any>> = new Map();
 
+    // A mapping of unit types to the highest priority requested for a mission.
+    // This decays over time if requests are not 'refreshed' by mission.
+    private requestedUnitTypes: Map<string, number> = new Map();
+
+    // Tracks missions to be externally disbanded the next time the mission update loop occurs.
     private forceDisbandedMissions: string[] = [];
 
     constructor(private logger: (message: string, sayInGame?: boolean) => void) {
         this.missionFactories = createMissionFactories();
     }
 
-    private resetUnitIdMap() {
+    private updateUnitIds(gameApi: GameApi) {
         // Check for units in multiple missions, this shouldn't happen.
         this.unitIdToMission = new Map();
         this.missions.forEach((mission) => {
+            const toRemove: number[] = [];
             mission.getUnitIds().forEach((unitId) => {
                 if (this.unitIdToMission.has(unitId)) {
                     this.logger(`WARNING: unit ${unitId} is in multiple missions, please debug.`);
+                } else if (!gameApi.getGameObjectData(unitId)) {
+                    // say, if a unit was killed
+                    toRemove.push(unitId);
                 } else {
                     this.unitIdToMission.set(unitId, mission);
                 }
             });
+            toRemove.forEach((unitId) => mission.removeUnit(unitId));
         });
     }
 
@@ -58,7 +72,7 @@ export class MissionController {
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
 
-        this.resetUnitIdMap();
+        this.updateUnitIds(gameApi);
 
         // Batch actions to reduce spamming of actions for larger armies.
         const actionBatcher = new ActionBatcher();
@@ -114,7 +128,7 @@ export class MissionController {
         const newMissionAssignments = Object.entries(unitIdToHighestRequest)
             .flatMap(([id, request]) => {
                 const unitId = Number.parseInt(id);
-                const unit = gameApi.getUnitData(unitId);
+                const unit = gameApi.getGameObjectData(unitId);
                 const { mission: requestingMission } = request;
                 const missionName = requestingMission.getUniqueName();
                 if (!unit) {
@@ -176,10 +190,10 @@ export class MissionController {
             isGrab(a.action),
         ) as MissionWithAction<MissionActionGrabFreeCombatants>[];
 
-        // Find loose units
+        // Find un-assigned units and distribute them among all the requesting missions.
         const unitIds = gameApi.getVisibleUnits(playerData.name, "self");
         const freeUnits = unitIds
-            .map((unitId) => gameApi.getUnitData(unitId))
+            .map((unitId) => gameApi.getGameObjectData(unitId))
             .filter((unit) => !!unit && !this.unitIdToMission.has(unit.id || 0))
             .map((unit) => unit!);
 
@@ -198,8 +212,9 @@ export class MissionController {
                     ] as AssignmentWithType[];
                 } else if (grabRequests.length > 0) {
                     const grantedMission = grabRequests.find((request) => {
+                        const canGrabUnit = isSelectableCombatant(freeUnit);
                         return (
-                            freeUnit.rules.isSelectableCombatant &&
+                            canGrabUnit &&
                             request.action.point.distanceTo(new Vector2(freeUnit.tile.rx, freeUnit.tile.ry)) <=
                                 request.action.radius
                         );
@@ -243,6 +258,9 @@ export class MissionController {
             );
         });
 
+        this.updateRequestedUnitTypes(unitTypeToHighestRequest);
+
+        // Send all actions that can be batched together.
         actionBatcher.resolve(actionsApi);
 
         // Remove disbanded and merged missions.
@@ -265,7 +283,41 @@ export class MissionController {
         });
     }
 
-    private addUnitToMission(mission: Mission<any, any>, unit: UnitData) {
+    private updateRequestedUnitTypes(
+        missingUnitTypeToHighestRequest: Record<string, MissionWithAction<MissionActionRequestUnits>>,
+    ) {
+        // Decay the priority over time.
+        const currentUnitTypes = Array.from(this.requestedUnitTypes.keys());
+        for (const unitType of currentUnitTypes) {
+            const newPriority =
+                this.requestedUnitTypes.get(unitType)! * MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE -
+                MISSING_UNIT_TYPE_REQUEST_DECAY_FLAT_RATE;
+            if (newPriority > 0.5) {
+                this.requestedUnitTypes.set(unitType, newPriority);
+            } else {
+                this.requestedUnitTypes.delete(unitType);
+            }
+        }
+        // Add the new missing units to the priority set, if the request is higher than the existing value.
+        Object.entries(missingUnitTypeToHighestRequest).forEach(([unitType, request]) => {
+            const currentPriority = this.requestedUnitTypes.get(unitType);
+            this.requestedUnitTypes.set(
+                unitType,
+                currentPriority ? Math.max(currentPriority, request.action.priority) : request.action.priority,
+            );
+        });
+    }
+
+    /**
+     * Returns the set of units that have been requested for production by the missions.
+     *
+     * @returns A map of unit type to the highest priority for that unit type.
+     */
+    public getRequestedUnitTypes(): Map<string, number> {
+        return this.requestedUnitTypes;
+    }
+
+    private addUnitToMission(mission: Mission<any, any>, unit: GameObjectData) {
         mission.addUnit(unit.id);
         this.unitIdToMission.set(unit.id, mission);
     }
@@ -294,7 +346,8 @@ export class MissionController {
 
     // return text to display for global debug
     public getGlobalDebugText(gameApi: GameApi): string {
-        const unitsInMission = (unitIds: number[]) => countBy(unitIds, (unitId) => gameApi.getUnitData(unitId)?.name);
+        const unitsInMission = (unitIds: number[]) =>
+            countBy(unitIds, (unitId) => gameApi.getGameObjectData(unitId)?.name);
 
         let globalDebugText = "";
 
@@ -314,7 +367,9 @@ export class MissionController {
 
     public updateDebugText(actionsApi: ActionsApi) {
         this.missions.forEach((mission) => {
-            mission.getUnitIds().forEach((unitId) => actionsApi.setUnitDebugText(unitId, mission.getUniqueName()));
+            mission
+                .getUnitIds()
+                .forEach((unitId) => actionsApi.setUnitDebugText(unitId, `${unitId}: ${mission.getUniqueName()}`));
         });
     }
 }

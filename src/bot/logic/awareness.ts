@@ -1,4 +1,4 @@
-import { GameApi, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector";
 import { GlobalThreat } from "./threat/threat";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
@@ -23,10 +23,15 @@ export interface MatchAwareness {
     getSectorCache(): SectorCache;
 
     /**
-     * Returns the enemy unit IDs in a certain radius of a point
+     * Returns the enemy unit IDs in a certain radius of a point.
+     * Warning: this may return non-combatant hostiles, such as neutral units.
      */
     getHostilesNearPoint2d(point: Vector2, radius: number): UnitPositionQuery[];
 
+    /**
+     * Returns the enemy unit IDs in a certain radius of a point.
+     * Warning: this may return non-combatant hostiles, such as neutral units.
+     */
     getHostilesNearPoint(x: number, y: number, radius: number): UnitPositionQuery[];
 
     /**
@@ -61,7 +66,7 @@ const THREAT_UPDATE_INTERVAL_TICKS = 30;
 
 type QTUnit = Circle<number>;
 
-const rebuildQuadtree = (quadtree: Quadtree<QTUnit>, units: UnitData[]) => {
+const rebuildQuadtree = (quadtree: Quadtree<QTUnit>, units: GameObjectData[]) => {
     quadtree.clear();
     units.forEach((unit) => {
         quadtree.insert(new Circle<number>({ x: unit.tile.rx, y: unit.tile.ry, r: 1, data: unit.id }));
@@ -93,7 +98,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
         const intersections = this.hostileQuadTree.retrieve(new Circle({ x: searchX, y: searchY, r: radius }));
         return intersections
             .map(({ x, y, data: unitId }) => ({ x, y, unitId: unitId! }))
-            .filter(({ x, y }) => getDistanceBetweenPoints(new Vector2(x, y), new Vector2(searchX, searchY)) <= radius)
+            .filter(({ x, y }) => new Vector2(x, y).distanceTo(new Vector2(searchX, searchY)) <= radius)
             .filter(({ unitId }) => !!unitId);
     }
 
@@ -165,8 +170,11 @@ export class MatchAwarenessImpl implements MatchAwareness {
         const hostileUnitIds = game.getVisibleUnits(playerData.name, "hostile");
         try {
             const hostileUnits = hostileUnitIds
-                .map((id) => game.getUnitData(id))
-                .filter((unit) => this.isHostileUnit(unit, hostilePlayerNames)) as UnitData[];
+                .map((id) => game.getGameObjectData(id))
+                .filter(
+                    (gameObjectData: GameObjectData | undefined): gameObjectData is GameObjectData =>
+                        gameObjectData !== undefined,
+                );
 
             rebuildQuadtree(this.hostileQuadTree, hostileUnits);
         } catch (err) {

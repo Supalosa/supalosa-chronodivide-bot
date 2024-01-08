@@ -24,52 +24,8 @@ export class BasicGroundUnit implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | null,
     ): number {
-        const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
-        if (threatCache) {
-            let priority = this.basePriority;
-            if (this.antiGroundPower > 0) {
-                // If the enemy's power is increasing we should try to keep up.
-                if (threatCache.totalOffensiveLandThreat > threatCache.totalAvailableAntiGroundFirepower) {
-                    priority +=
-                        this.antiGroundPower *
-                        this.basePriority *
-                        (threatCache.totalOffensiveLandThreat /
-                            Math.max(1, threatCache.totalAvailableAntiGroundFirepower));
-                } else {
-                    // But also, if our power dwarfs the enemy, keep pressing the advantage.
-                    priority +=
-                        (this.antiGroundPower *
-                            this.basePriority *
-                            GameMath.sqrt(
-                                threatCache.totalAvailableAntiGroundFirepower /
-                                    Math.max(
-                                        1,
-                                        threatCache.totalOffensiveLandThreat + threatCache.totalDefensiveThreat,
-                                    ),
-                            )) /
-                        (numOwned + 1);
-                }
-            }
-            if (this.antiAirPower > 0) {
-                if (threatCache.totalOffensiveAirThreat > threatCache.totalAvailableAntiAirFirepower) {
-                    priority +=
-                        this.antiAirPower *
-                        this.basePriority *
-                        (threatCache.totalOffensiveAirThreat / Math.max(1, threatCache.totalAvailableAntiAirFirepower));
-                } else {
-                    priority +=
-                        (this.antiAirPower *
-                            this.basePriority *
-                            GameMath.sqrt(
-                                threatCache.totalAvailableAntiAirFirepower /
-                                    Math.max(1, threatCache.totalOffensiveAirThreat + threatCache.totalDefensiveThreat),
-                            )) /
-                        (numOwned + 1);
-                }
-            }
-            return priority;
-        }
-        return this.basePriority * (1.0 - numOwned / this.baseAmount);
+        // Units aren't built automatically, but are instead requested by missions.
+        return 0;
     }
 
     getMaxCount(

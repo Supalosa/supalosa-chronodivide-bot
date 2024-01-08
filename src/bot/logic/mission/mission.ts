@@ -41,7 +41,6 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
 
     constructor(
         private uniqueName: string,
-        private priority: number,
         private behaviour: BehaviourType,
         protected logger: DebugLogger,
     ) {}
