@@ -4,15 +4,15 @@ import { GlobalThreat } from "./threat.js";
 export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, visibleAreaPercent: number): GlobalThreat {
     let groundUnits = game.getVisibleUnits(
         playerData.name,
-        "hostile",
+        "enemy",
         (r) => r.type == ObjectType.Vehicle || r.type == ObjectType.Infantry,
     );
-    let airUnits = game.getVisibleUnits(playerData.name, "hostile", (r) => r.movementZone == MovementZone.Fly);
+    let airUnits = game.getVisibleUnits(playerData.name, "enemy", (r) => r.movementZone == MovementZone.Fly);
     let groundDefence = game
-        .getVisibleUnits(playerData.name, "hostile", (r) => r.type == ObjectType.Building)
+        .getVisibleUnits(playerData.name, "enemy", (r) => r.type == ObjectType.Building)
         .filter((unitId) => isAntiGround(game, unitId));
     let antiAirPower = game
-        .getVisibleUnits(playerData.name, "hostile", (r) => r.type != ObjectType.Building)
+        .getVisibleUnits(playerData.name, "enemy", (r) => r.type != ObjectType.Building)
         .filter((unitId) => isAntiAir(game, unitId));
 
     let ourAntiGroundUnits = game

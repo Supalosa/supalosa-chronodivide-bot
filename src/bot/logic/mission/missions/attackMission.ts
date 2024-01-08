@@ -5,14 +5,7 @@ import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { RetreatMission } from "./retreatMission.js";
-import {
-    DebugLogger,
-    countBy,
-    isOwnedByNeutral,
-    isPlayerOwnedTechnoRules,
-    isSoviet,
-    maxBy,
-} from "../../common/utils.js";
+import { DebugLogger, countBy, isOwnedByNeutral, maxBy } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getSovietComposition } from "../../composition/sovietCompositions.js";
 import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
@@ -202,7 +195,7 @@ function generateTarget(
     try {
         const tryFocusHarvester = gameApi.generateRandomInt(0, 1) === 0;
         const enemyUnits = gameApi
-            .getVisibleUnits(playerData.name, "hostile", isPlayerOwnedTechnoRules)
+            .getVisibleUnits(playerData.name, "enemy")
             .map((unitId) => gameApi.getUnitData(unitId))
             .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
