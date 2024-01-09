@@ -200,8 +200,9 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
     ["GAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
 
-    ["GAPILL", new AntiGroundStaticDefence(5, 1, 5)], // Pillbox
-    ["ATESLA", new AntiGroundStaticDefence(5, 1, 10)], // Prism Cannon
+    ["GAPILL", new AntiGroundStaticDefence(2, 1, 5)], // Pillbox
+    ["ATESLA", new AntiGroundStaticDefence(2, 1, 10)], // Prism Cannon
+    ["NASAM", new AntiAirStaticDefence(2, 1, 5)], // Prism Cannon
     ["GAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
     ["E1", new BasicGroundUnit(2, 2, 0.2, 0)], // GI
@@ -228,9 +229,9 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
 
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 
-    ["NALASR", new AntiGroundStaticDefence(5, 1, 5)], // Sentry Gun
-    ["NAFLAK", new AntiAirStaticDefence(5, 1, 5)], // Flak Cannon
-    ["TESLA", new AntiGroundStaticDefence(5, 1, 10)], // Tesla Coil
+    ["NALASR", new AntiGroundStaticDefence(2, 1, 5)], // Sentry Gun
+    ["NAFLAK", new AntiAirStaticDefence(2, 1, 5)], // Flak Cannon
+    ["TESLA", new AntiGroundStaticDefence(2, 1, 10)], // Tesla Coil
     ["NAWALL", new AntiGroundStaticDefence(0, 0, 0)], // Walls
 
     ["E2", new BasicGroundUnit(2, 2, 0.2, 0)], // Conscript

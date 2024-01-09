@@ -222,7 +222,7 @@ export class QueueController {
                 calculatedPriority,
                 unitTypeRequests.get(option.name) ?? calculatedPriority,
             );
-            if (actualPriority >= 0) {
+            if (actualPriority > 0) {
                 priorityQueue.push({ unit: option, priority: actualPriority });
             }
         });
