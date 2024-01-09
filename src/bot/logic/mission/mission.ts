@@ -168,15 +168,22 @@ export type MissionActionRequestUnits = {
     unitNames: string[];
     priority: number;
 };
+
 export type MissionActionRequestSpecificUnits = {
     type: "requestSpecific";
     unitIds: number[];
     priority: number;
 };
+
 export type MissionActionGrabFreeCombatants = {
     type: "requestCombatants";
     point: Vector2;
     radius: number;
+};
+
+export type MissionActionReleaseUnits = {
+    type: "releaseUnits";
+    unitIds: number[];
 };
 
 export const noop = () =>
@@ -195,9 +202,12 @@ export const requestSpecificUnits = (unitIds: number[], priority: number) =>
 export const grabCombatants = (point: Vector2, radius: number) =>
     ({ type: "requestCombatants", point, radius }) as MissionActionGrabFreeCombatants;
 
+export const releaseUnits = (unitIds: number[]) => ({ type: "releaseUnits", unitIds }) as MissionActionReleaseUnits;
+
 export type MissionAction =
     | MissionActionNoop
     | MissionActionDisband
     | MissionActionRequestUnits
     | MissionActionRequestSpecificUnits
-    | MissionActionGrabFreeCombatants;
+    | MissionActionGrabFreeCombatants
+    | MissionActionReleaseUnits;
