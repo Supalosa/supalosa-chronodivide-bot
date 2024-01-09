@@ -7,8 +7,15 @@ import {
     MissionAction,
     MissionActionDisband,
     MissionActionGrabFreeCombatants,
+    MissionActionReleaseUnits,
     MissionActionRequestSpecificUnits,
     MissionActionRequestUnits,
+    MissionWithAction,
+    isDisbandMission,
+    isGrabCombatants,
+    isReleaseUnits,
+    isRequestSpecificUnits,
+    isRequestUnits,
 } from "./mission.js";
 import { MatchAwareness } from "../awareness.js";
 import { MissionFactory, createMissionFactories } from "./missionFactories.js";
@@ -19,11 +26,6 @@ import { MissionBehaviour } from "./missions/missionBehaviour.js";
 // `missingUnitTypes` priority decays by this much every update loop.
 const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
 const MISSING_UNIT_TYPE_REQUEST_DECAY_FLAT_RATE = 1;
-
-type MissionWithAction<T extends MissionAction> = {
-    mission: Mission<any>;
-    action: T;
-};
 
 export class MissionController {
     private missionFactories: MissionFactory[];
@@ -84,45 +86,43 @@ export class MissionController {
         }));
 
         // Handle disbands and merges.
-        const isDisband = (a: MissionAction) => a.type == "disband";
         const disbandedMissions: Map<string, any> = new Map();
         const disbandedMissionsArray: { mission: Mission<any, any>; reason: any }[] = [];
         this.forceDisbandedMissions.forEach((name) => disbandedMissions.set(name, null));
         this.forceDisbandedMissions = [];
-        missionActions
-            .filter((a) => isDisband(a.action))
-            .forEach((a) => {
-                this.logger(`Mission ${a.mission.getUniqueName()} disbanding as requested.`);
-                a.mission.getUnitIds().forEach((unitId) => {
-                    this.unitIdToMission.delete(unitId);
-                    actionsApi.setUnitDebugText(unitId, undefined);
-                });
-                disbandedMissions.set(a.mission.getUniqueName(), (a.action as MissionActionDisband).reason);
+        missionActions.filter(isDisbandMission).forEach((a) => {
+            this.logger(`Mission ${a.mission.getUniqueName()} disbanding as requested.`);
+            a.mission.getUnitIds().forEach((unitId) => {
+                this.unitIdToMission.delete(unitId);
+                actionsApi.setUnitDebugText(unitId, undefined);
             });
+            disbandedMissions.set(a.mission.getUniqueName(), (a.action as MissionActionDisband).reason);
+        });
 
         // Handle unit requests.
 
+        // Release units
+        missionActions.filter(isReleaseUnits).forEach((a) => {
+            // TODO
+        });
+
         // Request specific units by ID
-        const isRequestSpecific = (a: MissionAction) => a.type === "requestSpecific";
-        const unitIdToHighestRequest = missionActions
-            .filter((a) => isRequestSpecific(a.action))
-            .reduce(
-                (prev, a) => {
-                    const missionWithAction = a as MissionWithAction<MissionActionRequestSpecificUnits>;
-                    const { unitIds } = missionWithAction.action;
-                    unitIds.forEach((unitId) => {
-                        if (prev.hasOwnProperty(unitId)) {
-                            if (prev[unitId].action.priority > prev[unitId].action.priority) {
-                                prev[unitId] = missionWithAction;
-                            }
-                        } else {
+        const unitIdToHighestRequest = missionActions.filter(isRequestSpecificUnits).reduce(
+            (prev, missionWithAction) => {
+                const { unitIds } = missionWithAction.action;
+                unitIds.forEach((unitId) => {
+                    if (prev.hasOwnProperty(unitId)) {
+                        if (prev[unitId].action.priority > prev[unitId].action.priority) {
                             prev[unitId] = missionWithAction;
                         }
-                    });
-                    return prev;
-                },
-                {} as Record<number, MissionWithAction<MissionActionRequestSpecificUnits>>,
-            );
+                    } else {
+                        prev[unitId] = missionWithAction;
+                    }
+                });
+                return prev;
+            },
+            {} as Record<number, MissionWithAction<MissionActionRequestSpecificUnits>>,
+        );
 
         // Map of Mission ID to Unit Type to Count.
         const newMissionAssignments = Object.entries(unitIdToHighestRequest)
@@ -163,32 +163,25 @@ export class MissionController {
         });
 
         // Request units by type
-        const isRequest = (a: MissionAction) => a.type === "request";
-        const unitTypeToHighestRequest = missionActions
-            .filter((a) => isRequest(a.action))
-            .reduce(
-                (prev, a) => {
-                    const missionWithAction = a as MissionWithAction<MissionActionRequestUnits>;
-                    const { unitNames } = missionWithAction.action;
-                    unitNames.forEach((unitName) => {
-                        if (prev.hasOwnProperty(unitName)) {
-                            if (prev[unitName].action.priority > prev[unitName].action.priority) {
-                                prev[unitName] = missionWithAction;
-                            }
-                        } else {
+        const unitTypeToHighestRequest = missionActions.filter(isRequestUnits).reduce(
+            (prev, missionWithAction) => {
+                const { unitNames } = missionWithAction.action;
+                unitNames.forEach((unitName) => {
+                    if (prev.hasOwnProperty(unitName)) {
+                        if (prev[unitName].action.priority > prev[unitName].action.priority) {
                             prev[unitName] = missionWithAction;
                         }
-                    });
-                    return prev;
-                },
-                {} as Record<string, MissionWithAction<MissionActionRequestUnits>>,
-            );
+                    } else {
+                        prev[unitName] = missionWithAction;
+                    }
+                });
+                return prev;
+            },
+            {} as Record<string, MissionWithAction<MissionActionRequestUnits>>,
+        );
 
         // Request combat-capable units in an area
-        const isGrab = (a: MissionAction) => a.type === "requestCombatants";
-        const grabRequests = missionActions.filter((a) =>
-            isGrab(a.action),
-        ) as MissionWithAction<MissionActionGrabFreeCombatants>[];
+        const grabRequests = missionActions.filter(isGrabCombatants);
 
         // Find un-assigned units and distribute them among all the requesting missions.
         const unitIds = gameApi.getVisibleUnits(playerData.name, "self");
