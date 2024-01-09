@@ -103,7 +103,12 @@ export class MissionController {
 
         // Release units
         missionActions.filter(isReleaseUnits).forEach((a) => {
-            // TODO
+            a.action.unitIds.forEach((unitId) => {
+                if (this.unitIdToMission.get(unitId)?.getUniqueName() === a.mission.getUniqueName()) {
+                    a.mission.removeUnit(unitId);
+                    this.unitIdToMission.delete(unitId);
+                }
+            });
         });
 
         // Request specific units by ID

@@ -1,14 +1,14 @@
 import { ActionsApi, GameApi, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
-import { Mission, MissionAction, disbandMission, noop, releaseUnits, requestUnits } from "../mission.js";
+import { Mission, MissionAction, noop, releaseUnits, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
 import { CombatSquad } from "../behaviours/combatSquad.js";
-import { RetreatMission } from "./retreatMission.js";
 import { DebugLogger, isOwnedByNeutral } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 
 export const MAX_PRIORITY = 30;
+export const PRIORITY_INCREASE_PER_TICK_RATIO = 1.025;
 
 /**
  * A mission that tries to defend a certain area.
@@ -68,7 +68,7 @@ export class DefenceMission extends Mission<CombatSquad> {
                 } found in area ${this.radius})`,
             );
             this.getBehaviour.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
-            this.priority = Math.min(MAX_PRIORITY, this.priority + 0.05);
+            this.priority = Math.min(MAX_PRIORITY, this.priority * PRIORITY_INCREASE_PER_TICK_RATIO);
         }
         return requestUnits(["E1", "E2", "FV", "HTK", "MTNK", "HTNK"], this.priority);
     }
