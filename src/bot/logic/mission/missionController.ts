@@ -370,4 +370,8 @@ export class MissionController {
                 .forEach((unitId) => actionsApi.setUnitDebugText(unitId, `${unitId}: ${mission.getUniqueName()}`));
         });
     }
+
+    public getMissions() {
+        return this.missions;
+    }
 }
