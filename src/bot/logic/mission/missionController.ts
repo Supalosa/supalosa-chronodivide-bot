@@ -105,8 +105,7 @@ export class MissionController {
         missionActions.filter(isReleaseUnits).forEach((a) => {
             a.action.unitIds.forEach((unitId) => {
                 if (this.unitIdToMission.get(unitId)?.getUniqueName() === a.mission.getUniqueName()) {
-                    a.mission.removeUnit(unitId);
-                    this.unitIdToMission.delete(unitId);
+                    this.removeUnitFromMission(a.mission, unitId, actionsApi);
                 }
             });
         });
@@ -167,7 +166,7 @@ export class MissionController {
             );
         });
 
-        // Request units by type
+        // Request units by type - store the highest priority mission for each unit type.
         const unitTypeToHighestRequest = missionActions.filter(isRequestUnits).reduce(
             (prev, missionWithAction) => {
                 const { unitNames } = missionWithAction.action;
@@ -190,16 +189,37 @@ export class MissionController {
 
         // Find un-assigned units and distribute them among all the requesting missions.
         const unitIds = gameApi.getVisibleUnits(playerData.name, "self");
-        const freeUnits = unitIds
+        type UnitWithMission = {
+            unit: GameObjectData;
+            mission: Mission<any> | undefined;
+        };
+        // List of units that are unassigned or not in a locked mission.
+        const freeUnits: UnitWithMission[] = unitIds
             .map((unitId) => gameApi.getGameObjectData(unitId))
-            .filter((unit) => !!unit && !this.unitIdToMission.has(unit.id || 0))
-            .map((unit) => unit!);
+            .filter((unit): unit is GameObjectData => !!unit)
+            .map((unit) => ({
+                unit,
+                mission: this.unitIdToMission.get(unit.id),
+            }))
+            .filter((unitWithMission) => !unitWithMission.mission || unitWithMission.mission.isUnitsLocked() === false);
+
+        // Sort free units so that unassigned units get chosen before assigned (but unlocked) units.
+        freeUnits.sort((u1, u2) => (u1.mission?.getPriority() ?? 0) - (u2.mission?.getPriority() ?? 0));
 
         type AssignmentWithType = { unitName: string; missionName: string; method: "type" | "grab" };
         const newAssignmentsByType = freeUnits
-            .flatMap((freeUnit) => {
+            .flatMap(({ unit: freeUnit, mission: donatingMission }) => {
                 if (unitTypeToHighestRequest.hasOwnProperty(freeUnit.name)) {
                     const { mission: requestingMission } = unitTypeToHighestRequest[freeUnit.name];
+                    if (donatingMission) {
+                        if (
+                            donatingMission === requestingMission ||
+                            donatingMission.getPriority() > requestingMission.getPriority()
+                        ) {
+                            return [];
+                        }
+                        this.removeUnitFromMission(donatingMission, freeUnit.id, actionsApi);
+                    }
                     this.logger(
                         `granting unit ${freeUnit.id}#${freeUnit.name} to mission ${requestingMission.getUniqueName()}`,
                     );
@@ -218,6 +238,15 @@ export class MissionController {
                         );
                     });
                     if (grantedMission) {
+                        if (donatingMission) {
+                            if (
+                                donatingMission === grantedMission.mission ||
+                                donatingMission.getPriority() > grantedMission.mission.getPriority()
+                            ) {
+                                return [];
+                            }
+                            this.removeUnitFromMission(donatingMission, freeUnit.id, actionsApi);
+                        }
                         this.addUnitToMission(grantedMission.mission, freeUnit);
                         return [
                             {
@@ -318,6 +347,12 @@ export class MissionController {
     private addUnitToMission(mission: Mission<any>, unit: GameObjectData) {
         mission.addUnit(unit.id);
         this.unitIdToMission.set(unit.id, mission);
+    }
+
+    private removeUnitFromMission(mission: Mission<any>, unitId: number, actionsApi: ActionsApi) {
+        mission.removeUnit(unitId);
+        this.unitIdToMission.delete(unitId);
+        actionsApi.setUnitDebugText(unitId, undefined);
     }
 
     /**

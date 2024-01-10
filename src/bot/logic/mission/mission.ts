@@ -143,6 +143,15 @@ export abstract class Mission<FailureReasons = undefined> {
     }
 
     abstract getGlobalDebugText(): string | undefined;
+
+    /**
+     * Determines whether units can be stolen from this mission by other missions with higher priority.
+     */
+    public isUnitsLocked(): boolean {
+        return true;
+    }
+
+    abstract getPriority(): number;
 }
 
 export type MissionWithAction<T extends MissionAction> = {

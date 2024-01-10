@@ -130,6 +130,10 @@ export class ScoutingMission extends Mission {
     public getGlobalDebugText(): string | undefined {
         return "scouting";
     }
+
+    public getPriority() {
+        return this.priority;
+    }
 }
 
 const SCOUT_COOLDOWN_TICKS = 300;
@@ -154,7 +158,7 @@ export class ScoutingMissionFactory implements MissionFactory {
         if (!matchAwareness.getScoutingManager().hasScoutTargets()) {
             return;
         }
-        if (!missionController.addMission(new ScoutingMission("globalScout", 100, logger))) {
+        if (!missionController.addMission(new ScoutingMission("globalScout", 10, logger))) {
             this.lastScoutAt = gameApi.getCurrentTick();
         }
     }
@@ -168,8 +172,15 @@ export class ScoutingMissionFactory implements MissionFactory {
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
+        if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
+            return;
+        }
+        if (!matchAwareness.getScoutingManager().hasScoutTargets()) {
+            return;
+        }
         if (failedMission instanceof AttackMission) {
-            missionController.addMission(new ScoutingMission("globalScout", 100, logger));
+            missionController.addMission(new ScoutingMission("globalScout", 10, logger));
+            this.lastScoutAt = gameApi.getCurrentTick();
         }
     }
 }

@@ -62,6 +62,10 @@ export class EngineerMission extends Mission {
     public getGlobalDebugText(): string | undefined {
         return undefined;
     }
+
+    public getPriority() {
+        return this.priority;
+    }
 }
 
 // Only try to capture tech buildings within this radius of the starting point.
