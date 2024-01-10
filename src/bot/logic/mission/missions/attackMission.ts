@@ -1,5 +1,5 @@
 import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2 } from "@chronodivide/game-api";
-import { CombatSquad } from "../behaviours/combatSquad.js";
+import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
@@ -10,7 +10,7 @@ import { ActionBatcher } from "../actionBatcher.js";
 import { getSovietComposition } from "../../composition/sovietCompositions.js";
 import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
 import { UnitComposition } from "../../composition/common.js";
-import { manageMoveMicro } from "../behaviours/common.js";
+import { manageMoveMicro } from "./squads/common.js";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -46,7 +46,9 @@ const ATTACK_MISSION_MAX_PRIORITY = 50;
 /**
  * A mission that tries to attack a certain area.
  */
-export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
+export class AttackMission extends Mission<AttackFailReason> {
+    private squad: CombatSquad;
+
     private lastTargetSeenAt = 0;
     private hasPickedNewTarget: boolean = false;
 
@@ -61,7 +63,8 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
         private composition: UnitComposition,
         logger: DebugLogger,
     ) {
-        super(uniqueName, new CombatSquad(rallyArea, attackArea, radius), logger);
+        super(uniqueName, logger);
+        this.squad = new CombatSquad(rallyArea, attackArea, radius);
     }
 
     _onAiUpdate(
@@ -125,8 +128,7 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
             .map((unit) => gameApi.getUnitData(unit.unitId))
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
-        // TODO: maybe we don't need the Behaviour indirection anymore.
-        const update = this.getBehaviour.onAiUpdate(
+        const update = this.squad.onAiUpdate(
             gameApi,
             actionsApi,
             actionBatcher,
@@ -151,7 +153,7 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
         ) {
             const newTarget = generateTarget(gameApi, playerData, matchAwareness);
             if (newTarget) {
-                this.getBehaviour.setAttackArea(newTarget);
+                this.squad.setAttackArea(newTarget);
                 this.hasPickedNewTarget = true;
             }
         }
@@ -170,6 +172,10 @@ export class AttackMission extends Mission<CombatSquad, AttackFailReason> {
             actionBatcher.push(manageMoveMicro(unitId, matchAwareness.getMainRallyPoint()));
         });
         return disbandMission();
+    }
+
+    public getGlobalDebugText(): string | undefined {
+        return this.squad.getGlobalDebugText() ?? "<none>";
     }
 }
 
@@ -299,7 +305,7 @@ export class AttackMissionFactory implements MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        failedMission: Mission<any, any>,
+        failedMission: Mission<any>,
         failureReason: any,
         missionController: MissionController,
     ): void {}

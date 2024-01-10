@@ -2,10 +2,8 @@
 
 ## Urgent
 
--   Refactor: Remove "behaviour" (`missionBehaviour`) paradigm.
-    -   This is only used to reuse logic between `attackMission` and `defenceMission` so the concept doesn't need to leak to the other mission types.
-    -   There is some awkward "call the behaviour's `onAiUpdate`, then do our own thing in `onAiUpdate`" in mission update loops that could be solved.
-    -   We could probably keep the "Squad" terminology, but now it strictly means a group of combat units.
+-   Allow a new attack mission to be formed once another attack mission has started attacking
+    -   Otherwise the game can get stalled out by a couple of idle units in an attack squad; the bot will sit around pooling money until the squad disbands.
 
 ## Medium priority
 

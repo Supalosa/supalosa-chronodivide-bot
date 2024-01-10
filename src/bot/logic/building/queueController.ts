@@ -107,15 +107,17 @@ export class QueueController {
         });
 
         // Repair is simple - just repair everything that's damaged.
-        game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
-            const unit = game.getUnitData(unitId);
-            if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
-                return;
-            }
-            if (unit.hitPoints < unit.maxHitPoints) {
-                actionsApi.toggleRepairWrench(unitId);
-            }
-        });
+        if (playerData.credits > 0) {
+            game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
+                const unit = game.getUnitData(unitId);
+                if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
+                    return;
+                }
+                if (unit.hitPoints < unit.maxHitPoints) {
+                    actionsApi.toggleRepairWrench(unitId);
+                }
+            });
+        }
     }
 
     private updateBuildQueue(

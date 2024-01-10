@@ -2,7 +2,6 @@ import { ActionsApi, GameApi, PlayerData, Tile, UnitData, Vector2 } from "@chron
 import { MatchAwareness } from "../awareness.js";
 import { DebugLogger } from "../common/utils.js";
 import { ActionBatcher } from "./actionBatcher.js";
-import { MissionBehaviour } from "./missions/missionBehaviour.js";
 import { getDistanceBetweenTileAndPoint } from "../map/map.js";
 
 const calculateCenterOfMass: (unitTiles: Tile[]) => {
@@ -29,9 +28,8 @@ const calculateCenterOfMass: (unitTiles: Tile[]) => {
     const maxDistance = Math.max(...distances);
     return { centerOfMass, maxDistance };
 };
-// AI starts Missions based on heuristics, which have one or more squads.
-// Missions can create squads (but squads will disband themselves).
-export abstract class Mission<BehaviourType extends MissionBehaviour, FailureReasons = undefined> {
+// AI starts Missions based on heuristics.
+export abstract class Mission<FailureReasons = undefined> {
     private active = true;
     private unitIds: number[] = [];
     private centerOfMass: Vector2 | null = null;
@@ -41,7 +39,6 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
 
     constructor(
         private uniqueName: string,
-        private behaviour: BehaviourType,
         protected logger: DebugLogger,
     ) {}
 
@@ -60,10 +57,6 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
             this.centerOfMass = null;
             this.maxDistanceToCenterOfMass = null;
         }
-    }
-
-    protected get getBehaviour() {
-        return this.behaviour;
     }
 
     public onAiUpdate(
@@ -144,14 +137,12 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
     /**
      * Declare a callback that is executed when the mission is disbanded for whatever reason.
      */
-    then(onFinish: (unitIds: number[], reason: FailureReasons) => void): Mission<BehaviourType, FailureReasons> {
+    then(onFinish: (unitIds: number[], reason: FailureReasons) => void): Mission<FailureReasons> {
         this.onFinish = onFinish;
         return this;
     }
 
-    getGlobalDebugText(): string | undefined {
-        return this.behaviour.getGlobalDebugText();
-    }
+    abstract getGlobalDebugText(): string | undefined;
 }
 
 export type MissionWithAction<T extends MissionAction> = {

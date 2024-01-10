@@ -8,12 +8,12 @@ import {
     UnitData,
     Vector2,
 } from "@chronodivide/game-api";
-import { MatchAwareness } from "../../awareness.js";
+import { MatchAwareness } from "../../../awareness.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
-import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../common/utils.js";
-import { ActionBatcher, BatchableAction } from "../actionBatcher.js";
-import { MissionBehaviour } from "../missions/missionBehaviour.js";
-import { Mission, MissionAction, grabCombatants, noop } from "../mission.js";
+import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../../common/utils.js";
+import { ActionBatcher, BatchableAction } from "../../actionBatcher.js";
+import { Squad } from "./squad.js";
+import { Mission, MissionAction, grabCombatants, noop } from "../../mission.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 const GRAB_INTERVAL_TICKS = 64;
@@ -34,7 +34,7 @@ enum SquadState {
     Attacking,
 }
 
-export class CombatSquad implements MissionBehaviour {
+export class CombatSquad implements Squad {
     private lastGrab: number | null = null;
     private lastCommand: number | null = null;
     private state = SquadState.Gathering;
@@ -68,7 +68,7 @@ export class CombatSquad implements MissionBehaviour {
         actionsApi: ActionsApi,
         actionBatcher: ActionBatcher,
         playerData: PlayerData,
-        mission: Mission<CombatSquad, any>,
+        mission: Mission<any>,
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
     ): MissionAction {

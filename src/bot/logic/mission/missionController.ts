@@ -21,7 +21,7 @@ import { MatchAwareness } from "../awareness.js";
 import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 import { ActionBatcher } from "./actionBatcher.js";
 import { countBy, isSelectableCombatant } from "../common/utils.js";
-import { MissionBehaviour } from "./missions/missionBehaviour.js";
+import { Squad } from "./missions/squads/squad.js";
 
 // `missingUnitTypes` priority decays by this much every update loop.
 const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
@@ -33,7 +33,7 @@ export class MissionController {
 
     // A mapping of unit IDs to the missions they are assigned to. This may contain units that are dead, but
     // is periodically cleaned in the update loop.
-    private unitIdToMission: Map<number, Mission<any, any>> = new Map();
+    private unitIdToMission: Map<number, Mission<any>> = new Map();
 
     // A mapping of unit types to the highest priority requested for a mission.
     // This decays over time if requests are not 'refreshed' by mission.
@@ -87,7 +87,7 @@ export class MissionController {
 
         // Handle disbands and merges.
         const disbandedMissions: Map<string, any> = new Map();
-        const disbandedMissionsArray: { mission: Mission<any, any>; reason: any }[] = [];
+        const disbandedMissionsArray: { mission: Mission<any>; reason: any }[] = [];
         this.forceDisbandedMissions.forEach((name) => disbandedMissions.set(name, null));
         this.forceDisbandedMissions = [];
         missionActions.filter(isDisbandMission).forEach((a) => {
@@ -315,7 +315,7 @@ export class MissionController {
         return this.requestedUnitTypes;
     }
 
-    private addUnitToMission(mission: Mission<any, any>, unit: GameObjectData) {
+    private addUnitToMission(mission: Mission<any>, unit: GameObjectData) {
         mission.addUnit(unit.id);
         this.unitIdToMission.set(unit.id, mission);
     }
@@ -325,7 +325,7 @@ export class MissionController {
      * @param mission
      * @returns The mission if it was accepted, or null if it was not.
      */
-    public addMission<T extends MissionBehaviour>(mission: Mission<T, any>): Mission<T, any> | null {
+    public addMission(mission: Mission<any>): Mission<any> | null {
         if (this.missions.some((m) => m.getUniqueName() === mission.getUniqueName())) {
             // reject non-unique mission names
             return null;
