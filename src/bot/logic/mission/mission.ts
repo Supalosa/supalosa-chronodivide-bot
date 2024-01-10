@@ -154,6 +154,11 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
     }
 }
 
+export type MissionWithAction<T extends MissionAction> = {
+    mission: Mission<any>;
+    action: T;
+};
+
 export type MissionActionNoop = {
     type: "noop";
 };
@@ -168,15 +173,22 @@ export type MissionActionRequestUnits = {
     unitNames: string[];
     priority: number;
 };
+
 export type MissionActionRequestSpecificUnits = {
     type: "requestSpecific";
     unitIds: number[];
     priority: number;
 };
+
 export type MissionActionGrabFreeCombatants = {
     type: "requestCombatants";
     point: Vector2;
     radius: number;
+};
+
+export type MissionActionReleaseUnits = {
+    type: "releaseUnits";
+    unitIds: number[];
 };
 
 export const noop = () =>
@@ -185,19 +197,36 @@ export const noop = () =>
     }) as MissionActionNoop;
 
 export const disbandMission = (reason?: any) => ({ type: "disband", reason }) as MissionActionDisband;
+export const isDisbandMission = (a: MissionWithAction<MissionAction>): a is MissionWithAction<MissionActionDisband> =>
+    a.action.type === "disband";
 
 export const requestUnits = (unitNames: string[], priority: number) =>
     ({ type: "request", unitNames, priority }) as MissionActionRequestUnits;
+export const isRequestUnits = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionRequestUnits> => a.action.type === "request";
 
 export const requestSpecificUnits = (unitIds: number[], priority: number) =>
     ({ type: "requestSpecific", unitIds, priority }) as MissionActionRequestSpecificUnits;
+export const isRequestSpecificUnits = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionRequestSpecificUnits> => a.action.type === "requestSpecific";
 
 export const grabCombatants = (point: Vector2, radius: number) =>
     ({ type: "requestCombatants", point, radius }) as MissionActionGrabFreeCombatants;
+export const isGrabCombatants = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionGrabFreeCombatants> => a.action.type === "requestCombatants";
+
+export const releaseUnits = (unitIds: number[]) => ({ type: "releaseUnits", unitIds }) as MissionActionReleaseUnits;
+export const isReleaseUnits = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionReleaseUnits> => a.action.type === "releaseUnits";
 
 export type MissionAction =
     | MissionActionNoop
     | MissionActionDisband
     | MissionActionRequestUnits
     | MissionActionRequestSpecificUnits
-    | MissionActionGrabFreeCombatants;
+    | MissionActionGrabFreeCombatants
+    | MissionActionReleaseUnits;
