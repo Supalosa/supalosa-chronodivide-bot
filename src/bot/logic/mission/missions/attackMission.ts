@@ -177,6 +177,10 @@ export class AttackMission extends Mission<AttackFailReason> {
     public getGlobalDebugText(): string | undefined {
         return this.squad.getGlobalDebugText() ?? "<none>";
     }
+
+    public getState() {
+        return this.state;
+    }
 }
 
 // Calculates the weight for initiating an attack on the position of a unit or building.
@@ -261,6 +265,18 @@ export class AttackMissionFactory implements MissionFactory {
             return;
         }
 
+        // can only have one attack 'preparing' at once.
+        if (
+            missionController
+                .getMissions()
+                .some(
+                    (mission): mission is AttackMission =>
+                        mission instanceof AttackMission && mission.getState() === AttackMissionState.Preparing,
+                )
+        ) {
+            return;
+        }
+
         const attackRadius = 10;
 
         const includeEnemyBases = gameApi.getCurrentTick() > this.lastAttackAt + BASE_ATTACK_COOLDOWN_TICKS;
@@ -271,8 +287,7 @@ export class AttackMissionFactory implements MissionFactory {
             return;
         }
 
-        // TODO: not using a fixed value here. But performance slows to a crawl when this is unique.
-        const squadName = "globalAttack";
+        const squadName = "attack_" + gameApi.getCurrentTick();
 
         const composition: UnitComposition = calculateTargetComposition(gameApi, playerData, matchAwareness);
 

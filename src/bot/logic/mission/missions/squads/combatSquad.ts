@@ -29,6 +29,8 @@ const MAX_GATHER_RADIUS = 15;
 
 const GATHER_RATIO = 10;
 
+const ATTACK_SCAN_AREA = 15;
+
 enum SquadState {
     Gathering,
     Attacking,
@@ -129,7 +131,7 @@ export class CombatSquad implements Squad {
                 }
                 // Find units within double the range of the leader.
                 const nearbyHostiles = matchAwareness
-                    .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, getRangeForUnit(attackLeader) * 2)
+                    .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, ATTACK_SCAN_AREA)
                     .map(({ unitId }) => gameApi.getUnitData(unitId))
                     .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 

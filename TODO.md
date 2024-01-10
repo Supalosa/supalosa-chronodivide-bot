@@ -2,8 +2,8 @@
 
 ## Urgent
 
--   Allow a new attack mission to be formed once another attack mission has started attacking
-    -   Otherwise the game can get stalled out by a couple of idle units in an attack squad; the bot will sit around pooling money until the squad disbands.
+-   Allow stealing units from lower priority missions
+    -   Main idea would be to allow the globalDefence mission to steal from the attack missions.
 
 ## Medium priority
 
@@ -18,10 +18,6 @@
     -   If a naval map is detected, we should try to bias towards naval units and various naval strategies (amphibious transports etc)
 -   Feature: Superweapon usage
     -   Self-explanatory
--   Correctness: `isPlayerOwnedTechnoRules` does not account for garrisoned buildings
-    -   `src/bot/common/utils.ts`:`isPlayerOwnedTechnoRules` is used to determine if a given `TechnoRules` is likely to be a player-controlled unit or not.
-    -   If you garrison a building or mind control a neutral unit, this doesn't work.
-    -   There is an upcoming API change to add an `"enemy"` player filter to `getVisibleUnits` that should obviate this function completey.
 -   Performance/Feature: Debounce `BatchableActions` in `actionBatcher`
     -   We have an `actionBatcher` to group up actions taken by units in a given tick, and submit them all at once. For example, if 5 units are being told to attack the same unit, it is submitted as one action with 5 IDs.
     -   This improves performance and reduces the replay size.
