@@ -35,7 +35,7 @@ export interface MissionFactory {
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        failedMission: Mission<any, any>,
+        failedMission: Mission<any>,
         failureReason: any,
         missionController: MissionController,
         logger: DebugLogger,
