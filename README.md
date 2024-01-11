@@ -32,12 +32,39 @@ You can modify `exampleBot.ts` to configure the match. You will most likely want
 
 ## Playing against the bot
 
-Currently, playing against this bot **is only possible for developers**, because it requires you to run this repository from source. Please send a message in the [#dev-talk](https://discord.com/channels/771701199812558848/842700851520339988) channel of the Chrono Divide if you want to do this, as it currently requires connecting to the live server with an appropriate server URL and bot credentials. The code is not currently set up to do this easily, so we may need to step through the instructions together.
+Currently, playing against this bot **is only possible for developers**, because it requires you to run this repository from source. Follow these steps to set up online play.
+
+### Initial set up steps (one time only)
+
+1. Create a Chronodivide account for your bot using the official client at [https://game.chronodivide.com].
+2. If you don't already have one, create a Chronodivide account for yourself using the same link,
+3. Copy `.env.template` to `.env`. The `.env` file is not checked into the repo.
+4. Set the value of `ONLINE_BOT_NAME` to the username of the bot from step 1.
+5. Set the value of `ONLINE_BOT_PASSWORD` to the password from step 1.
+6. Set the value of `PLAYER_NAME` to the human's account name.
+7. (Optional) Change `SERVER_URL` if you want to connect to another server. The Chronodivide accounts from step 1 and 2 need to be present on that server.
+
+### Running the bot and connecting to the game
+
+Start the bot with `ONLINE_MATCH=1`. For example:
 
 ```sh
-export SERVER_URL="wss://<region_server>"
-export CLIENT_URL="https://game.chronodivide.com/"
+ONLINE_MATCH=1 npx cross-env MIX_DIR="${GAMEPATH}" npm --node-options="${NODE_OPTIONS} --inspect" start
 ```
+
+The bot will connect to the server and should return output like this:
+
+```
+You may use the following link(s) to join, after the game is created:
+
+https://game.chronodivide.com/#/game/12345/supalosa
+
+
+Press ENTER to create the game now...
+```
+
+Navigate to the link, **log in using the human credentials first**, then hit ENTER in the terminal so the bot can create the game.
+Do not hit ENTER too early, as there is a very narrow window for the human connect to the match.
 
 ## Debugging
 
