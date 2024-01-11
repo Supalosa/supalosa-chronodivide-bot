@@ -1,6 +1,6 @@
 import { AttackState, ObjectType, OrderType, StanceType, UnitData, Vector2, ZoneType } from "@chronodivide/game-api";
-import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../map/map.js";
-import { BatchableAction } from "../actionBatcher.js";
+import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../../map/map.js";
+import { BatchableAction } from "../../actionBatcher.js";
 
 const NONCE_GI_DEPLOY = 0;
 const NONCE_GI_UNDEPLOY = 1;

@@ -2,7 +2,6 @@ import { ActionsApi, GameApi, PlayerData, Tile, UnitData, Vector2 } from "@chron
 import { MatchAwareness } from "../awareness.js";
 import { DebugLogger } from "../common/utils.js";
 import { ActionBatcher } from "./actionBatcher.js";
-import { MissionBehaviour } from "./missions/missionBehaviour.js";
 import { getDistanceBetweenTileAndPoint } from "../map/map.js";
 
 const calculateCenterOfMass: (unitTiles: Tile[]) => {
@@ -29,9 +28,8 @@ const calculateCenterOfMass: (unitTiles: Tile[]) => {
     const maxDistance = Math.max(...distances);
     return { centerOfMass, maxDistance };
 };
-// AI starts Missions based on heuristics, which have one or more squads.
-// Missions can create squads (but squads will disband themselves).
-export abstract class Mission<BehaviourType extends MissionBehaviour, FailureReasons = undefined> {
+// AI starts Missions based on heuristics.
+export abstract class Mission<FailureReasons = undefined> {
     private active = true;
     private unitIds: number[] = [];
     private centerOfMass: Vector2 | null = null;
@@ -41,7 +39,6 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
 
     constructor(
         private uniqueName: string,
-        private behaviour: BehaviourType,
         protected logger: DebugLogger,
     ) {}
 
@@ -60,10 +57,6 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
             this.centerOfMass = null;
             this.maxDistanceToCenterOfMass = null;
         }
-    }
-
-    protected get getBehaviour() {
-        return this.behaviour;
     }
 
     public onAiUpdate(
@@ -144,15 +137,27 @@ export abstract class Mission<BehaviourType extends MissionBehaviour, FailureRea
     /**
      * Declare a callback that is executed when the mission is disbanded for whatever reason.
      */
-    then(onFinish: (unitIds: number[], reason: FailureReasons) => void): Mission<BehaviourType, FailureReasons> {
+    then(onFinish: (unitIds: number[], reason: FailureReasons) => void): Mission<FailureReasons> {
         this.onFinish = onFinish;
         return this;
     }
 
-    getGlobalDebugText(): string | undefined {
-        return this.behaviour.getGlobalDebugText();
+    abstract getGlobalDebugText(): string | undefined;
+
+    /**
+     * Determines whether units can be stolen from this mission by other missions with higher priority.
+     */
+    public isUnitsLocked(): boolean {
+        return true;
     }
+
+    abstract getPriority(): number;
 }
+
+export type MissionWithAction<T extends MissionAction> = {
+    mission: Mission<any>;
+    action: T;
+};
 
 export type MissionActionNoop = {
     type: "noop";
@@ -168,15 +173,22 @@ export type MissionActionRequestUnits = {
     unitNames: string[];
     priority: number;
 };
+
 export type MissionActionRequestSpecificUnits = {
     type: "requestSpecific";
     unitIds: number[];
     priority: number;
 };
+
 export type MissionActionGrabFreeCombatants = {
     type: "requestCombatants";
     point: Vector2;
     radius: number;
+};
+
+export type MissionActionReleaseUnits = {
+    type: "releaseUnits";
+    unitIds: number[];
 };
 
 export const noop = () =>
@@ -185,19 +197,36 @@ export const noop = () =>
     }) as MissionActionNoop;
 
 export const disbandMission = (reason?: any) => ({ type: "disband", reason }) as MissionActionDisband;
+export const isDisbandMission = (a: MissionWithAction<MissionAction>): a is MissionWithAction<MissionActionDisband> =>
+    a.action.type === "disband";
 
 export const requestUnits = (unitNames: string[], priority: number) =>
     ({ type: "request", unitNames, priority }) as MissionActionRequestUnits;
+export const isRequestUnits = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionRequestUnits> => a.action.type === "request";
 
 export const requestSpecificUnits = (unitIds: number[], priority: number) =>
     ({ type: "requestSpecific", unitIds, priority }) as MissionActionRequestSpecificUnits;
+export const isRequestSpecificUnits = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionRequestSpecificUnits> => a.action.type === "requestSpecific";
 
 export const grabCombatants = (point: Vector2, radius: number) =>
     ({ type: "requestCombatants", point, radius }) as MissionActionGrabFreeCombatants;
+export const isGrabCombatants = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionGrabFreeCombatants> => a.action.type === "requestCombatants";
+
+export const releaseUnits = (unitIds: number[]) => ({ type: "releaseUnits", unitIds }) as MissionActionReleaseUnits;
+export const isReleaseUnits = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionReleaseUnits> => a.action.type === "releaseUnits";
 
 export type MissionAction =
     | MissionActionNoop
     | MissionActionDisband
     | MissionActionRequestUnits
     | MissionActionRequestSpecificUnits
-    | MissionActionGrabFreeCombatants;
+    | MissionActionGrabFreeCombatants
+    | MissionActionReleaseUnits;

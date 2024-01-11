@@ -8,17 +8,14 @@ import {
     UnitData,
     Vector2,
 } from "@chronodivide/game-api";
-import { MatchAwareness } from "../../awareness.js";
+import { MatchAwareness } from "../../../awareness.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
-import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../common/utils.js";
-import { ActionBatcher, BatchableAction } from "../actionBatcher.js";
-import { MissionBehaviour } from "../missions/missionBehaviour.js";
-import { Mission, MissionAction, grabCombatants, noop } from "../mission.js";
+import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../../common/utils.js";
+import { ActionBatcher, BatchableAction } from "../../actionBatcher.js";
+import { Squad } from "./squad.js";
+import { Mission, MissionAction, grabCombatants, noop } from "../../mission.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
-const GRAB_INTERVAL_TICKS = 64;
-
-const GRAB_RADIUS = 20;
 
 // Units must be in a certain radius of the center of mass before attacking.
 // This scales for number of units in the squad though.
@@ -29,13 +26,14 @@ const MAX_GATHER_RADIUS = 15;
 
 const GATHER_RATIO = 10;
 
+const ATTACK_SCAN_AREA = 15;
+
 enum SquadState {
     Gathering,
     Attacking,
 }
 
-export class CombatSquad implements MissionBehaviour {
-    private lastGrab: number | null = null;
+export class CombatSquad implements Squad {
     private lastCommand: number | null = null;
     private state = SquadState.Gathering;
 
@@ -68,7 +66,7 @@ export class CombatSquad implements MissionBehaviour {
         actionsApi: ActionsApi,
         actionBatcher: ActionBatcher,
         playerData: PlayerData,
-        mission: Mission<CombatSquad, any>,
+        mission: Mission<any>,
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
     ): MissionAction {
@@ -129,7 +127,7 @@ export class CombatSquad implements MissionBehaviour {
                 }
                 // Find units within double the range of the leader.
                 const nearbyHostiles = matchAwareness
-                    .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, getRangeForUnit(attackLeader) * 2)
+                    .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, ATTACK_SCAN_AREA)
                     .map(({ unitId }) => gameApi.getUnitData(unitId))
                     .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
@@ -145,13 +143,7 @@ export class CombatSquad implements MissionBehaviour {
                 }
             }
         }
-
-        if (!this.lastGrab || gameApi.getCurrentTick() > this.lastGrab + GRAB_INTERVAL_TICKS) {
-            this.lastGrab = gameApi.getCurrentTick();
-            return grabCombatants(mission.getCenterOfMass() ?? this.rallyArea, GRAB_RADIUS);
-        } else {
-            return noop();
-        }
+        return noop();
     }
 
     /**

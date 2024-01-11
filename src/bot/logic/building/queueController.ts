@@ -1,7 +1,6 @@
 import {
     ActionsApi,
     GameApi,
-    GameMath,
     PlayerData,
     ProductionApi,
     QueueStatus,
@@ -107,15 +106,17 @@ export class QueueController {
         });
 
         // Repair is simple - just repair everything that's damaged.
-        game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
-            const unit = game.getUnitData(unitId);
-            if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
-                return;
-            }
-            if (unit.hitPoints < unit.maxHitPoints) {
-                actionsApi.toggleRepairWrench(unitId);
-            }
-        });
+        if (playerData.credits > 0) {
+            game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
+                const unit = game.getUnitData(unitId);
+                if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
+                    return;
+                }
+                if (unit.hitPoints < unit.maxHitPoints) {
+                    actionsApi.toggleRepairWrench(unitId);
+                }
+            });
+        }
     }
 
     private updateBuildQueue(
@@ -284,7 +285,7 @@ export class QueueController {
         const queueStates = this.queueStates
             .filter((queueState) => queueState.items.length > 0)
             .map((queueState) => {
-                let queueString = queueState.items
+                const queueString = queueState.items
                     .map((item) => item.unit.name + "(" + Math.round(item.priority * 10) / 10 + ")")
                     .join(", ");
                 return `${queueTypeToName(queueState.queue)} Prios: ${queueString}\n`;

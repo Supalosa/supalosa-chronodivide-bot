@@ -1,21 +1,21 @@
 import { ActionsApi, GameApi, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
-import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
+import { Mission, MissionAction, grabCombatants, noop, releaseUnits, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
-import { CombatSquad } from "../behaviours/combatSquad.js";
-import { RetreatMission } from "./retreatMission.js";
+import { CombatSquad } from "./squads/combatSquad.js";
 import { DebugLogger, isOwnedByNeutral } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 
-export enum DefenceFailReason {
-    NoTargets,
-}
+export const MAX_PRIORITY = 100;
+export const PRIORITY_INCREASE_PER_TICK_RATIO = 1.025;
 
 /**
  * A mission that tries to defend a certain area.
  */
-export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
+export class DefenceMission extends Mission<CombatSquad> {
+    private squad: CombatSquad;
+
     constructor(
         uniqueName: string,
         private priority: number,
@@ -24,7 +24,8 @@ export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
         private radius: number,
         logger: DebugLogger,
     ) {
-        super(uniqueName, new CombatSquad(rallyArea, defenceArea, radius), logger);
+        super(uniqueName, logger);
+        this.squad = new CombatSquad(rallyArea, defenceArea, radius);
     }
 
     _onAiUpdate(
@@ -40,7 +41,7 @@ export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
             .map((unit) => gameApi.getUnitData(unit.unitId))
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
-        const update = this.getBehaviour.onAiUpdate(
+        const update = this.squad.onAiUpdate(
             gameApi,
             actionsApi,
             actionBatcher,
@@ -55,8 +56,13 @@ export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
         }
 
         if (foundTargets.length === 0) {
-            this.logger(`(Defence Mission ${this.getUniqueName()}): No targets found, disbanding.`);
-            return disbandMission(DefenceFailReason.NoTargets);
+            this.priority = 0;
+            if (this.getUnitIds().length > 0) {
+                this.logger(`(Defence Mission ${this.getUniqueName()}): No targets found, releasing units.`);
+                return releaseUnits(this.getUnitIds());
+            } else {
+                return noop();
+            }
         } else {
             const targetUnit = foundTargets[0];
             this.logger(
@@ -64,10 +70,19 @@ export class DefenceMission extends Mission<CombatSquad, DefenceFailReason> {
                     foundTargets.length
                 } found in area ${this.radius})`,
             );
-            this.getBehaviour.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
+            this.squad.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
+            this.priority = MAX_PRIORITY; // Math.min(MAX_PRIORITY, this.priority * PRIORITY_INCREASE_PER_TICK_RATIO);
+            return grabCombatants(playerData.startLocation, this.priority);
         }
-        return requestUnits(["E1", "E2"], this.priority);
-        //return noop();
+        //return requestUnits(["E1", "E2", "FV", "HTK", "MTNK", "HTNK"], this.priority);
+    }
+
+    public getGlobalDebugText(): string | undefined {
+        return this.squad.getGlobalDebugText() ?? "<none>";
+    }
+
+    public getPriority() {
+        return this.priority;
     }
 }
 
@@ -120,16 +135,7 @@ export class DefenceMissionFactory implements MissionFactory {
                     playerData.startLocation,
                     defendableRadius * 1.2,
                     logger,
-                ).then((unitIds, squad) => {
-                    missionController.addMission(
-                        new RetreatMission(
-                            "retreat-from-globalDefence" + gameApi.getCurrentTick(),
-                            matchAwareness.getMainRallyPoint(),
-                            unitIds,
-                            logger,
-                        ),
-                    );
-                }),
+                ),
             );
         }
     }
