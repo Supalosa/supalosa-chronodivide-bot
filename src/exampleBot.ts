@@ -1,5 +1,7 @@
-import { Agent, Bot, cdapi } from "@chronodivide/game-api";
+import "dotenv/config";
+import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
 import { SupalosaBot } from "./bot/bot.js";
+import { off } from "process";
 
 async function main() {
     /*
@@ -56,34 +58,7 @@ async function main() {
     8=Russians
     */
 
-    const onlineSettings = {
-        online: true as true,
-        serverUrl: process.env.SERVER_URL!,
-        clientUrl: process.env.CLIENT_URL!,
-        agents: [new SupalosaBot(firstBotName, "Americans"), { name: secondBotName, country: "French" }] as [
-            Bot,
-            ...Agent[],
-        ],
-    };
-
-    const offlineSettings1v1 = {
-        agents: [
-            new SupalosaBot(firstBotName, "French", [], true).setDebugMode(true),
-            new SupalosaBot(secondBotName, "Russians", [], false),
-        ],
-    };
-
-    const offlineSettings2v2 = {
-        agents: [
-            new SupalosaBot(firstBotName, "French", [firstBotName], false),
-            new SupalosaBot(secondBotName, "Russians", [firstBotName], true).setDebugMode(true),
-            new SupalosaBot(thirdBotName, "Russians", [fourthBotName], false),
-            new SupalosaBot(fourthBotName, "French", [thirdBotName], false),
-        ],
-    };
-
-    const game = await cdapi.createGame({
-        ...offlineSettings1v1,
+    const baseSettings: CreateBaseOpts = {
         buildOffAlly: false,
         cratesAppear: false,
         credits: 10000,
@@ -94,7 +69,41 @@ async function main() {
         shortGame: true,
         superWeapons: false,
         unitCount: 0,
-    });
+    };
+
+    const onlineSettings: CreateOnlineOpts = {
+        ...baseSettings,
+        online: true,
+        serverUrl: process.env.SERVER_URL!,
+        clientUrl: process.env.CLIENT_URL!,
+        agents: [
+            new SupalosaBot(process.env.ONLINE_BOT_NAME ?? firstBotName, "Americans"),
+            { name: process.env.PLAYER_NAME ?? secondBotName, country: "French" },
+        ] as [Bot, ...Agent[]],
+        botPassword: process.env.ONLINE_BOT_PASSWORD ?? "default",
+    };
+
+    const offlineSettings1v1: CreateOfflineOpts = {
+        ...baseSettings,
+        online: false,
+        agents: [
+            new SupalosaBot(firstBotName, "French", [], true).setDebugMode(true),
+            new SupalosaBot(secondBotName, "Russians", [], false),
+        ],
+    };
+
+    const offlineSettings2v2: CreateOfflineOpts = {
+        ...baseSettings,
+        online: false,
+        agents: [
+            new SupalosaBot(firstBotName, "French", [firstBotName], false),
+            new SupalosaBot(secondBotName, "Russians", [firstBotName], true).setDebugMode(true),
+            new SupalosaBot(thirdBotName, "Russians", [fourthBotName], false),
+            new SupalosaBot(fourthBotName, "French", [thirdBotName], false),
+        ],
+    };
+
+    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings1v1);
     while (!game.isFinished()) {
         await game.update();
     }
