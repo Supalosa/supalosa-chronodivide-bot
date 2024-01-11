@@ -66,6 +66,10 @@ export class ExpansionMission extends Mission {
     public getGlobalDebugText(): string | undefined {
         return `Expand with MCV ${this.selectedMcv}`;
     }
+
+    public getPriority() {
+        return this.priority;
+    }
 }
 
 export class ExpansionMissionFactory implements MissionFactory {

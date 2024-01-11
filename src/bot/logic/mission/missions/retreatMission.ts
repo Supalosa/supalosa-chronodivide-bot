@@ -47,4 +47,8 @@ export class RetreatMission extends Mission {
     public getGlobalDebugText(): string | undefined {
         return `retreat with ${this.withUnitIds.length} units`;
     }
+
+    public getPriority() {
+        return 100;
+    }
 }

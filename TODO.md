@@ -2,9 +2,6 @@
 
 ## Urgent
 
--   Allow stealing units from lower priority missions
-    -   Main idea would be to allow the globalDefence mission to steal from the attack missions.
-
 ## Medium priority
 
 -   Performance: Leader pathfinding

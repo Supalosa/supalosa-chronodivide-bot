@@ -16,9 +16,6 @@ import { Squad } from "./squad.js";
 import { Mission, MissionAction, grabCombatants, noop } from "../../mission.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
-const GRAB_INTERVAL_TICKS = 64;
-
-const GRAB_RADIUS = 20;
 
 // Units must be in a certain radius of the center of mass before attacking.
 // This scales for number of units in the squad though.
@@ -37,7 +34,6 @@ enum SquadState {
 }
 
 export class CombatSquad implements Squad {
-    private lastGrab: number | null = null;
     private lastCommand: number | null = null;
     private state = SquadState.Gathering;
 
@@ -147,13 +143,7 @@ export class CombatSquad implements Squad {
                 }
             }
         }
-
-        if (!this.lastGrab || gameApi.getCurrentTick() > this.lastGrab + GRAB_INTERVAL_TICKS) {
-            this.lastGrab = gameApi.getCurrentTick();
-            return grabCombatants(mission.getCenterOfMass() ?? this.rallyArea, GRAB_RADIUS);
-        } else {
-            return noop();
-        }
+        return noop();
     }
 
     /**

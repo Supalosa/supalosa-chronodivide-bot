@@ -1,7 +1,6 @@
 import {
     ActionsApi,
     GameApi,
-    GameMath,
     PlayerData,
     ProductionApi,
     QueueStatus,
@@ -224,7 +223,7 @@ export class QueueController {
                 calculatedPriority,
                 unitTypeRequests.get(option.name) ?? calculatedPriority,
             );
-            if (actualPriority >= 0) {
+            if (actualPriority > 0) {
                 priorityQueue.push({ unit: option, priority: actualPriority });
             }
         });
@@ -286,7 +285,7 @@ export class QueueController {
         const queueStates = this.queueStates
             .filter((queueState) => queueState.items.length > 0)
             .map((queueState) => {
-                let queueString = queueState.items
+                const queueString = queueState.items
                     .map((item) => item.unit.name + "(" + Math.round(item.priority * 10) / 10 + ")")
                     .join(", ");
                 return `${queueTypeToName(queueState.queue)} Prios: ${queueString}\n`;

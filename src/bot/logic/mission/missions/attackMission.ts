@@ -181,6 +181,15 @@ export class AttackMission extends Mission<AttackFailReason> {
     public getState() {
         return this.state;
     }
+
+    // This mission can give up its units while preparing.
+    public isUnitsLocked(): boolean {
+        return this.state !== AttackMissionState.Preparing;
+    }
+
+    public getPriority() {
+        return this.priority;
+    }
 }
 
 // Calculates the weight for initiating an attack on the position of a unit or building.
