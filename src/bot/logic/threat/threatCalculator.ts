@@ -19,10 +19,10 @@ export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, vis
         .getVisibleUnits(playerData.name, "self", (r) => r.isSelectableCombatant)
         .filter((unitId) => isAntiGround(game, unitId));
     let ourAntiAirUnits = game
-        .getVisibleUnits(playerData.name, "self", (r) => r.isSelectableCombatant)
+        .getVisibleUnits(playerData.name, "self", (r) => r.isSelectableCombatant || r.type === ObjectType.Building)
         .filter((unitId) => isAntiAir(game, unitId));
     let ourGroundDefence = game
-        .getVisibleUnits(playerData.name, "self", (r) => r.type == ObjectType.Building)
+        .getVisibleUnits(playerData.name, "self", (r) => r.type === ObjectType.Building)
         .filter((unitId) => isAntiGround(game, unitId));
     let ourAirUnits = game.getVisibleUnits(
         playerData.name,
@@ -76,14 +76,14 @@ function calculateFirepowerForUnit(unitData: UnitData): number {
         threat +=
             (hpRatio *
                 ((unitData.primaryWeapon.rules.damage + 1) * GameMath.sqrt(unitData.primaryWeapon.rules.range + 1))) /
-            Math.max(unitData.primaryWeapon.cooldownTicks, 1);
+            Math.max(unitData.primaryWeapon.rules.rof, 1);
     }
     if (unitData.secondaryWeapon) {
         threat +=
             (hpRatio *
                 ((unitData.secondaryWeapon.rules.damage + 1) *
                     GameMath.sqrt(unitData.secondaryWeapon.rules.range + 1))) /
-            Math.max(unitData.secondaryWeapon.cooldownTicks, 1);
+            Math.max(unitData.secondaryWeapon.rules.rof, 1);
     }
     return Math.min(800, threat);
 }
