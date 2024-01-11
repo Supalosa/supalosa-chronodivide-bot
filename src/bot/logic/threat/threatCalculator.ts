@@ -85,9 +85,6 @@ function calculateFirepowerForUnit(unitData: UnitData): number {
                     GameMath.sqrt(unitData.secondaryWeapon.rules.range + 1))) /
             Math.max(unitData.secondaryWeapon.rules.rof, 1);
     }
-
-    console.log(`${unitData.name} x ${hpRatio} = ${threat}`);
-
     return Math.min(800, threat);
 }
 
