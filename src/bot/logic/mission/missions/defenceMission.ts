@@ -72,8 +72,8 @@ export class DefenceMission extends Mission<CombatSquad> {
             );
             this.squad.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
             this.priority = MAX_PRIORITY; // Math.min(MAX_PRIORITY, this.priority * PRIORITY_INCREASE_PER_TICK_RATIO);
+            return grabCombatants(playerData.startLocation, this.priority);
         }
-        return grabCombatants(playerData.startLocation, 50);
         //return requestUnits(["E1", "E2", "FV", "HTK", "MTNK", "HTNK"], this.priority);
     }
 

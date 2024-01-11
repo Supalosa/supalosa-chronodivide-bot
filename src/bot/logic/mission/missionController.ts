@@ -140,7 +140,7 @@ export class MissionController {
                     return [];
                 }
                 if (!this.unitIdToMission.has(unitId)) {
-                    this.addUnitToMission(requestingMission, unit);
+                    this.addUnitToMission(requestingMission, unit, actionsApi);
                     return [{ unitName: unit?.name, mission: requestingMission.getUniqueName() }];
                 }
                 return [];
@@ -223,7 +223,7 @@ export class MissionController {
                     this.logger(
                         `granting unit ${freeUnit.id}#${freeUnit.name} to mission ${requestingMission.getUniqueName()}`,
                     );
-                    this.addUnitToMission(requestingMission, freeUnit);
+                    this.addUnitToMission(requestingMission, freeUnit, actionsApi);
                     delete unitTypeToHighestRequest[freeUnit.name];
                     return [
                         { unitName: freeUnit.name, missionName: requestingMission.getUniqueName(), method: "type" },
@@ -247,7 +247,7 @@ export class MissionController {
                             }
                             this.removeUnitFromMission(donatingMission, freeUnit.id, actionsApi);
                         }
-                        this.addUnitToMission(grantedMission.mission, freeUnit);
+                        this.addUnitToMission(grantedMission.mission, freeUnit, actionsApi);
                         return [
                             {
                                 unitName: freeUnit.name,
@@ -344,9 +344,10 @@ export class MissionController {
         return this.requestedUnitTypes;
     }
 
-    private addUnitToMission(mission: Mission<any>, unit: GameObjectData) {
+    private addUnitToMission(mission: Mission<any>, unit: GameObjectData, actionsApi: ActionsApi) {
         mission.addUnit(unit.id);
         this.unitIdToMission.set(unit.id, mission);
+        actionsApi.setUnitDebugText(unit.id, mission.getUniqueName() + "_" + unit.id);
     }
 
     private removeUnitFromMission(mission: Mission<any>, unitId: number, actionsApi: ActionsApi) {
