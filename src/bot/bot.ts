@@ -115,9 +115,9 @@ export class SupalosaBot extends Bot {
         if (!this.enableLogging) {
             return;
         }
-        const timestamp = this.getHumanTimestamp(this.gameApi);
-        console.log(`[${timestamp} ${this.name}] ${message}`);
+        this.logger.info(message);
         if (sayInGame) {
+            const timestamp = this.getHumanTimestamp(this.gameApi);
             this.actionsApi.sayAll(`${timestamp}: ${message}`);
         }
     }
