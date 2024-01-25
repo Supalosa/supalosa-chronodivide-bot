@@ -11,7 +11,6 @@ const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
 // Number of ticks per second at the base speed.
 const NATURAL_TICK_RATE = 15;
-const BOT_AUTO_SURRENDER_TIME_SECONDS = 7200; // 7200 = 2 hours (approx 30 mins in real time, given a game speed of 4)
 
 export class SupalosaBot extends Bot {
     private tickRatio?: number;
@@ -70,11 +69,6 @@ export class SupalosaBot extends Bot {
             const myPlayer = game.getPlayerData(this.name);
 
             this.matchAwareness.onAiUpdate(game, myPlayer);
-
-            if (game.getCurrentTick() / NATURAL_TICK_RATE > BOT_AUTO_SURRENDER_TIME_SECONDS) {
-                this.logBotStatus(`Auto-surrendering after ${BOT_AUTO_SURRENDER_TIME_SECONDS} seconds.`);
-                this.actionsApi.quitGame();
-            }
 
             // hacky resign condition
             const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
