@@ -95,3 +95,9 @@ Have the npmjs token in ~/.npmrc or somewhere appropriate.
 ```
 npm publish
 ```
+
+## Contributors
+
+- use-strict: Making Chrono Divide
+- Libi: Improvements to base structure placement performance
+- Dogemoon: CN Documentation
