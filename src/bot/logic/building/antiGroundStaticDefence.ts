@@ -9,6 +9,7 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         private basePriority: number,
         private baseAmount: number,
         private groundStrength: number,
+        private limit: number,
     ) {}
 
     getPlacementLocation(
@@ -25,6 +26,10 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | null,
     ): number {
+        const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
+        if (numOwned >= this.limit) {
+            return 0;
+        }
         // If the enemy's ground power is increasing we should try to keep up.
         if (threatCache) {
             let denominator =
@@ -36,7 +41,6 @@ export class AntiGroundStaticDefence implements AiBuildingRules {
             }
         }
         const strengthPerCost = (this.groundStrength / technoRules.cost) * 1000;
-        const numOwned = numBuildingsOwnedOfType(game, playerData, technoRules);
         return this.basePriority * (1.0 - numOwned / this.baseAmount) * strengthPerCost;
     }
 
