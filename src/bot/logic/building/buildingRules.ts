@@ -5,6 +5,7 @@ import {
     LandType,
     ObjectType,
     PlayerData,
+    Rectangle,
     Size,
     TechnoRules,
     Tile,
@@ -64,13 +65,21 @@ export function numBuildingsOwnedOfName(game: GameApi, playerData: PlayerData, n
  * @param newBuildingSize? Size of the new building
  * @returns
  */
-function computeAdjacentRect(point: Vector2, t: Size, adjacent: number, newBuildingSize?: Size) {
+function computeAdjacentRect(point: Vector2, t: Size, adjacent: number, newBuildingSize?: Size): Rectangle {
     return {
         x: point.x - adjacent - (newBuildingSize?.width || 0),
         y: point.y - adjacent - (newBuildingSize?.height || 0),
         width: t.width + 2 * adjacent + (newBuildingSize?.width || 0),
         height: t.height + 2 * adjacent + (newBuildingSize?.height || 0),
     };
+}
+
+function getAdjacentTiles(game: GameApi, range: Rectangle, onWater: boolean) {
+    // use the bulk API to get all tiles from the baseTile to the (baseTile + range)
+    const adjacentTiles = game.mapApi
+        .getTilesInRect(range)
+        .filter((tile) => !onWater || tile.landType === LandType.Water);
+    return adjacentTiles;
 }
 
 export function getAdjacencyTiles(
@@ -98,16 +107,10 @@ export function getAdjacencyTiles(
             height: foundation?.height,
         };
         const range = computeAdjacentRect(buildingBase, buildingSize, technoRules.adjacent, placementRules.foundation);
-        const baseTile = game.mapApi.getTile(range.x, range.y);
-        if (!baseTile) {
+        const adjacentTiles = getAdjacentTiles(game, range, onWater);
+        if (adjacentTiles.length === 0) {
             continue;
         }
-        const adjacentTiles = game.mapApi
-            .getTilesInRect(baseTile, {
-                width: range.width,
-                height: range.height,
-            })
-            .filter((tile) => !onWater || tile.landType === LandType.Water);
         tiles.push(...adjacentTiles);
 
         // Prevent placing the new building on tiles that would cause it to overlap with this building.
