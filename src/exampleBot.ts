@@ -1,9 +1,29 @@
 import "dotenv/config";
-import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
+import {
+    Agent,
+    Bot,
+    Country,
+    CreateBaseOpts,
+    CreateOfflineOpts,
+    CreateOnlineOpts,
+    cdapi,
+} from "@chronodivide/game-api";
 import { SupalosaBot } from "./bot/bot.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
 const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours
+
+enum Countries {
+    USA = "Americans",
+    KOREA = "Alliance",
+    FRANCE = "French",
+    GERMANY = "Germans",
+    GREAT_BRITAIN = "British",
+    LIBYA = "Africans",
+    IRAQ = "Arabs",
+    CUBA = "Confederation",
+    RUSSIA = "Russians",
+}
 
 async function main() {
     /*
@@ -33,7 +53,7 @@ async function main() {
     heckcorners_b_golden.map,hecklvl.map,heckrvr.map,hecktvt.map,isleland.map,jungleofvietnam.map,2_malibu_cliffs_le.map,mojosprt.map,4_montana_dmz_le.map,6_near_ore_far.map,8_near_ore_far.map,
     offensedefense.map,ore2_startfixed.map,rekoool_fast_6players.mpr,rekoool_fast_8players.mpr,riverram.map,tourofegypt.map,unrepent.map,sinkswim_yr_port.map
     */
-    const mapName = "mp03t4.map";
+    const mapName = "heckcorners_b.map";
     // Bot names must be unique in online mode
     const timestamp = String(Date.now()).substr(-6);
     const firstBotName = `Joe${timestamp}`;
@@ -45,20 +65,6 @@ async function main() {
 
     console.log("Server URL: " + process.env.SERVER_URL!);
     console.log("Client URL: " + process.env.CLIENT_URL!);
-
-    /*
-    Countries:
-    0=Americans
-    1=Alliance -> Korea
-    2=French
-    3=Germans
-    4=British
-
-    5=Africans -> Libya
-    6=Arabs -> Iraq
-    7=Confederation -> Cuba
-    8=Russians
-    */
 
     const baseSettings: CreateBaseOpts = {
         buildOffAlly: false,
@@ -79,8 +85,8 @@ async function main() {
         serverUrl: process.env.SERVER_URL!,
         clientUrl: process.env.CLIENT_URL!,
         agents: [
-            new SupalosaBot(process.env.ONLINE_BOT_NAME ?? firstBotName, "Americans"),
-            { name: process.env.PLAYER_NAME ?? secondBotName, country: "French" },
+            new SupalosaBot(process.env.ONLINE_BOT_NAME ?? firstBotName, Countries.USA),
+            { name: process.env.PLAYER_NAME ?? secondBotName, country: Countries.FRANCE },
         ] as [Bot, ...Agent[]],
         botPassword: process.env.ONLINE_BOT_PASSWORD ?? "default",
     };
@@ -89,8 +95,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(firstBotName, "French", [], true).setDebugMode(true),
-            new SupalosaBot(secondBotName, "Russians", [], false),
+            new SupalosaBot(firstBotName, Countries.FRANCE, [], true).setDebugMode(true),
+            new SupalosaBot(secondBotName, Countries.RUSSIA, [], false),
         ],
     };
 
@@ -98,10 +104,10 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(firstBotName, "French", [firstBotName], false),
-            new SupalosaBot(secondBotName, "Russians", [firstBotName], true).setDebugMode(true),
-            new SupalosaBot(thirdBotName, "Russians", [fourthBotName], false),
-            new SupalosaBot(fourthBotName, "French", [thirdBotName], false),
+            new SupalosaBot(firstBotName, Countries.FRANCE, [firstBotName], false),
+            new SupalosaBot(secondBotName, Countries.RUSSIA, [firstBotName], true).setDebugMode(true),
+            new SupalosaBot(thirdBotName, Countries.RUSSIA, [fourthBotName], false),
+            new SupalosaBot(fourthBotName, Countries.FRANCE, [thirdBotName], false),
         ],
     };
 
