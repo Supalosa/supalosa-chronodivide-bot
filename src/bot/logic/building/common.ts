@@ -4,20 +4,18 @@ import { getDefaultPlacementLocation } from "./buildingRules.js";
 
 export const getStaticDefencePlacement = (game: GameApi, playerData: PlayerData, technoRules: TechnoRules) => {
     // Prefer front towards enemy.
-    let startLocation = playerData.startLocation;
-    let players = game.getPlayers();
-    let enemyFacingLocationCandidates: Vector2[] = [];
-    for (let i = 0; i < players.length; ++i) {
-        let playerName = players[i];
-        if (playerName == playerData.name) {
-            continue;
-        }
-        let enemyPlayer = game.getPlayerData(playerName);
-        enemyFacingLocationCandidates.push(
-            getPointTowardsOtherPoint(game, startLocation, enemyPlayer.startLocation, 4, 16, 1.5),
-        );
+    const { startLocation, name: currentName } = playerData;
+    const allNames = game.getPlayers();
+    // Create a list of positions that point roughly towards hostile player start locatoins.
+    const candidates = allNames
+        .filter((otherName) => otherName !== currentName && !game.areAlliedPlayers(otherName, currentName))
+        .map((otherName) => {
+            const enemyPlayer = game.getPlayerData(otherName);
+            return getPointTowardsOtherPoint(game, startLocation, enemyPlayer.startLocation, 4, 16, 1.5);
+        });
+    if (candidates.length === 0) {
+        return undefined;
     }
-    let selectedLocation =
-        enemyFacingLocationCandidates[Math.floor(game.generateRandom() * enemyFacingLocationCandidates.length)];
-    return getDefaultPlacementLocation(game, playerData, selectedLocation, technoRules, false, 0);
+    const selectedLocation = candidates[Math.floor(game.generateRandom() * candidates.length)];
+    return getDefaultPlacementLocation(game, playerData, selectedLocation, technoRules, false, 2);
 };

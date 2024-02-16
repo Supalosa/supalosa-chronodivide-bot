@@ -1,13 +1,5 @@
 import "dotenv/config";
-import {
-    Agent,
-    Bot,
-    Country,
-    CreateBaseOpts,
-    CreateOfflineOpts,
-    CreateOnlineOpts,
-    cdapi,
-} from "@chronodivide/game-api";
+import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
 import { SupalosaBot } from "./bot/bot.js";
 import { Countries } from "./bot/logic/common/utils.js";
 
