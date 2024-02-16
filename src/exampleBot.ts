@@ -9,21 +9,10 @@ import {
     cdapi,
 } from "@chronodivide/game-api";
 import { SupalosaBot } from "./bot/bot.js";
+import { Countries } from "./bot/logic/common/utils.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
 const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours
-
-enum Countries {
-    USA = "Americans",
-    KOREA = "Alliance",
-    FRANCE = "French",
-    GERMANY = "Germans",
-    GREAT_BRITAIN = "British",
-    LIBYA = "Africans",
-    IRAQ = "Arabs",
-    CUBA = "Confederation",
-    RUSSIA = "Russians",
-}
 
 async function main() {
     /*
@@ -95,8 +84,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(firstBotName, Countries.FRANCE, [], true).setDebugMode(true),
-            new SupalosaBot(secondBotName, Countries.RUSSIA, [], false),
+            new SupalosaBot(firstBotName, Countries.FRANCE, [], false),
+            new SupalosaBot(secondBotName, Countries.RUSSIA, [], true).setDebugMode(true),
         ],
     };
 

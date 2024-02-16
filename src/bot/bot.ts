@@ -5,7 +5,7 @@ import { SectorCache } from "./logic/map/sector.js";
 import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
-import { formatTimeDuration } from "./logic/common/utils.js";
+import { Countries, formatTimeDuration } from "./logic/common/utils.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -23,7 +23,7 @@ export class SupalosaBot extends Bot {
 
     constructor(
         name: string,
-        country: string,
+        country: Countries,
         private tryAllyWith: string[] = [],
         private enableLogging = true,
     ) {

@@ -1,10 +1,18 @@
 import { GameObjectData, TechnoRules, UnitData } from "@chronodivide/game-api";
 
+export enum Countries {
+    USA = "Americans",
+    KOREA = "Alliance",
+    FRANCE = "French",
+    GERMANY = "Germans",
+    GREAT_BRITAIN = "British",
+    LIBYA = "Africans",
+    IRAQ = "Arabs",
+    CUBA = "Confederation",
+    RUSSIA = "Russians",
+}
+
 export type DebugLogger = (message: string, sayInGame?: boolean) => void;
-
-const SOVIET_COUNTRY_NAMES = ["Africans", "Arabs", "Confederation", "Russians"];
-
-export const isSoviet = (countryName: string) => SOVIET_COUNTRY_NAMES.includes(countryName);
 
 export const isOwnedByNeutral = (unitData: UnitData | undefined) => unitData?.owner === "@@NEUTRAL@@";
 
