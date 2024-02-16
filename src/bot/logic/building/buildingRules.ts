@@ -5,6 +5,7 @@ import {
     LandType,
     ObjectType,
     PlayerData,
+    Rectangle,
     Size,
     TechnoRules,
     Tile,
@@ -52,13 +53,6 @@ export function numBuildingsOwnedOfName(game: GameApi, playerData: PlayerData, n
     return game.getVisibleUnits(playerData.name, "self", (r) => r.name === name).length;
 }
 
-type TileRange = {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-};
-
 /**
  * Computes a rect 'centered' around a structure of a certain size with an additional radius (`adjacent`).
  * The radius is optionally expanded by the size of the new building.
@@ -71,7 +65,7 @@ type TileRange = {
  * @param newBuildingSize? Size of the new building
  * @returns
  */
-function computeAdjacentRect(point: Vector2, t: Size, adjacent: number, newBuildingSize?: Size): TileRange {
+function computeAdjacentRect(point: Vector2, t: Size, adjacent: number, newBuildingSize?: Size): Rectangle {
     return {
         x: point.x - adjacent - (newBuildingSize?.width || 0),
         y: point.y - adjacent - (newBuildingSize?.height || 0),
@@ -80,34 +74,12 @@ function computeAdjacentRect(point: Vector2, t: Size, adjacent: number, newBuild
     };
 }
 
-function getAdjacentTiles(game: GameApi, range: TileRange, onWater: boolean) {
-    const baseTile = game.mapApi.getTile(range.x, range.y);
-    if (!baseTile) {
-        // base tile might be off the map: fall back to slow method
-        return getAdjacentTilesSlow(game, range, onWater);
-    }
+function getAdjacentTiles(game: GameApi, range: Rectangle, onWater: boolean) {
     // use the bulk API to get all tiles from the baseTile to the (baseTile + range)
     const adjacentTiles = game.mapApi
-        .getTilesInRect(baseTile, {
-            width: range.width,
-            height: range.height,
-        })
+        .getTilesInRect(range)
         .filter((tile) => !onWater || tile.landType === LandType.Water);
     return adjacentTiles;
-}
-
-function getAdjacentTilesSlow(game: GameApi, range: TileRange, onWater: boolean) {
-    // this method scans each tile in the range
-    const result: Tile[] = [];
-    for (let x = range.x; x < range.x + range.width; ++x) {
-        for (let y = range.y; y < range.y + range.height; ++y) {
-            const tile = game.mapApi.getTile(x, y);
-            if (tile) {
-                result.push(tile);
-            }
-        }
-    }
-    return result;
 }
 
 export function getAdjacencyTiles(
