@@ -78,7 +78,7 @@ async function main() {
         online: false,
         agents: [
             new SupalosaBot(firstBotName, Countries.FRANCE, [], true).setDebugMode(true),
-            new DummyBot(secondBotName, Countries.RUSSIA),
+            new SupalosaBot(secondBotName, Countries.FRANCE, [], false),
         ],
     };
 
@@ -95,6 +95,8 @@ async function main() {
 
     const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings1v1);
 
+    console.profile(`cpuprofile-${timestamp}`);
+
     while (!game.isFinished()) {
         if (!!MAX_GAME_LENGTH_SECONDS && game.getCurrentTick() / 15 > MAX_GAME_LENGTH_SECONDS) {
             console.log(`Game forced to end due to timeout`);
@@ -103,11 +105,9 @@ async function main() {
         await game.update();
     }
 
-    console.log("done");
-    while (true) {}
-
     game.saveReplay();
     game.dispose();
+    console.profileEnd();
 }
 
 main().catch((e) => {
