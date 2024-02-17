@@ -131,14 +131,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
         return scaledGroundPower > scaledGroundThreat || scaledAirPower > scaledAirThreat;
     }
 
-    private isHostileUnit(unit: UnitData | undefined, hostilePlayerNames: string[]): boolean {
-        if (!unit) {
-            return false;
-        }
-
-        return hostilePlayerNames.includes(unit.owner);
-    }
-
     public onGameStart(gameApi: GameApi, playerData: PlayerData) {
         this.scoutingManager.onGameStart(gameApi, playerData, this.sectorCache);
     }
@@ -154,17 +146,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
         if (updateRatio && updateRatio < 1.0) {
             this.logger(`${updateRatio * 100.0}% of sectors updated in last 60 seconds.`);
         }
-
-        const hostilePlayerNames = game
-            .getPlayers()
-            .map((name) => game.getPlayerData(name))
-            .filter(
-                (other) =>
-                    other.name !== playerData.name &&
-                    other.isCombatant &&
-                    !game.areAlliedPlayers(playerData.name, other.name),
-            )
-            .map((other) => other.name);
 
         // Build the quadtree, if this is too slow we should consider doing this periodically.
         const hostileUnitIds = game.getVisibleUnits(playerData.name, "enemy");
