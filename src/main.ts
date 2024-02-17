@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
 import { SupalosaBot } from "./bot/bot.js";
+import { DummyBot } from "./dummyBot/dummyBot.js";
 import { Countries } from "./bot/logic/common/utils.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
@@ -76,8 +77,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(firstBotName, Countries.FRANCE, [], false),
-            new SupalosaBot(secondBotName, Countries.RUSSIA, [], true).setDebugMode(true),
+            new SupalosaBot(firstBotName, Countries.FRANCE, [], true).setDebugMode(true),
+            new DummyBot(secondBotName, Countries.RUSSIA),
         ],
     };
 
@@ -93,6 +94,7 @@ async function main() {
     };
 
     const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings1v1);
+
     while (!game.isFinished()) {
         if (!!MAX_GAME_LENGTH_SECONDS && game.getCurrentTick() / 15 > MAX_GAME_LENGTH_SECONDS) {
             console.log(`Game forced to end due to timeout`);
@@ -100,6 +102,9 @@ async function main() {
         }
         await game.update();
     }
+
+    console.log("done");
+    while (true) {}
 
     game.saveReplay();
     game.dispose();
