@@ -1,5 +1,15 @@
-import { GameApi, GameMath, MovementZone, ObjectType, PlayerData, UnitData } from "@chronodivide/game-api";
+import {
+    GameApi,
+    GameMath,
+    MovementZone,
+    ObjectType,
+    PlayerData,
+    ProjectileRules,
+    UnitData,
+    WeaponRules,
+} from "@chronodivide/game-api";
 import { GlobalThreat } from "./threat.js";
+import { getCachedTechnoRules } from "../common/rulesCache.js";
 
 export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, visibleAreaPercent: number): GlobalThreat {
     let groundUnits = game.getVisibleUnits(
@@ -53,20 +63,39 @@ export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, vis
     );
 }
 
+// For the purposes of determining if units can target air/ground, we look purely at the technorules and only the base weapon (not elite)
+// This excludes some special cases such as IFVs changing turrets, but we have to deal with it for now.
 function isAntiGround(gameApi: GameApi, unitId: number): boolean {
-    let unit = gameApi.getUnitData(unitId);
-    if (unit && unit.primaryWeapon) {
-        return unit.primaryWeapon.projectileRules.isAntiGround;
+    return testProjectile(gameApi, unitId, (p) => p.isAntiGround);
+}
+function isAntiAir(gameApi: GameApi, unitId: number): boolean {
+    return testProjectile(gameApi, unitId, (p) => p.isAntiAir);
+}
+
+function testProjectile(gameApi: GameApi, unitId: number, test: (p: ProjectileRules) => boolean) {
+    const rules = getCachedTechnoRules(gameApi, unitId);
+    if (!rules || !(rules.primary || rules.secondary)) {
+        return false;
     }
+
+    const primaryWeapon = rules.primary ? gameApi.rulesApi.getWeapon(rules.primary) : null;
+    const primaryProjectile = getProjectileRules(gameApi, primaryWeapon);
+    if (primaryProjectile && test(primaryProjectile)) {
+        return true;
+    }
+
+    const secondaryWeapon = rules.secondary ? gameApi.rulesApi.getWeapon(rules.secondary) : null;
+    const secondaryProjectile = getProjectileRules(gameApi, secondaryWeapon);
+    if (secondaryProjectile && test(secondaryProjectile)) {
+        return true;
+    }
+
     return false;
 }
 
-function isAntiAir(gameApi: GameApi, unitId: number): boolean {
-    let unit = gameApi.getUnitData(unitId);
-    if (unit && unit.primaryWeapon) {
-        return unit.primaryWeapon.projectileRules.isAntiAir;
-    }
-    return false;
+function getProjectileRules(gameApi: GameApi, weapon: WeaponRules | null): ProjectileRules | null {
+    const primaryProjectile = weapon ? gameApi.rulesApi.getProjectile(weapon.projectile) : null;
+    return primaryProjectile;
 }
 
 function calculateFirepowerForUnit(unitData: UnitData): number {

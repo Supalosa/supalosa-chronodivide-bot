@@ -44,12 +44,11 @@ export abstract class Mission<FailureReasons = undefined> {
 
     // TODO call this
     protected updateCenterOfMass(gameApi: GameApi) {
-        const movableUnitTiles = this.unitIds
-            .map((unitId) => gameApi.getUnitData(unitId))
-            .filter((unit) => unit?.canMove)
+        const unitTiles = this.unitIds
+            .map((unitId) => gameApi.getGameObjectData(unitId))
             .map((unit) => unit?.tile)
             .filter((tile) => !!tile) as Tile[];
-        const tileMetrics = calculateCenterOfMass(movableUnitTiles);
+        const tileMetrics = calculateCenterOfMass(unitTiles);
         if (tileMetrics) {
             this.centerOfMass = tileMetrics.centerOfMass;
             this.maxDistanceToCenterOfMass = tileMetrics.maxDistance;
