@@ -6,11 +6,18 @@ import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { Countries, formatTimeDuration } from "./logic/common/utils.js";
+import { TriggerManager } from "./logic/composition/triggerManager.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
 // Number of ticks per second at the base speed.
 const NATURAL_TICK_RATE = 15;
+
+export enum BotDifficulty {
+    Easy,
+    Medium,
+    Hard,
+}
 
 export class SupalosaBot extends Bot {
     private tickRatio?: number;
@@ -20,12 +27,15 @@ export class SupalosaBot extends Bot {
     private tickOfLastAttackOrder: number = 0;
 
     private matchAwareness: MatchAwareness | null = null;
+    private triggerManager: TriggerManager | null = null;
+
+    private didQuitGame: boolean = false;
 
     constructor(
         name: string,
         country: Countries,
+        private difficulty: BotDifficulty,
         private tryAllyWith: string[] = [],
-        private enableLogging = true,
     ) {
         super(name, country);
         this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
@@ -49,6 +59,8 @@ export class SupalosaBot extends Bot {
         );
         this.matchAwareness.onGameStart(game, myPlayer);
 
+        this.triggerManager = new TriggerManager(game, this.difficulty);
+
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.width}, ${this.knownMapBounds.height}`);
 
         this.tryAllyWith
@@ -58,6 +70,9 @@ export class SupalosaBot extends Bot {
 
     override onGameTick(game: GameApi) {
         if (!this.matchAwareness) {
+            return;
+        }
+        if (this.didQuitGame) {
             return;
         }
 
@@ -71,6 +86,10 @@ export class SupalosaBot extends Bot {
             const myPlayer = game.getPlayerData(this.name);
 
             this.matchAwareness.onAiUpdate(game, myPlayer);
+
+            if (this.triggerManager) {
+                this.triggerManager.onAiUpdate(game, myPlayer);
+            }
 
             // hacky resign condition
             const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
@@ -87,6 +106,7 @@ export class SupalosaBot extends Bot {
             if (armyUnits.length == 0 && productionBuildings.length == 0 && mcvUnits.length == 0) {
                 this.logBotStatus(`No army or production left, quitting.`);
                 this.actionsApi.quitGame();
+                this.didQuitGame = true;
             }
 
             // Mission logic every 3 ticks
@@ -114,7 +134,7 @@ export class SupalosaBot extends Bot {
     }
 
     private logBotStatus(message: string, sayInGame: boolean = false) {
-        if (!this.enableLogging) {
+        if (!this.getDebugMode()) {
             return;
         }
         this.logger.info(message);
