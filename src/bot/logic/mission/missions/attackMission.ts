@@ -91,7 +91,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
-        const currentComposition: UnitComposition = countBy(this.getUnitsFast(gameApi), (unit) => unit.name);
+        const currentComposition: UnitComposition = countBy(this.getUnitsGameObjectData(gameApi), (unit) => unit.name);
 
         const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
             return !currentComposition[unitType] || currentComposition[unitType] < targetAmount;
