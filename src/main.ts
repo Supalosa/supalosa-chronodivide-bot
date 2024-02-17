@@ -86,14 +86,14 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(firstBotName, Countries.FRANCE, [firstBotName], false),
+            new SupalosaBot(firstBotName, Countries.FRANCE, [secondBotName], false),
             new SupalosaBot(secondBotName, Countries.RUSSIA, [firstBotName], true).setDebugMode(true),
             new SupalosaBot(thirdBotName, Countries.RUSSIA, [fourthBotName], false),
             new SupalosaBot(fourthBotName, Countries.FRANCE, [thirdBotName], false),
         ],
     };
 
-    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings1v1);
+    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings2v2);
 
     console.profile(`cpuprofile-${timestamp}`);
 
