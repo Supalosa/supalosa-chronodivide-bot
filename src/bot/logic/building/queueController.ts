@@ -119,7 +119,7 @@ export class QueueController {
                     actionsApi.toggleRepairWrench(unitId);
                 }
             });
-            this.lastRepairCheckAt = REPAIR_CHECK_INTERVAL;
+            this.lastRepairCheckAt = game.getCurrentTick();
         }
     }
 
