@@ -1,6 +1,7 @@
 import {
     GameApi,
     GameMath,
+    GameObjectData,
     MovementZone,
     ObjectType,
     PlayerData,
@@ -98,21 +99,23 @@ function getProjectileRules(gameApi: GameApi, weapon: WeaponRules | null): Proje
     return primaryProjectile;
 }
 
-function calculateFirepowerForUnit(unitData: UnitData): number {
-    let threat = 0;
-    let hpRatio = unitData.hitPoints / Math.max(1, unitData.maxHitPoints);
-    if (unitData.primaryWeapon) {
-        threat +=
-            (hpRatio *
-                ((unitData.primaryWeapon.rules.damage + 1) * GameMath.sqrt(unitData.primaryWeapon.rules.range + 1))) /
-            Math.max(unitData.primaryWeapon.rules.rof, 1);
+function calculateFirepowerForUnit(gameApi: GameApi, gameObjectData: GameObjectData): number {
+    const rules = getCachedTechnoRules(gameApi, gameObjectData.id);
+    if (!rules) {
+        return 0;
     }
-    if (unitData.secondaryWeapon) {
-        threat +=
-            (hpRatio *
-                ((unitData.secondaryWeapon.rules.damage + 1) *
-                    GameMath.sqrt(unitData.secondaryWeapon.rules.range + 1))) /
-            Math.max(unitData.secondaryWeapon.rules.rof, 1);
+    const currentHp = gameObjectData?.hitPoints || 0;
+    const maxHp = gameObjectData?.maxHitPoints || 0;
+    let threat = 0;
+    const hpRatio = currentHp / Math.max(1, maxHp);
+
+    if (rules.primary) {
+        const weapon = gameApi.rulesApi.getWeapon(rules.primary);
+        threat += (hpRatio * ((weapon.damage + 1) * GameMath.sqrt(weapon.range + 1))) / Math.max(weapon.rof, 1);
+    }
+    if (rules.secondary) {
+        const weapon = gameApi.rulesApi.getWeapon(rules.secondary);
+        threat += (hpRatio * ((weapon.damage + 1) * GameMath.sqrt(weapon.range + 1))) / Math.max(weapon.rof, 1);
     }
     return Math.min(800, threat);
 }
@@ -120,9 +123,9 @@ function calculateFirepowerForUnit(unitData: UnitData): number {
 function calculateFirepowerForUnits(game: GameApi, unitIds: number[]) {
     let threat = 0;
     unitIds.forEach((unitId) => {
-        let unitData = game.getUnitData(unitId);
-        if (unitData) {
-            threat += calculateFirepowerForUnit(unitData);
+        const gameObjectData = game.getGameObjectData(unitId);
+        if (gameObjectData) {
+            threat += calculateFirepowerForUnit(game, gameObjectData);
         }
     });
     return threat;
