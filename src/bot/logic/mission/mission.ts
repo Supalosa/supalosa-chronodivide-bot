@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, PlayerData, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, GameObjectData, PlayerData, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../awareness.js";
 import { DebugLogger } from "../common/utils.js";
 import { ActionBatcher } from "./actionBatcher.js";
@@ -97,6 +97,14 @@ export abstract class Mission<FailureReasons = undefined> {
     public getUnits(gameApi: GameApi): UnitData[] {
         return this.unitIds
             .map((unitId) => gameApi.getUnitData(unitId))
+            .filter((unit) => unit != null)
+            .map((unit) => unit!);
+    }
+
+    // returns GameObjectData, which is significantly faster to retrieve.
+    public getUnitsFast(gameApi: GameApi): GameObjectData[] {
+        return this.unitIds
+            .map((unitId) => gameApi.getGameObjectData(unitId))
             .filter((unit) => unit != null)
             .map((unit) => unit!);
     }
