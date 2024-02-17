@@ -11,3 +11,4 @@ replays/
 .env
 *.ini
 *.map
+*.mpr
