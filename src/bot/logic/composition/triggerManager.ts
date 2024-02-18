@@ -28,11 +28,24 @@ enum ConditionType {
     NeutralHouseOwns = 7,
 }
 
-type ConditionEvaluator = (comparisonObject: string, comparator: string) => boolean;
+type ConditionEvaluator = (
+    comparisonObject: string,
+    comparatorArgument: number,
+    comparatorOperator: ComparatorOperator,
+) => boolean;
 
-const conditionEvaluators: Map<ConditionType, ConditionEvaluator> = new Map([
-    [ConditionType.AlwaysTrue, () => true],
-    [ConditionType.EnemyHouseOwns, () => true],
+const evaluator = (evaluator: ConditionEvaluator, name: string) => ({ evaluator, name });
+
+const conditionEvaluators: Map<ConditionType, { evaluator: ConditionEvaluator; name: string }> = new Map([
+    [ConditionType.AlwaysTrue, evaluator(() => true, "Always True")],
+    [ConditionType.EnemyHouseOwns, evaluator(() => true, "Enemy House Owns")],
+    [ConditionType.OwningHouseOwns, evaluator(() => true, "Owning House Owns")],
+    [ConditionType.EnemyHouseInYellowPower, evaluator(() => true, "Enemy House In Yellow Power")],
+    [ConditionType.EnemyHouseInRedPower, evaluator(() => true, "Enemy House In Red Power")],
+    [ConditionType.EnemyHouseHasCredits, evaluator(() => true, "Enemy House Has Credits")],
+    [ConditionType.OwnerHasIronCurtainReady, evaluator(() => true, "Owner Has Iron Curtain Ready")],
+    [ConditionType.OwnerHasChronoSphereReady, evaluator(() => true, "Owner Has Chronosphere Ready")],
+    [ConditionType.NeutralHouseOwns, evaluator(() => true, "Neutral House Owns")],
 ]);
 
 enum ComparatorOperator {
@@ -43,6 +56,15 @@ enum ComparatorOperator {
     GreaterThan = 4,
     NotEqual = 5,
 }
+
+const comparatorOperators: Map<ComparatorOperator, string> = new Map([
+    [ComparatorOperator.LessThan, "<"],
+    [ComparatorOperator.LessThanOrEqual, "<="],
+    [ComparatorOperator.Equal, "=="],
+    [ComparatorOperator.GreaterThanOrEqual, ">="],
+    [ComparatorOperator.GreaterThan, ">"],
+    [ComparatorOperator.GreaterThan, "!="],
+]);
 
 // https://modenc.renegadeprojects.com/AITriggerTypes
 class AITriggerType {
@@ -64,7 +86,9 @@ class AITriggerType {
     public readonly enabledInHard: boolean;
 
     public readonly comparatorArgument: number;
-    public readonly comparatorOperator: number;
+    public readonly comparatorOperator: ComparatorOperator;
+
+    private readonly descriptionText: string;
 
     constructor(
         public readonly id: string,
@@ -90,15 +114,39 @@ class AITriggerType {
         this.enabledInMedium = this.parseBoolean(values[16]);
         this.enabledInHard = this.parseBoolean(values[17]);
 
-        const reversedComparator = this.comparator.split("").reverse().join("");
-        this.comparatorArgument = parseInt(
-            reversedComparator.slice(reversedComparator.length - 8, reversedComparator.length),
-            16,
-        );
-        this.comparatorOperator = parseInt(
-            reversedComparator.slice(reversedComparator.length - 16, reversedComparator.length - 8),
-            16,
-        );
+        this.comparatorArgument = this.parseLittleEndianHex(this.comparator.slice(0, 8));
+        this.comparatorOperator = this.parseLittleEndianHex(this.comparator.slice(8, 16));
+
+        this.descriptionText = this.describeComparator();
+    }
+
+    private describeComparator() {
+        const conditionName =
+            conditionEvaluators.get(this.conditionType)?.name ?? `Unknown Condition ${this.conditionType}`;
+        const comparatorOperatorText =
+            comparatorOperators.get(this.comparatorOperator) ?? `Unknown Operator ${this.comparatorOperator}`;
+        const comparatorArgument = this.comparatorArgument;
+        return `${conditionName} ${this.comparisonObject} ${comparatorOperatorText} ${comparatorArgument}`;
+    }
+
+    public toString() {
+        return `${this.descriptionText}: ${this.name}`;
+    }
+
+    /**
+     *
+     * @param val string containing an octet of hexadecimal characters
+     */
+    private parseLittleEndianHex(val: string): number {
+        if (val.length !== 8) {
+            throw new Error(`Expected hex string of length 8, got: ${val}`);
+        }
+        // the comparator consists of octets without spaces in little-endian hex form (so 04000000 = 04 00 .. = 4)
+        let str = "";
+        for (let i = 0; i < 8; i += 2) {
+            str = val.slice(i, i + 2) + str;
+        }
+        return parseInt(str, 16);
     }
 
     private parseOwnerHouse(val: string): OwnerHouse | Countries {
