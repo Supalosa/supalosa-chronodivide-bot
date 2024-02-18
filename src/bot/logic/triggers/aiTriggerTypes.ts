@@ -1,22 +1,19 @@
-// Interpreter and state management for ai.ini TriggerTypes
+// Interpreter for ai.ini TriggerTypes
 
-import { GameApi, IniFile, PlayerData, SideType } from "@chronodivide/game-api";
 import { Countries } from "../common/utils.js";
-import { Side } from "three";
-import { BotDifficulty } from "../../bot.js";
 
-enum OwnerHouse {
+export enum AiTriggerOwnerHouse {
     None = "<none>",
     All = "<all>",
 }
 
-enum AiSideType {
+export enum AiTriggerSideType {
     All = 0,
     Allied = 1,
     Soviet = 2,
 }
 
-enum ConditionType {
+export enum ConditionType {
     AlwaysTrue = -1,
     EnemyHouseOwns = 0,
     OwningHouseOwns = 1,
@@ -28,27 +25,19 @@ enum ConditionType {
     NeutralHouseOwns = 7,
 }
 
-type ConditionEvaluator = (
-    comparisonObject: string,
-    comparatorArgument: number,
-    comparatorOperator: ComparatorOperator,
-) => boolean;
-
-const evaluator = (evaluator: ConditionEvaluator, name: string) => ({ evaluator, name });
-
-const conditionEvaluators: Map<ConditionType, { evaluator: ConditionEvaluator; name: string }> = new Map([
-    [ConditionType.AlwaysTrue, evaluator(() => true, "Always True")],
-    [ConditionType.EnemyHouseOwns, evaluator(() => true, "Enemy House Owns")],
-    [ConditionType.OwningHouseOwns, evaluator(() => true, "Owning House Owns")],
-    [ConditionType.EnemyHouseInYellowPower, evaluator(() => true, "Enemy House In Yellow Power")],
-    [ConditionType.EnemyHouseInRedPower, evaluator(() => true, "Enemy House In Red Power")],
-    [ConditionType.EnemyHouseHasCredits, evaluator(() => true, "Enemy House Has Credits")],
-    [ConditionType.OwnerHasIronCurtainReady, evaluator(() => true, "Owner Has Iron Curtain Ready")],
-    [ConditionType.OwnerHasChronoSphereReady, evaluator(() => true, "Owner Has Chronosphere Ready")],
-    [ConditionType.NeutralHouseOwns, evaluator(() => true, "Neutral House Owns")],
+const conditionEvaluators: Map<ConditionType, string> = new Map([
+    [ConditionType.AlwaysTrue, "Always True"],
+    [ConditionType.EnemyHouseOwns, "Enemy House Owns"],
+    [ConditionType.OwningHouseOwns, "Owning House Owns"],
+    [ConditionType.EnemyHouseInYellowPower, "Enemy House In Yellow Power"],
+    [ConditionType.EnemyHouseInRedPower, "Enemy House In Red Power"],
+    [ConditionType.EnemyHouseHasCredits, "Enemy House Has Credits"],
+    [ConditionType.OwnerHasIronCurtainReady, "Owner Has Iron Curtain Ready"],
+    [ConditionType.OwnerHasChronoSphereReady, "Owner Has Chronosphere Ready"],
+    [ConditionType.NeutralHouseOwns, "Neutral House Owns"],
 ]);
 
-enum ComparatorOperator {
+export enum ComparatorOperator {
     LessThan = 0,
     LessThanOrEqual = 1,
     Equal = 2,
@@ -67,10 +56,10 @@ const comparatorOperators: Map<ComparatorOperator, string> = new Map([
 ]);
 
 // https://modenc.renegadeprojects.com/AITriggerTypes
-class AITriggerType {
+export class AiTriggerType {
     public readonly name: string;
     public readonly teamType: string;
-    public readonly ownerHouse: OwnerHouse | Countries;
+    public readonly ownerHouse: AiTriggerOwnerHouse | Countries;
     public readonly techLevel: number; // Not implemented
     public readonly conditionType: ConditionType;
     public readonly comparisonObject: string;
@@ -79,7 +68,8 @@ class AITriggerType {
     public readonly minimumWeight: number;
     public readonly maximumWeight: number;
     public readonly isForSkirmish: boolean; // Not implemented, assumed true
-    public readonly side: AiSideType;
+    public readonly side: AiTriggerSideType;
+    public readonly isBaseDefence: boolean;
     public readonly otherTeamType: string;
     public readonly enabledInEasy: boolean;
     public readonly enabledInMedium: boolean;
@@ -108,7 +98,7 @@ class AITriggerType {
         this.isForSkirmish = this.parseBoolean(values[10]);
         // 11 is unused
         this.side = parseInt(values[12]);
-        // 13 is unused (IsBaseDefence)
+        this.isBaseDefence = this.parseBoolean(values[13]);
         this.otherTeamType = values[14];
         this.enabledInEasy = this.parseBoolean(values[15]);
         this.enabledInMedium = this.parseBoolean(values[16]);
@@ -121,8 +111,7 @@ class AITriggerType {
     }
 
     private describeComparator() {
-        const conditionName =
-            conditionEvaluators.get(this.conditionType)?.name ?? `Unknown Condition ${this.conditionType}`;
+        const conditionName = conditionEvaluators.get(this.conditionType) ?? `Unknown Condition ${this.conditionType}`;
         const comparatorOperatorText =
             comparatorOperators.get(this.comparatorOperator) ?? `Unknown Operator ${this.comparatorOperator}`;
         const comparatorArgument = this.comparatorArgument;
@@ -149,11 +138,11 @@ class AITriggerType {
         return parseInt(str, 16);
     }
 
-    private parseOwnerHouse(val: string): OwnerHouse | Countries {
-        if (val === OwnerHouse.None) {
-            return OwnerHouse.None;
-        } else if (val === OwnerHouse.All) {
-            return OwnerHouse.All;
+    private parseOwnerHouse(val: string): AiTriggerOwnerHouse | Countries {
+        if (val === AiTriggerOwnerHouse.None) {
+            return AiTriggerOwnerHouse.None;
+        } else if (val === AiTriggerOwnerHouse.All) {
+            return AiTriggerOwnerHouse.All;
         } else if (Object.values<string>(Countries).includes(val)) {
             return val as Countries;
         } else {
@@ -163,55 +152,5 @@ class AITriggerType {
 
     private parseBoolean(val: string): boolean {
         return val !== "0";
-    }
-}
-
-export class TriggerManager {
-    private triggerTypes = new Map<string, AITriggerType>();
-
-    constructor(
-        gameApi: GameApi,
-        private difficulty: BotDifficulty,
-    ) {
-        this.processAiIni(gameApi.getAiIni());
-    }
-
-    private processAiIni(aiIni: IniFile) {
-        const aiTriggerTypes = aiIni.getSection("AITriggerTypes");
-        if (!aiTriggerTypes) {
-            throw new Error("missing AITriggerTypes");
-        }
-        aiTriggerTypes.entries.forEach((value, id) => {
-            this.triggerTypes.set(id, new AITriggerType(id, value));
-        });
-    }
-
-    public onAiUpdate(game: GameApi, myPlayer: PlayerData) {
-        // checking which triggers are valid...
-        const validTriggers = [];
-        for (const trigger of this.triggerTypes.values()) {
-            if (trigger.side === AiSideType.Soviet && myPlayer.country?.side !== SideType.Nod) {
-                continue;
-            }
-            if (trigger.side === AiSideType.Allied && myPlayer.country?.side !== SideType.GDI) {
-                continue;
-            }
-            if (
-                trigger.ownerHouse === OwnerHouse.None ||
-                (trigger.ownerHouse !== OwnerHouse.All && trigger.ownerHouse !== myPlayer.country?.name)
-            ) {
-                continue;
-            }
-            if (!trigger.enabledInEasy && this.difficulty === BotDifficulty.Easy) {
-                continue;
-            }
-            if (!trigger.enabledInMedium && this.difficulty === BotDifficulty.Medium) {
-                continue;
-            }
-            if (!trigger.enabledInHard && this.difficulty === BotDifficulty.Hard) {
-                continue;
-            }
-            validTriggers.push(trigger);
-        }
     }
 }

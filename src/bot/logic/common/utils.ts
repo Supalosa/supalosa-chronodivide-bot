@@ -118,3 +118,10 @@ export function groupBy<K extends string, V>(array: V[], predicate: (arg: V) => 
         {} as Record<K, V[]>,
     );
 }
+
+export function setDifference<T>(a: Set<T>, b: Set<T>): T[] {
+    const map = new Map<T, number>();
+    a.forEach((v) => map.set(v, 1));
+    b.forEach((v) => map.set(v, (map.get(v) ?? 0) + 1));
+    return [...map.entries()].filter(([key, val]) => val !== 2).map(([key]) => key);
+}

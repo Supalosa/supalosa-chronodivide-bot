@@ -6,7 +6,7 @@ import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { Countries, formatTimeDuration } from "./logic/common/utils.js";
-import { TriggerManager } from "./logic/composition/triggerManager.js";
+import { TriggerManager } from "./logic/triggers/triggerManager.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -88,7 +88,7 @@ export class SupalosaBot extends Bot {
             this.matchAwareness.onAiUpdate(game, myPlayer);
 
             if (this.triggerManager) {
-                this.triggerManager.onAiUpdate(game, myPlayer);
+                this.triggerManager.onAiUpdate(game, myPlayer, this.logger);
             }
 
             // hacky resign condition
