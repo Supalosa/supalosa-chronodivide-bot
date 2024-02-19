@@ -11,7 +11,8 @@ import {
 } from "./aiTriggerTypes.js";
 import { countBy, setDifference } from "../common/utils.js";
 import { MissionController } from "../mission/missionController.js";
-import { loadTeamTypes } from "./aiTeamTypes.js";
+import { AiTeamType, loadTeamTypes } from "./aiTeamTypes.js";
+import { AiTaskForce, loadTaskForces } from "./aiTaskForces.js";
 
 type AiTriggerCacheState = {
     enemyUnitCount: { [name: string]: number };
@@ -88,9 +89,17 @@ const conditionEvaluators: Map<ConditionType, ConditionEvaluator> = new Map([
     [ConditionType.NeutralHouseOwns, EVALUATOR_NOT_IMPLEMENTED],
 ]);
 
+type ResolvedTeamType = Omit<AiTeamType, "taskForce"> & {
+    taskForce: AiTaskForce;
+};
+
+type ResolvedTriggerType = Omit<AiTriggerType, "teamType"> & {
+    teamType: ResolvedTeamType;
+};
+
 export class TriggerManager {
     private teamDelay: number;
-    private triggerTypes = new Map<string, AiTriggerType>();
+    private triggerTypes = new Map<string, ResolvedTriggerType>();
 
     private lastTeamCheckAt = 0;
     private previousValidTriggers = new Set<string>();
@@ -121,14 +130,22 @@ export class TriggerManager {
         aiIni: IniFile,
         playerData: PlayerData,
         difficulty: BotDifficulty,
-    ): { triggerTypes: Map<string, AiTriggerType>; teamDelays: number[] } {
-        const triggerTypes = new Map<string, AiTriggerType>();
+    ): { triggerTypes: Map<string, ResolvedTriggerType>; teamDelays: number[] } {
+        const triggerTypes = new Map<string, ResolvedTriggerType>();
         const aiTriggerTypes = aiIni.getSection("AITriggerTypes");
         if (!aiTriggerTypes) {
             throw new Error("missing AITriggerTypes");
         }
 
         const aiTeamTypes = loadTeamTypes(aiIni);
+        const aiTaskForces = loadTaskForces(aiIni);
+
+        type ResolvedTeamTypes = { [name: string]: ResolvedTeamType };
+
+        const resolvedTeamTypes: ResolvedTeamTypes = Object.entries(aiTeamTypes).reduce<ResolvedTeamTypes>((pV, cV) => {
+            const [teamName, teamType] = cV;
+            return Object.assign(pV, { [teamName]: { ...teamType, taskForce: aiTaskForces[teamType.taskForce] } });
+        }, {});
 
         aiTriggerTypes.entries.forEach((value, id) => {
             const trigger = new AiTriggerType(id, value);
@@ -154,7 +171,11 @@ export class TriggerManager {
             if (!trigger.enabledInHard && difficulty === BotDifficulty.Hard) {
                 return;
             }
-            triggerTypes.set(id, trigger);
+            const resolvedTriggerType = {
+                ...trigger,
+                teamType: resolvedTeamTypes[trigger.teamType],
+            };
+            triggerTypes.set(id, resolvedTriggerType);
         });
 
         const teamDelays = rulesIni
@@ -208,7 +229,7 @@ export class TriggerManager {
         }
 
         // TODO: implementing changing weights.
-        const totalWeights = firingTriggers.reduce((p, v) => v.startingWeight, 0);
+        const totalWeights = firingTriggers.reduce((p, v) => p + v.startingWeight, 0);
 
         this.previousValidTriggers = newTriggerSet;
     }
