@@ -10,6 +10,8 @@ import {
     ConditionType,
 } from "./aiTriggerTypes.js";
 import { countBy, setDifference } from "../common/utils.js";
+import { MissionController } from "../mission/missionController.js";
+import { loadTeamTypes } from "./aiTeamTypes.js";
 
 type AiTriggerCacheState = {
     enemyUnitCount: { [name: string]: number };
@@ -125,6 +127,9 @@ export class TriggerManager {
         if (!aiTriggerTypes) {
             throw new Error("missing AITriggerTypes");
         }
+
+        const aiTeamTypes = loadTeamTypes(aiIni);
+
         aiTriggerTypes.entries.forEach((value, id) => {
             const trigger = new AiTriggerType(id, value);
             // Don't store triggers that are not relevant to this agent.
@@ -163,7 +168,7 @@ export class TriggerManager {
         return { triggerTypes, teamDelays };
     }
 
-    public onAiUpdate(game: GameApi, myPlayer: PlayerData, logger: LoggerApi) {
+    public onAiUpdate(game: GameApi, myPlayer: PlayerData, missionController: MissionController, logger: LoggerApi) {
         if (game.getCurrentTick() > this.lastTeamCheckAt + this.teamDelay) {
             this.runTeamCheck(game, myPlayer, logger);
             this.lastTeamCheckAt = game.getCurrentTick();
@@ -199,7 +204,7 @@ export class TriggerManager {
 
         const diff = setDifference(this.previousValidTriggers, newTriggerSet);
         if (diff.length > 0) {
-            logger.info("Trigger update", diff);
+            logger.info("Mission diff", diff);
         }
 
         // TODO: implementing changing weights.

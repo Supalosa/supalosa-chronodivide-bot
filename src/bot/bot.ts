@@ -87,10 +87,6 @@ export class SupalosaBot extends Bot {
 
             this.matchAwareness.onAiUpdate(game, myPlayer);
 
-            if (this.triggerManager) {
-                this.triggerManager.onAiUpdate(game, myPlayer, this.logger);
-            }
-
             // hacky resign condition
             const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
             const mcvUnits = game.getVisibleUnits(
@@ -110,8 +106,12 @@ export class SupalosaBot extends Bot {
             }
 
             // Mission logic every 3 ticks
-            if (this.gameApi.getCurrentTick() % 3 === 0) {
+            if (this.gameApi.getCurrentTick() % 15 === 0) {
                 this.missionController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
+            }
+
+            if (this.triggerManager) {
+                this.triggerManager.onAiUpdate(game, myPlayer, this.missionController, this.logger);
             }
 
             const unitTypeRequests = this.missionController.getRequestedUnitTypes();
