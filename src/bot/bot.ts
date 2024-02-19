@@ -59,7 +59,7 @@ export class SupalosaBot extends Bot {
         );
         this.matchAwareness.onGameStart(game, myPlayer);
 
-        this.triggerManager = new TriggerManager(game, this.difficulty);
+        this.triggerManager = new TriggerManager(game, myPlayer, this.difficulty);
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.width}, ${this.knownMapBounds.height}`);
 
