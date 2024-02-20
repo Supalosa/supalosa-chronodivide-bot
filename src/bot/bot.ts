@@ -111,7 +111,7 @@ export class SupalosaBot extends Bot {
             }
 
             if (this.triggerManager) {
-                this.triggerManager.onAiUpdate(game, myPlayer, this.missionController, this.logger);
+                this.triggerManager.onAiUpdate(game, this.productionApi, myPlayer, this.missionController, this.logger);
             }
 
             const unitTypeRequests = this.missionController.getRequestedUnitTypes();

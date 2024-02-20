@@ -1,6 +1,6 @@
 // State management for ai.ini TriggerTypes
 
-import { GameApi, IniFile, LoggerApi, PlayerData, SideType } from "@chronodivide/game-api";
+import { GameApi, IniFile, LoggerApi, PlayerData, ProductionApi, SideType } from "@chronodivide/game-api";
 import { BotDifficulty } from "../../bot.js";
 import {
     AiTriggerOwnerHouse,
@@ -189,14 +189,20 @@ export class TriggerManager {
         return { triggerTypes, teamDelays };
     }
 
-    public onAiUpdate(game: GameApi, myPlayer: PlayerData, missionController: MissionController, logger: LoggerApi) {
+    public onAiUpdate(
+        game: GameApi,
+        productionApi: ProductionApi,
+        myPlayer: PlayerData,
+        missionController: MissionController,
+        logger: LoggerApi,
+    ) {
         if (game.getCurrentTick() > this.lastTeamCheckAt + this.teamDelay) {
-            this.runTeamCheck(game, myPlayer, logger);
+            this.runTeamCheck(game, productionApi, myPlayer, logger);
             this.lastTeamCheckAt = game.getCurrentTick();
         }
     }
 
-    public runTeamCheck(game: GameApi, myPlayer: PlayerData, logger: LoggerApi) {
+    public runTeamCheck(game: GameApi, production: ProductionApi, myPlayer: PlayerData, logger: LoggerApi) {
         // Calculate expensive things only once before all triggers.
         const enemyUnits = game.getVisibleUnits(myPlayer.name, "enemy");
         const ownUnits = game.getVisibleUnits(myPlayer.name, "self");
@@ -213,7 +219,17 @@ export class TriggerManager {
             enemyCredits,
         };
 
+        // Only allow triggers to be chosen if we can actually produce them
+        const producableUnits = new Set(production.getAvailableObjects().map((r) => r.name));
+
         const firingTriggers = [...this.triggerTypes.values()].filter((trigger) => {
+            if (trigger.teamType.taskForce) {
+                const taskForceUnits = trigger.teamType.taskForce.units;
+                if (Object.keys(taskForceUnits).some((unitName) => !producableUnits.has(unitName))) {
+                    return false;
+                }
+            }
+
             const conditionEvaluator = conditionEvaluators.get(trigger.conditionType);
             if (!conditionEvaluator) {
                 throw new Error(`Missing condition evaluator ${trigger.conditionType} for ${trigger}`);
@@ -227,10 +243,39 @@ export class TriggerManager {
         if (diff.length > 0) {
             logger.info("Mission diff", diff);
         }
+        this.previousValidTriggers = newTriggerSet;
+
+        if (firingTriggers.length === 0) {
+            return;
+        }
 
         // TODO: implementing changing weights.
-        const totalWeights = firingTriggers.reduce((p, v) => p + v.startingWeight, 0);
+        const chosenMission = this.weightedRandom(
+            game,
+            firingTriggers.map((trigger) => ({ item: trigger, weight: trigger.startingWeight })),
+        );
 
-        this.previousValidTriggers = newTriggerSet;
+        if (chosenMission) {
+            logger.info("Chosen mission", chosenMission);
+        }
+    }
+
+    // https://stackoverflow.com/a/55671924
+    private weightedRandom<T>(gameApi: GameApi, items: { item: T; weight: number }[]) {
+        const adjWeights = items.map((item) => item.weight);
+
+        for (let i = 1; i < items.length; i++) {
+            adjWeights[i] += adjWeights[i - 1];
+        }
+
+        const random = gameApi.generateRandom() * adjWeights[adjWeights.length - 1];
+
+        for (let i = 0; i < items.length; i++) {
+            if (adjWeights[i] > random) {
+                return items[i];
+            }
+        }
+
+        return null;
     }
 }
