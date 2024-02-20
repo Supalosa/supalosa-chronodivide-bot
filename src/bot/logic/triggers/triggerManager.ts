@@ -13,6 +13,9 @@ import { countBy, setDifference } from "../common/utils.js";
 import { MissionController } from "../mission/missionController.js";
 import { AiTeamType, loadTeamTypes } from "./aiTeamTypes.js";
 import { AiTaskForce, loadTaskForces } from "./aiTaskForces.js";
+import { AttackMission, generateTarget } from "../mission/missions/attackMission.js";
+import { MatchAwareness } from "../awareness.js";
+import { match } from "assert";
 
 type AiTriggerCacheState = {
     enemyUnitCount: { [name: string]: number };
@@ -101,11 +104,13 @@ export class TriggerManager {
     private teamDelay: number;
     private triggerTypes = new Map<string, ResolvedTriggerType>();
 
+    private dissolveUnfilledTeamDelay: number;
+
     private lastTeamCheckAt = 0;
     private previousValidTriggers = new Set<string>();
 
     constructor(gameApi: GameApi, playerData: PlayerData, difficulty: BotDifficulty) {
-        const { teamDelays, triggerTypes } = this.loadIni(
+        const { teamDelays, triggerTypes, dissolveUnfilledTeamDelay } = this.loadIni(
             gameApi.getRulesIni(),
             gameApi.getAiIni(),
             playerData,
@@ -123,14 +128,10 @@ export class TriggerManager {
                 break;
         }
         this.triggerTypes = triggerTypes;
+        this.dissolveUnfilledTeamDelay = dissolveUnfilledTeamDelay;
     }
 
-    private loadIni(
-        rulesIni: IniFile,
-        aiIni: IniFile,
-        playerData: PlayerData,
-        difficulty: BotDifficulty,
-    ): { triggerTypes: Map<string, ResolvedTriggerType>; teamDelays: number[] } {
+    private loadIni(rulesIni: IniFile, aiIni: IniFile, playerData: PlayerData, difficulty: BotDifficulty) {
         const triggerTypes = new Map<string, ResolvedTriggerType>();
         const aiTriggerTypes = aiIni.getSection("AITriggerTypes");
         if (!aiTriggerTypes) {
@@ -186,7 +187,14 @@ export class TriggerManager {
         if (!teamDelays) {
             throw new Error("missing TeamDelays");
         }
-        return { triggerTypes, teamDelays };
+
+        const dissolveUnfilledTeamDelay = parseInt(
+            rulesIni.getSection("General")?.get("DissolveUnfilledTeamDelay") ?? "",
+        );
+        if (!dissolveUnfilledTeamDelay) {
+            throw new Error("missing DissolveUnfilledTeamDelay");
+        }
+        return { triggerTypes, teamDelays, dissolveUnfilledTeamDelay };
     }
 
     public onAiUpdate(
@@ -202,7 +210,13 @@ export class TriggerManager {
         }
     }
 
-    public runTeamCheck(game: GameApi, production: ProductionApi, myPlayer: PlayerData, logger: LoggerApi) {
+    public runTeamCheck(
+        game: GameApi,
+        production: ProductionApi,
+        matchAwareness: MatchAwareness,
+        myPlayer: PlayerData,
+        logger: LoggerApi,
+    ) {
         // Calculate expensive things only once before all triggers.
         const enemyUnits = game.getVisibleUnits(myPlayer.name, "enemy");
         const ownUnits = game.getVisibleUnits(myPlayer.name, "self");
@@ -255,9 +269,25 @@ export class TriggerManager {
             firingTriggers.map((trigger) => ({ item: trigger, weight: trigger.startingWeight })),
         );
 
-        if (chosenMission) {
-            logger.info("Chosen mission", chosenMission);
+        if (!chosenMission) {
+            return;
         }
+        logger.info("Chosen mission", chosenMission);
+        // TODO: implement attack target from script.
+        const attackTarget = generateTarget(game, myPlayer, matchAwareness, true);
+        if (!attackTarget) {
+            return;
+        }
+        const mission = new AttackMission(
+            `aiTriggerMission_${chosenMission.name}_${game.getCurrentTick()}`,
+            chosenMission.teamType.priority,
+            matchAwareness.getMainRallyPoint(),
+            attackTarget,
+            30,
+            (message) => logger.info(message),
+            chosenMission.teamType.taskForce.units,
+            this.dissolveUnfilledTeamDelay,
+        );
     }
 
     // https://stackoverflow.com/a/55671924
@@ -272,7 +302,7 @@ export class TriggerManager {
 
         for (let i = 0; i < items.length; i++) {
             if (adjWeights[i] > random) {
-                return items[i];
+                return items[i].item;
             }
         }
 

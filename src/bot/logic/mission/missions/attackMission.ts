@@ -60,8 +60,9 @@ export class AttackMission extends Mission<AttackFailReason> {
         rallyArea: Vector2,
         private attackArea: Vector2,
         private radius: number,
-        private composition: UnitComposition,
         logger: DebugLogger,
+        private composition: UnitComposition,
+        private dissolveUnfulfilledAt: number | null = null,
     ) {
         super(uniqueName, logger);
         this.squad = new CombatSquad(rallyArea, attackArea, radius);
@@ -74,6 +75,10 @@ export class AttackMission extends Mission<AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
+        if (this.dissolveUnfulfilledAt && gameApi.getCurrentTick() > this.dissolveUnfulfilledAt) {
+            return disbandMission();
+        }
+
         switch (this.state) {
             case AttackMissionState.Preparing:
                 return this.handlePreparingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
@@ -204,7 +209,7 @@ const getTargetWeight: (unitData: UnitData, tryFocusHarvester: boolean) => numbe
     }
 };
 
-function generateTarget(
+export function generateTarget(
     gameApi: GameApi,
     playerData: PlayerData,
     matchAwareness: MatchAwareness,
@@ -307,8 +312,8 @@ export class AttackMissionFactory implements MissionFactory {
                 matchAwareness.getMainRallyPoint(),
                 attackArea,
                 attackRadius,
-                composition,
                 logger,
+                composition,
             ).then((unitIds, reason) => {
                 missionController.addMission(
                     new RetreatMission(

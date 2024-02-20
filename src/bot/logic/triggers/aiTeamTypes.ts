@@ -32,6 +32,7 @@ export class AiTeamType {
     public readonly avoidThreats: boolean;
     public readonly guardSlower: boolean;
     public readonly isBaseDefense: boolean;
+    public readonly priority: number;
     public readonly max: number;
     public readonly reinforce: boolean;
     public readonly script: string;
@@ -50,6 +51,7 @@ export class AiTeamType {
         this.avoidThreats = iniSection.getBool("AvoidThreats");
         this.guardSlower = iniSection.getBool("GuardSlower");
         this.isBaseDefense = iniSection.getBool("IsBaseDefense");
+        this.priority = iniSection.getNumber("Priority");
         this.max = iniSection.getNumber("Max");
         this.reinforce = iniSection.getBool("Reinforce");
         this.script = iniSection.getString("Script");
