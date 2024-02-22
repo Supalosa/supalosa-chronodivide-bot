@@ -75,10 +75,6 @@ export class AttackMission extends Mission<AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
-        if (this.dissolveUnfulfilledAt && gameApi.getCurrentTick() > this.dissolveUnfulfilledAt) {
-            return disbandMission();
-        }
-
         switch (this.state) {
             case AttackMissionState.Preparing:
                 return this.handlePreparingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
@@ -101,6 +97,10 @@ export class AttackMission extends Mission<AttackFailReason> {
         const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
             return !currentComposition[unitType] || currentComposition[unitType] < targetAmount;
         });
+
+        if (this.dissolveUnfulfilledAt && gameApi.getCurrentTick() > this.dissolveUnfulfilledAt) {
+            return disbandMission();
+        }
 
         if (missingUnits.length > 0) {
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
@@ -269,6 +269,16 @@ export class AttackMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(
+        gameApi: GameApi,
+        playerData: PlayerData,
+        matchAwareness: MatchAwareness,
+        missionController: MissionController,
+        logger: DebugLogger,
+    ): void {
+        // now using trigger missions
+    }
+
+    maybeCreateMissionsUnused(
         gameApi: GameApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,

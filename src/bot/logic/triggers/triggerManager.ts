@@ -109,6 +109,9 @@ export class TriggerManager {
     private lastTeamCheckAt = 0;
     private previousValidTriggers = new Set<string>();
 
+    // TODO: this should come from the ini
+    private teamLimit = 10;
+
     constructor(gameApi: GameApi, playerData: PlayerData, difficulty: BotDifficulty) {
         const { teamDelays, triggerTypes, dissolveUnfilledTeamDelay } = this.loadIni(
             gameApi.getRulesIni(),
@@ -200,12 +203,13 @@ export class TriggerManager {
     public onAiUpdate(
         game: GameApi,
         productionApi: ProductionApi,
+        matchAwareness: MatchAwareness,
         myPlayer: PlayerData,
         missionController: MissionController,
         logger: LoggerApi,
     ) {
         if (game.getCurrentTick() > this.lastTeamCheckAt + this.teamDelay) {
-            this.runTeamCheck(game, productionApi, myPlayer, logger);
+            this.runTeamCheck(game, productionApi, matchAwareness, myPlayer, missionController, logger);
             this.lastTeamCheckAt = game.getCurrentTick();
         }
     }
@@ -215,8 +219,13 @@ export class TriggerManager {
         production: ProductionApi,
         matchAwareness: MatchAwareness,
         myPlayer: PlayerData,
+        missionController: MissionController,
         logger: LoggerApi,
     ) {
+        if (missionController.getMissions().length >= this.teamLimit) {
+            // TODO: maybe this should be based on teams created by the trigger manager, not other missions
+            return;
+        }
         // Calculate expensive things only once before all triggers.
         const enemyUnits = game.getVisibleUnits(myPlayer.name, "enemy");
         const ownUnits = game.getVisibleUnits(myPlayer.name, "self");
@@ -237,6 +246,7 @@ export class TriggerManager {
         const producableUnits = new Set(production.getAvailableObjects().map((r) => r.name));
 
         const firingTriggers = [...this.triggerTypes.values()].filter((trigger) => {
+            // only pick triggers for which we can actually produce the units
             if (trigger.teamType.taskForce) {
                 const taskForceUnits = trigger.teamType.taskForce.units;
                 if (Object.keys(taskForceUnits).some((unitName) => !producableUnits.has(unitName))) {
@@ -286,8 +296,9 @@ export class TriggerManager {
             30,
             (message) => logger.info(message),
             chosenMission.teamType.taskForce.units,
-            this.dissolveUnfilledTeamDelay,
+            game.getCurrentTick() + this.dissolveUnfilledTeamDelay,
         );
+        missionController.addMission(mission);
     }
 
     // https://stackoverflow.com/a/55671924
