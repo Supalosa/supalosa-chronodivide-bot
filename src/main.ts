@@ -81,8 +81,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(botName1, Countries.FRANCE, BotDifficulty.Hard, []).setDebugMode(true),
-            new SupalosaBot(botName2, Countries.FRANCE, BotDifficulty.Hard, []),
+            new SupalosaBot(botName1, Countries.GREAT_BRITAIN, BotDifficulty.Hard, []).setDebugMode(true),
+            new SupalosaBot(botName2, Countries.RUSSIA, BotDifficulty.Hard, []),
         ],
     };
 

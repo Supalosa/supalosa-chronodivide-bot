@@ -297,7 +297,7 @@ export class MissionController {
                 const reason = disbandedMissions.get(disbandedMission.getUniqueName());
                 this.logger(`mission disbanded: ${disbandedMission.getUniqueName()}, reason: ${reason}`);
                 disbandedMissionsArray.push({ mission: disbandedMission, reason });
-                disbandedMission.endMission(disbandedMissions.get(disbandedMission.getUniqueName()));
+                disbandedMission.onFinish(disbandedMissions.get(disbandedMission.getUniqueName()));
             });
         this.missions = this.missions.filter((missions) => !disbandedMissions.has(missions.getUniqueName()));
 

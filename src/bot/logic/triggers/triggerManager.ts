@@ -104,6 +104,8 @@ export class TriggerManager {
     private teamDelay: number;
     private triggerTypes = new Map<string, ResolvedTriggerType>();
 
+    private teamCounts: { [teamName: string]: number } = {};
+
     private dissolveUnfilledTeamDelay: number;
 
     private lastTeamCheckAt = 0;
@@ -252,6 +254,11 @@ export class TriggerManager {
                 if (Object.keys(taskForceUnits).some((unitName) => !producableUnits.has(unitName))) {
                     return false;
                 }
+                // respect max team count
+                const currentTeamCount = this.getTeamCount(trigger.teamType.name);
+                if (currentTeamCount >= trigger.teamType.max) {
+                    return false;
+                }
             }
 
             const conditionEvaluator = conditionEvaluators.get(trigger.conditionType);
@@ -265,7 +272,7 @@ export class TriggerManager {
 
         const diff = setDifference(this.previousValidTriggers, newTriggerSet);
         if (diff.length > 0) {
-            logger.info("Mission diff", diff);
+            logger.debug("Mission trigger state change:", diff);
         }
         this.previousValidTriggers = newTriggerSet;
 
@@ -282,7 +289,7 @@ export class TriggerManager {
         if (!chosenMission) {
             return;
         }
-        logger.info("Chosen mission", chosenMission);
+        logger.info("Chose mission:", chosenMission.name);
         // TODO: implement attack target from script.
         const attackTarget = generateTarget(game, myPlayer, matchAwareness, true);
         if (!attackTarget) {
@@ -298,7 +305,38 @@ export class TriggerManager {
             chosenMission.teamType.taskForce.units,
             game.getCurrentTick() + this.dissolveUnfilledTeamDelay,
         );
-        missionController.addMission(mission);
+        const newMission = missionController.addMission(mission);
+
+        if (newMission) {
+            const newCount = this.incrementTeamCount(chosenMission.teamType.name);
+            logger.info(
+                `Mission ${mission.getUniqueName()} has started, total count of team ${
+                    chosenMission.teamType.name
+                } = ${newCount}`,
+            );
+            newMission.then(() => {
+                const newCount = this.decrementTeamCount(chosenMission.teamType.name);
+                logger.info(
+                    `Mission ${mission.getUniqueName()} has ended, total count of team ${
+                        chosenMission.teamType.name
+                    } = ${newCount}`,
+                );
+            });
+        }
+    }
+
+    private getTeamCount(teamName: string) {
+        return this.teamCounts[teamName] ?? 0;
+    }
+
+    private incrementTeamCount(teamName: string) {
+        this.teamCounts[teamName] = (this.teamCounts[teamName] ?? 0) + 1;
+        return this.teamCounts[teamName];
+    }
+
+    private decrementTeamCount(teamName: string) {
+        this.teamCounts[teamName] = (this.teamCounts[teamName] ?? 0) - 1;
+        return this.teamCounts[teamName];
     }
 
     // https://stackoverflow.com/a/55671924

@@ -45,7 +45,7 @@ export abstract class Mission<FailureReasons = undefined> {
     private centerOfMass: Vector2 | null = null;
     private maxDistanceToCenterOfMass: number | null = null;
 
-    private onFinish: (unitIds: number[], reason: FailureReasons) => void = () => {};
+    private onFinishListeners: ((unitIds: number[], reason: FailureReasons) => void)[] = [];
 
     constructor(
         private uniqueName: string,
@@ -155,16 +155,16 @@ export abstract class Mission<FailureReasons = undefined> {
     }
 
     // Don't call this from the mission itself
-    endMission(reason: FailureReasons): void {
-        this.onFinish(this.unitIds, reason);
+    onFinish(reason: FailureReasons): void {
+        this.onFinishListeners.forEach((listener) => listener(this.unitIds, reason));
         this.active = false;
     }
 
     /**
      * Declare a callback that is executed when the mission is disbanded for whatever reason.
      */
-    then(onFinish: (unitIds: number[], reason: FailureReasons) => void): Mission<FailureReasons> {
-        this.onFinish = onFinish;
+    then(onFinishHandler: (unitIds: number[], reason: FailureReasons) => void): Mission<FailureReasons> {
+        this.onFinishListeners.push(onFinishHandler);
         return this;
     }
 
