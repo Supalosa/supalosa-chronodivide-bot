@@ -174,7 +174,10 @@ export class AttackMission extends Mission<AttackFailReason> {
         actionBatcher: ActionBatcher,
     ) {
         this.getUnits(gameApi).forEach((unitId) => {
-            actionBatcher.push(manageMoveMicro(unitId, matchAwareness.getMainRallyPoint()));
+            const moveAction = manageMoveMicro(unitId, matchAwareness.getMainRallyPoint());
+            if (moveAction) {
+                actionBatcher.push(moveAction);
+            }
         });
         return disbandMission();
     }

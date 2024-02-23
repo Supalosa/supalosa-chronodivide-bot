@@ -105,8 +105,8 @@ export class SupalosaBot extends Bot {
                 this.didQuitGame = true;
             }
 
-            // Mission logic every 3 ticks
-            if (this.gameApi.getCurrentTick() % 15 === 0) {
+            // Mission logic every 5 ticks
+            if (this.gameApi.getCurrentTick() % 5 === 0) {
                 this.missionController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
             }
 

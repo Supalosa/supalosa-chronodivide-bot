@@ -6,7 +6,11 @@ const NONCE_GI_DEPLOY = 0;
 const NONCE_GI_UNDEPLOY = 1;
 
 // Micro methods
-export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): BatchableAction {
+export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): BatchableAction | null {
+    if (attacker.ammo === 0) {
+        return null;
+    }
+
     if (attacker.name === "E1") {
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (isDeployed) {
@@ -17,7 +21,11 @@ export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): Batch
     return BatchableAction.toPoint(attacker.id, OrderType.AttackMove, attackPoint);
 }
 
-export function manageAttackMicro(attacker: UnitData, target: UnitData): BatchableAction {
+export function manageAttackMicro(attacker: UnitData, target: UnitData): BatchableAction | null {
+    if (attacker.ammo === 0) {
+        return null;
+    }
+
     const distance = getDistanceBetweenUnits(attacker, target);
     if (attacker.name === "E1") {
         // Para (deployed weapon) range is 5.
