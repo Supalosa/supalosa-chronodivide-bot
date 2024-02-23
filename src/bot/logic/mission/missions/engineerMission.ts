@@ -72,9 +72,11 @@ export class EngineerMission extends Mission {
 const MAX_TECH_CAPTURE_RADIUS = 50;
 
 const TECH_CHECK_INTERVAL_TICKS = 300;
+const MAX_ATTEMPTS_PER_TECH_STRUCTURE = 3;
 
 export class EngineerMissionFactory implements MissionFactory {
     private lastCheckAt = 0;
+    private attemptCount = new Map<number, number>();
 
     getName(): string {
         return "EngineerMissionFactory";
@@ -97,9 +99,18 @@ export class EngineerMissionFactory implements MissionFactory {
             (r) => r.capturable && r.produceCashAmount > 0,
         );
 
-        eligibleTechBuildings.forEach((techBuildingId) => {
-            missionController.addMission(new EngineerMission("capture-" + techBuildingId, 100, techBuildingId, logger));
-        });
+        eligibleTechBuildings
+            .filter((b) => gameApi.getGameObjectData(b)?.hitPoints ?? 0 > 0)
+            .filter((b) => this.attemptCount.get(b) ?? 0 <= MAX_ATTEMPTS_PER_TECH_STRUCTURE)
+            .forEach((techBuildingId) => {
+                if (
+                    missionController.addMission(
+                        new EngineerMission("capture-" + techBuildingId, 100, techBuildingId, logger),
+                    )
+                ) {
+                    this.attemptCount.set(techBuildingId, (this.attemptCount.get(techBuildingId) ?? 0) + 1);
+                }
+            });
     }
 
     onMissionFailed(
