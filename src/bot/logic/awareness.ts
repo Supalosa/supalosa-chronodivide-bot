@@ -154,7 +154,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 .map((id) => game.getGameObjectData(id))
                 .filter(
                     (gameObjectData: GameObjectData | undefined): gameObjectData is GameObjectData =>
-                        gameObjectData !== undefined,
+                        gameObjectData !== undefined && (gameObjectData.hitPoints ?? 0) > 0,
                 );
 
             rebuildQuadtree(this.hostileQuadTree, hostileUnits);

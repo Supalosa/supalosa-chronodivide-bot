@@ -221,7 +221,7 @@ export function generateTarget(
         const enemyUnits = gameApi
             .getVisibleUnits(playerData.name, "enemy")
             .map((unitId) => gameApi.getUnitData(unitId))
-            .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
+            .filter((u) => !!u && u.hitPoints > 0 && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
         const maxUnit = maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
         if (maxUnit) {
