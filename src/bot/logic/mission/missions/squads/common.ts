@@ -36,7 +36,7 @@ export function manageAttackMicro(attacker: UnitData, target: UnitData): Batchab
         orderType = OrderType.Attack;
     } else if (targetData?.rules.canDisguise) {
         // Special case for mirage tank/spy as otherwise they just sit next to it.
-        orderType = OrderType.Attack;
+        orderType = OrderType.ForceAttack;
     }
     return BatchableAction.toTargetId(attacker.id, orderType, target.id);
 }
