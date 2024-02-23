@@ -51,7 +51,7 @@ export function minBy<T>(array: T[], predicate: (arg: T) => number | null): T | 
             minVal = newVal;
         }
     }
-    return array[minIdx];
+    return minVal !== null ? array[minIdx] : null;
 }
 
 export function maxBy<T>(array: T[], predicate: (arg: T) => number | null): T | null {
@@ -67,7 +67,7 @@ export function maxBy<T>(array: T[], predicate: (arg: T) => number | null): T | 
             maxVal = newVal;
         }
     }
-    return array[maxIdx];
+    return maxVal !== null ? array[maxIdx] : null;
 }
 
 export function uniqBy<T>(array: T[], predicate: (arg: T) => string | number): T[] {
