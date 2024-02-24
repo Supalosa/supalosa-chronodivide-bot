@@ -1,7 +1,16 @@
 // Meta-controller for forming and controlling missions.
 // Missions are groups of zero or more units that aim to accomplish a particular goal.
 
-import { ActionsApi, GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    GameApi,
+    GameObjectData,
+    ObjectType,
+    PlayerData,
+    ProductionApi,
+    UnitData,
+    Vector2,
+} from "@chronodivide/game-api";
 import {
     Mission,
     MissionAction,
@@ -18,9 +27,9 @@ import {
     isRequestUnits,
 } from "./mission.js";
 import { MatchAwareness } from "../awareness.js";
-import { MissionFactory, createMissionFactories } from "./missionFactories.js";
+import { MissionFactory } from "./missionFactories.js";
 import { ActionBatcher } from "./actionBatcher.js";
-import { countBy, isSelectableCombatant } from "../common/utils.js";
+import { DebugLogger, countBy, isSelectableCombatant } from "../common/utils.js";
 import { Squad } from "./missions/squads/squad.js";
 
 // `missingUnitTypes` priority decays by this much every update loop.
@@ -28,7 +37,6 @@ const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
 const MISSING_UNIT_TYPE_REQUEST_DECAY_FLAT_RATE = 1;
 
 export class MissionController {
-    private missionFactories: MissionFactory[];
     private missions: Mission<any>[] = [];
 
     // A mapping of unit IDs to the missions they are assigned to. This may contain units that are dead, but
@@ -42,9 +50,10 @@ export class MissionController {
     // Tracks missions to be externally disbanded the next time the mission update loop occurs.
     private forceDisbandedMissions: string[] = [];
 
-    constructor(private logger: (message: string, sayInGame?: boolean) => void) {
-        this.missionFactories = createMissionFactories();
-    }
+    constructor(
+        private missionFactories: MissionFactory[],
+        private logger: DebugLogger,
+    ) {}
 
     private updateUnitIds(gameApi: GameApi) {
         // Check for units in multiple missions, this shouldn't happen.
@@ -67,6 +76,7 @@ export class MissionController {
 
     public onAiUpdate(
         gameApi: GameApi,
+        productionApi: ProductionApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
@@ -303,7 +313,7 @@ export class MissionController {
 
         // Create dynamic missions.
         this.missionFactories.forEach((missionFactory) => {
-            missionFactory.maybeCreateMissions(gameApi, playerData, matchAwareness, this, this.logger);
+            missionFactory.maybeCreateMissions(gameApi, productionApi, playerData, matchAwareness, this, this.logger);
             disbandedMissionsArray.forEach(({ reason, mission }) => {
                 missionFactory.onMissionFailed(gameApi, playerData, matchAwareness, mission, reason, this, this.logger);
             });

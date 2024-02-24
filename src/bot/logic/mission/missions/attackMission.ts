@@ -1,4 +1,13 @@
-import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2 } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    GameApi,
+    ObjectType,
+    PlayerData,
+    ProductionApi,
+    SideType,
+    UnitData,
+    Vector2,
+} from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
@@ -264,25 +273,16 @@ const BASE_ATTACK_COOLDOWN_TICKS = 1800;
 
 const ATTACK_MISSION_INITIAL_PRIORITY = 1;
 
-export class AttackMissionFactory implements MissionFactory {
+export class DynamicAttackMissionFactory implements MissionFactory {
     constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {}
 
     getName(): string {
-        return "AttackMissionFactory";
+        return "DynamicAttackMissionFactory";
     }
 
     maybeCreateMissions(
         gameApi: GameApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        // now using trigger missions
-    }
-
-    maybeCreateMissionsUnused(
-        gameApi: GameApi,
+        productionApi: ProductionApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,

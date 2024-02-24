@@ -1,4 +1,13 @@
-import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, Size } from "@chronodivide/game-api";
+import {
+    ApiEventType,
+    Bot,
+    GameApi,
+    ApiEvent,
+    ObjectType,
+    FactoryType,
+    Size,
+    PlayerData,
+} from "@chronodivide/game-api";
 
 import { determineMapBounds } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
@@ -6,7 +15,9 @@ import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { Countries, formatTimeDuration } from "./logic/common/utils.js";
-import { TriggerManager } from "./logic/triggers/triggerManager.js";
+import { TriggeredAttackMissionFactory } from "./logic/mission/missions/triggers/triggerManager.js";
+import { createBaseMissionFactories } from "./logic/mission/missionFactories.js";
+import { DynamicAttackMissionFactory } from "./logic/mission/missions/attackMission.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -14,6 +25,7 @@ const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 const NATURAL_TICK_RATE = 15;
 
 export enum BotDifficulty {
+    Dynamic, // Original AI without triggers
     Easy,
     Medium,
     Hard,
@@ -22,12 +34,11 @@ export enum BotDifficulty {
 export class SupalosaBot extends Bot {
     private tickRatio?: number;
     private knownMapBounds: Size | undefined;
-    private missionController: MissionController;
+    private missionController?: MissionController;
     private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
 
     private matchAwareness: MatchAwareness | null = null;
-    private triggerManager: TriggerManager | null = null;
 
     private didQuitGame: boolean = false;
 
@@ -38,8 +49,16 @@ export class SupalosaBot extends Bot {
         private tryAllyWith: string[] = [],
     ) {
         super(name, country);
-        this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
         this.queueController = new QueueController();
+    }
+
+    private createMissionFactories(game: GameApi, playerData: PlayerData) {
+        const baseMissionFactories = createBaseMissionFactories();
+        if (this.difficulty === BotDifficulty.Dynamic) {
+            return [...baseMissionFactories, new DynamicAttackMissionFactory()];
+        } else {
+            return [...baseMissionFactories, new TriggeredAttackMissionFactory(game, playerData, this.difficulty)];
+        }
     }
 
     override onGameStart(game: GameApi) {
@@ -48,8 +67,14 @@ export class SupalosaBot extends Bot {
         const botRate = botApm / 60;
         this.tickRatio = Math.ceil(gameRate / botRate);
 
-        this.knownMapBounds = determineMapBounds(game.mapApi);
         const myPlayer = game.getPlayerData(this.name);
+
+        this.missionController = new MissionController(
+            this.createMissionFactories(game, myPlayer),
+            (message, sayInGame) => this.logBotStatus(message, sayInGame),
+        );
+
+        this.knownMapBounds = determineMapBounds(game.mapApi);
 
         this.matchAwareness = new MatchAwarenessImpl(
             null,
@@ -58,8 +83,6 @@ export class SupalosaBot extends Bot {
             (message, sayInGame) => this.logBotStatus(message, sayInGame),
         );
         this.matchAwareness.onGameStart(game, myPlayer);
-
-        this.triggerManager = new TriggerManager(game, myPlayer, this.difficulty);
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.width}, ${this.knownMapBounds.height}`);
 
@@ -70,6 +93,9 @@ export class SupalosaBot extends Bot {
 
     override onGameTick(game: GameApi) {
         if (!this.matchAwareness) {
+            return;
+        }
+        if (!this.missionController) {
             return;
         }
         if (this.didQuitGame) {
@@ -107,17 +133,12 @@ export class SupalosaBot extends Bot {
 
             // Mission logic every 5 ticks
             if (this.gameApi.getCurrentTick() % 5 === 0) {
-                this.missionController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
-            }
-
-            if (this.triggerManager) {
-                this.triggerManager.onAiUpdate(
+                this.missionController.onAiUpdate(
                     game,
                     this.productionApi,
-                    this.matchAwareness,
+                    this.actionsApi,
                     myPlayer,
-                    this.missionController,
-                    this.logger,
+                    this.matchAwareness,
                 );
             }
 
@@ -161,10 +182,10 @@ export class SupalosaBot extends Bot {
 
         let globalDebugText = `Cash: ${myPlayer.credits} | Harvesters: ${harvesters}\n`;
         globalDebugText += this.queueController.getGlobalDebugText(this.gameApi, this.productionApi);
-        globalDebugText += this.missionController.getGlobalDebugText(this.gameApi);
+        globalDebugText += this.missionController?.getGlobalDebugText(this.gameApi);
         globalDebugText += this.matchAwareness?.getGlobalDebugText();
 
-        this.missionController.updateDebugText(this.actionsApi);
+        this.missionController?.updateDebugText(this.actionsApi);
 
         // Tag enemy units with IDs
         game.getVisibleUnits(this.name, "enemy").forEach((unitId) => {

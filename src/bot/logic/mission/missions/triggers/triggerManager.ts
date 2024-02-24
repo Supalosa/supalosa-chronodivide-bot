@@ -1,7 +1,7 @@
 // State management for ai.ini TriggerTypes
 
 import { GameApi, IniFile, LoggerApi, PlayerData, ProductionApi, SideType } from "@chronodivide/game-api";
-import { BotDifficulty } from "../../bot.js";
+import { BotDifficulty } from "../../../../bot.js";
 import {
     AiTriggerOwnerHouse,
     AiTriggerSideType,
@@ -9,13 +9,15 @@ import {
     ComparatorOperator,
     ConditionType,
 } from "./aiTriggerTypes.js";
-import { countBy, setDifference } from "../common/utils.js";
-import { MissionController } from "../mission/missionController.js";
+import { DebugLogger, countBy, setDifference } from "../../../common/utils.js";
+import { MissionController } from "../../missionController.js";
 import { AiTeamType, loadTeamTypes } from "./aiTeamTypes.js";
 import { AiTaskForce, loadTaskForces } from "./aiTaskForces.js";
-import { AttackMission, generateTarget } from "../mission/missions/attackMission.js";
-import { MatchAwareness } from "../awareness.js";
+import { AttackMission, generateTarget } from "../attackMission.js";
+import { MatchAwareness } from "../../../awareness.js";
 import { match } from "assert";
+import { MissionFactory } from "../../missionFactories.js";
+import { Mission } from "../../mission.js";
 
 type AiTriggerCacheState = {
     enemyUnitCount: { [name: string]: number };
@@ -100,7 +102,10 @@ type ResolvedTriggerType = Omit<AiTriggerType, "teamType"> & {
     teamType: ResolvedTeamType;
 };
 
-export class TriggerManager {
+/**
+ * The TriggeredAttackMissionFactory is a special type of MissionFactory that obeys the ai.ini triggers to create Attack Missions
+ */
+export class TriggeredAttackMissionFactory implements MissionFactory {
     private teamDelay: number;
     private triggerTypes = new Map<string, ResolvedTriggerType>();
 
@@ -129,12 +134,41 @@ export class TriggerManager {
                 this.teamDelay = teamDelays[1];
                 break;
             case BotDifficulty.Hard:
+            default:
                 this.teamDelay = teamDelays[0];
                 break;
         }
         this.triggerTypes = triggerTypes;
         this.dissolveUnfilledTeamDelay = dissolveUnfilledTeamDelay;
     }
+
+    getName(): string {
+        return "ai.ini trigger factory";
+    }
+
+    maybeCreateMissions(
+        gameApi: GameApi,
+        productionApi: ProductionApi,
+        playerData: PlayerData,
+        matchAwareness: MatchAwareness,
+        missionController: MissionController,
+        logger: DebugLogger,
+    ): void {
+        if (gameApi.getCurrentTick() > this.lastTeamCheckAt + this.teamDelay) {
+            this.runTeamCheck(gameApi, productionApi, matchAwareness, playerData, missionController, logger);
+            this.lastTeamCheckAt = gameApi.getCurrentTick();
+        }
+    }
+
+    onMissionFailed(
+        gameApi: GameApi,
+        playerData: PlayerData,
+        matchAwareness: MatchAwareness,
+        failedMission: Mission<any>,
+        failureReason: any,
+        missionController: MissionController,
+        logger: DebugLogger,
+    ): void {}
 
     private loadIni(rulesIni: IniFile, aiIni: IniFile, playerData: PlayerData, difficulty: BotDifficulty) {
         const triggerTypes = new Map<string, ResolvedTriggerType>();
@@ -202,27 +236,13 @@ export class TriggerManager {
         return { triggerTypes, teamDelays, dissolveUnfilledTeamDelay };
     }
 
-    public onAiUpdate(
-        game: GameApi,
-        productionApi: ProductionApi,
-        matchAwareness: MatchAwareness,
-        myPlayer: PlayerData,
-        missionController: MissionController,
-        logger: LoggerApi,
-    ) {
-        if (game.getCurrentTick() > this.lastTeamCheckAt + this.teamDelay) {
-            this.runTeamCheck(game, productionApi, matchAwareness, myPlayer, missionController, logger);
-            this.lastTeamCheckAt = game.getCurrentTick();
-        }
-    }
-
     public runTeamCheck(
         game: GameApi,
         production: ProductionApi,
         matchAwareness: MatchAwareness,
         myPlayer: PlayerData,
         missionController: MissionController,
-        logger: LoggerApi,
+        logger: DebugLogger,
     ) {
         if (missionController.getMissions().length >= this.teamLimit) {
             // TODO: maybe this should be based on teams created by the trigger manager, not other missions
@@ -272,7 +292,7 @@ export class TriggerManager {
 
         const diff = setDifference(this.previousValidTriggers, newTriggerSet);
         if (diff.length > 0) {
-            logger.debug("Mission trigger state change:", diff);
+            logger("Mission trigger state change:" + diff);
         }
         this.previousValidTriggers = newTriggerSet;
 
@@ -289,7 +309,7 @@ export class TriggerManager {
         if (!chosenMission) {
             return;
         }
-        logger.info("Chose mission:", chosenMission.name);
+        logger(`Chose mission: ${chosenMission.name}`);
         // TODO: implement attack target from script.
         const attackTarget = generateTarget(game, myPlayer, matchAwareness, true);
         if (!attackTarget) {
@@ -301,7 +321,7 @@ export class TriggerManager {
             matchAwareness.getMainRallyPoint(),
             attackTarget,
             30,
-            (message) => logger.info(message),
+            logger,
             chosenMission.teamType.taskForce.units,
             game.getCurrentTick() + this.dissolveUnfilledTeamDelay,
         );
@@ -309,14 +329,14 @@ export class TriggerManager {
 
         if (newMission) {
             const newCount = this.incrementTeamCount(chosenMission.teamType.name);
-            logger.info(
+            logger(
                 `Mission ${mission.getUniqueName()} has started, total count of team ${
                     chosenMission.teamType.name
                 } = ${newCount}`,
             );
             newMission.then(() => {
                 const newCount = this.decrementTeamCount(chosenMission.teamType.name);
-                logger.info(
+                logger(
                     `Mission ${mission.getUniqueName()} has ended, total count of team ${
                         chosenMission.teamType.name
                     } = ${newCount}`,

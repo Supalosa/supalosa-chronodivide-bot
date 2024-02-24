@@ -1,6 +1,6 @@
 // Interpreter for ai.ini TriggerTypes
 
-import { Countries } from "../common/utils.js";
+import { Countries } from "../../../common/utils.js";
 
 export enum AiTriggerOwnerHouse {
     None = "<none>",

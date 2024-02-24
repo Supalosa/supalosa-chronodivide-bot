@@ -1,7 +1,7 @@
 // Interpreter for ai.ini TriggerTypes
 
 import { IniFile, IniSection } from "@chronodivide/game-api";
-import { Countries } from "../common/utils.js";
+import { Countries } from "../../../common/utils.js";
 
 export const loadTeamTypes = (aiIni: IniFile): { [id: string]: AiTeamType } => {
     const teamTypeIndex = aiIni.getSection("TeamTypes");
