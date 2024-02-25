@@ -4,6 +4,11 @@ type Repeat = {
     type: "repeat";
 };
 
+// Move on to next.
+type Step = {
+    type: "step";
+};
+
 type Disband = {
     type: "disband";
 };
@@ -13,12 +18,22 @@ type GoToLine = {
     line: number;
 };
 
-type ScriptStepResult = Repeat | Disband | GoToLine;
+type ScriptStepResult = Repeat | Step | Disband | GoToLine;
+
+export type OnStepArgs = {};
 
 export interface ScriptStepHandler {
-    onStartStep(): void;
+    onStartStep?(): void;
 
-    onStep(): ScriptStepResult;
+    onStep(args: OnStepArgs): ScriptStepResult;
+
+    onCleanupStep?(): void;
 }
 
 export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, ScriptStepHandler>([]);
+
+class GatherAtEnemyBase implements ScriptStepHandler {
+    onStep(args: OnStepArgs): ScriptStepResult {
+        return { type: "repeat" };
+    }
+}

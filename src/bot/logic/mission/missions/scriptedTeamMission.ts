@@ -7,7 +7,7 @@ import { ActionBatcher } from "../actionBatcher.js";
 import { UnitComposition } from "../../composition/common.js";
 import { manageMoveMicro } from "./squads/common.js";
 import { GeneralAiRules, ResolvedTeamType } from "./triggers/triggerManager.js";
-import { SCRIPT_STEP_HANDLERS, ScriptStepHandler } from "./scripts/scripts.js";
+import { OnStepArgs, SCRIPT_STEP_HANDLERS, ScriptStepHandler } from "./scripts/scripts.js";
 import { match } from "assert";
 import { exec } from "child_process";
 
@@ -126,21 +126,25 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
-        return this.executeStep();
-    }
-
-    private executeStep(): MissionAction {
         if (this.executionData === null) {
             throw new Error(`Script ${this.getUniqueName()} entered executing state without any execution data`);
         }
         const { step: stepIndex, handler: stepHandler } = this.executionData;
 
-        const result = stepHandler.onStep();
+        const stepArgs: OnStepArgs = {};
+        const result = stepHandler.onStep(stepArgs);
 
         let nextLine = stepIndex + 1;
+
+        const assertNever = (_x: never) => {
+            throw new Error("missed a case");
+        };
+
         switch (result.type) {
             case "repeat":
                 return noop();
+            case "step":
+                break;
             case "disband":
                 return disbandMission();
             case "goToLine":
@@ -151,11 +155,17 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
                 }
                 nextLine = result.line;
                 break;
+            default:
+                return assertNever(result);
         }
         if (nextLine >= this.teamType.script.actions.length) {
             this.logger(`Disbanding ${this.getUniqueName} because the script finished`);
             return disbandMission();
         }
+
+        // Move to next step.
+        this.executionData.handler.onCleanupStep?.();
+
         this.executionData = this.getExecutionData(nextLine);
         if (!this.executionData) {
             this.logger(`Disbanding ${this.getUniqueName} because it reached an unhandled step`);

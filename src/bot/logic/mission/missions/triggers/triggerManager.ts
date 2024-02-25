@@ -1,6 +1,6 @@
 // State management for ai.ini TriggerTypes
 
-import { GameApi, IniFile, LoggerApi, PlayerData, ProductionApi, SideType } from "@chronodivide/game-api";
+import { GameApi, IniFile, PlayerData, ProductionApi, SideType } from "@chronodivide/game-api";
 import { BotDifficulty } from "../../../../bot.js";
 import {
     AiTriggerOwnerHouse,
@@ -13,9 +13,8 @@ import { DebugLogger, countBy, setDifference } from "../../../common/utils.js";
 import { MissionController } from "../../missionController.js";
 import { AiTeamType, loadTeamTypes } from "./aiTeamTypes.js";
 import { AiTaskForce, loadTaskForces } from "./aiTaskForces.js";
-import { AttackMission, generateTarget } from "../attackMission.js";
+import { generateTarget } from "../attackMission.js";
 import { MatchAwareness } from "../../../awareness.js";
-import { match } from "assert";
 import { MissionFactory } from "../../missionFactories.js";
 import { Mission } from "../../mission.js";
 import { AiScriptType, loadScriptTypes } from "./scriptTypes.js";
