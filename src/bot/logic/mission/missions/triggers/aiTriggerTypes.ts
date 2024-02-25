@@ -52,7 +52,7 @@ const comparatorOperators: Map<ComparatorOperator, string> = new Map([
     [ComparatorOperator.Equal, "=="],
     [ComparatorOperator.GreaterThanOrEqual, ">="],
     [ComparatorOperator.GreaterThan, ">"],
-    [ComparatorOperator.GreaterThan, "!="],
+    [ComparatorOperator.NotEqual, "!="],
 ]);
 
 // https://modenc.renegadeprojects.com/AITriggerTypes
