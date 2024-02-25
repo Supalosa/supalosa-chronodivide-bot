@@ -55,6 +55,7 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
     [ScriptTypeAction.GuardArea, () => new GuardAreaHandler()],
     [ScriptTypeAction.JumpToLine, () => new JumpToLineHandler()],
     [ScriptTypeAction.MoveToEnemyStructure, () => new MoveToHandler(MoveToTargetType.Enemy)],
+    [ScriptTypeAction.RegisterSuccess, () => new RegisterSuccess()],
     [ScriptTypeAction.GatherAtEnemyBase, () => new GatherOrRegroupHandler(GatherOrRegroup.Gather)],
     [ScriptTypeAction.RegroupAtFriendlyBase, () => new GatherOrRegroupHandler(GatherOrRegroup.Regroup)],
     [ScriptTypeAction.MoveToFriendlyStructure, () => new MoveToHandler(MoveToTargetType.Friendly)],
@@ -77,5 +78,12 @@ class JumpToLineHandler implements ScriptStepHandler {
     onStep({ scriptStep }: OnStepArgs): GoToLine {
         const args = scriptStep as JumpToLineStep;
         return { type: "goToLine", line: args.line - 1 };
+    }
+}
+
+// No-op until we have mutable trigger weighting.
+class RegisterSuccess implements ScriptStepHandler {
+    onStep(): Step {
+        return { type: "step" };
     }
 }
