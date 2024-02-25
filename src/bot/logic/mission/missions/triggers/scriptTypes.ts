@@ -175,15 +175,36 @@ export const SCRIPT_TYPE_ACTIONS = new Map<ScriptTypeAction, ScriptTypeActionDat
    58 38 -> MoveToFriendlyStructure
  */
 
-export type ScriptTypeEntry = {
+export type AttackQuarryTypeStep = {
+    action: ScriptTypeAction.AttackQuarryType;
+    quarryType: QuarryType;
+};
+
+export type GuardAreaStep = {
+    action: ScriptTypeAction.GuardArea;
+    time: number;
+};
+
+export type DefaultScriptStep = {
     action: ScriptTypeAction;
     argument: number;
 };
 
+export type ResolvedScriptTypeEntry = AttackQuarryTypeStep | GuardAreaStep | DefaultScriptStep;
+
+function resolveAction({ action, argument }: { action: ScriptTypeAction; argument: number }): ResolvedScriptTypeEntry {
+    switch (action) {
+        case ScriptTypeAction.AttackQuarryType:
+            return { action, quarryType: argument };
+        default:
+            return { action, argument };
+    }
+}
+
 // https://modenc.renegadeprojects.com/TaskForces
 export class AiScriptType {
     public readonly name: string;
-    public readonly actions: ScriptTypeEntry[] = [];
+    public readonly actions: ResolvedScriptTypeEntry[] = [];
 
     constructor(
         public readonly id: string,
@@ -197,7 +218,8 @@ export class AiScriptType {
             }
             const text = iniSection.getString(i.toString());
             const [action, argument] = text.split(",");
-            this.actions.push({ action: parseInt(action), argument: parseInt(argument) });
+            const rawAction = { action: parseInt(action), argument: parseInt(argument) };
+            this.actions.push(resolveAction(rawAction));
         }
     }
 }
