@@ -7,16 +7,24 @@ import { ActionBatcher } from "../actionBatcher.js";
 import { UnitComposition } from "../../composition/common.js";
 import { manageMoveMicro } from "./squads/common.js";
 import { GeneralAiRules, ResolvedTeamType } from "./triggers/triggerManager.js";
+import { SCRIPT_STEP_HANDLERS, ScriptStepHandler } from "./scripts/scripts.js";
+import { match } from "assert";
+import { exec } from "child_process";
 
 export enum ScriptEndedReason {}
 
 enum ScriptMissionState {
     Filling = 0,
-    Ready = 1,
+    Executing = 1,
 }
 
 const MISSION_PRIORITY_RAMP = 1.01;
 const MISSION_MAX_PRIORITY = 50;
+
+type ExecutionData = {
+    step: number;
+    handler: ScriptStepHandler;
+};
 
 /**
  * A mission that follows a script from the ai.ini file.
@@ -27,6 +35,8 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
     private state: ScriptMissionState = ScriptMissionState.Filling;
     private priority: number;
 
+    private executionData: ExecutionData | null = null;
+
     constructor(
         uniqueName: string,
         private teamType: ResolvedTeamType,
@@ -35,6 +45,7 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
     ) {
         super(uniqueName, logger);
         this.priority = teamType.priority;
+        this.executionData = null;
     }
 
     _onAiUpdate(
@@ -50,13 +61,13 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
 
         switch (this.state) {
             case ScriptMissionState.Filling:
-                return this.handlePreparingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
-            case ScriptMissionState.Ready:
-                return this.handleAttackingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+                return this.handleFillingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+            case ScriptMissionState.Executing:
+                return this.handleExecutingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
         }
     }
 
-    private handlePreparingState(
+    private handleFillingState(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
@@ -80,19 +91,76 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
                 this.priority,
             );
         } else {
+            // Transition to execution state.
             this.priority = this.teamType.priority;
-            this.state = ScriptMissionState.Ready;
-            return noop();
+            this.state = ScriptMissionState.Executing;
+            const startingData = this.getExecutionData(0);
+            if (!startingData) {
+                this.logger(
+                    `ERROR: disbanding ${this.getUniqueName()} because there is no handler for the first script step`,
+                );
+                return disbandMission();
+            }
+            return this.handleExecutingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
         }
     }
 
-    private handleAttackingState(
+    private getExecutionData(line: number) {
+        const { actions } = this.teamType.script;
+        const firstHandler = SCRIPT_STEP_HANDLERS.get(actions[line].action);
+        if (!firstHandler) {
+            const unhandledStep = actions[line];
+            this.logger(`WARN: unhandled action ${unhandledStep}`);
+            return null;
+        }
+        return {
+            step: line,
+            handler: firstHandler,
+        };
+    }
+
+    private handleExecutingState(
         gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
+        return this.executeStep();
+    }
+
+    private executeStep(): MissionAction {
+        if (this.executionData === null) {
+            throw new Error(`Script ${this.getUniqueName()} entered executing state without any execution data`);
+        }
+        const { step: stepIndex, handler: stepHandler } = this.executionData;
+
+        const result = stepHandler.onStep();
+
+        let nextLine = stepIndex + 1;
+        switch (result.type) {
+            case "repeat":
+                return noop();
+            case "disband":
+                return disbandMission();
+            case "goToLine":
+                if (result.line < 0 || result.line >= this.teamType.script.actions.length) {
+                    throw new Error(
+                        `Script for ${this.getUniqueName()} tried to send line outside of valid range (${result.line})`,
+                    );
+                }
+                nextLine = result.line;
+                break;
+        }
+        if (nextLine >= this.teamType.script.actions.length) {
+            this.logger(`Disbanding ${this.getUniqueName} because the script finished`);
+            return disbandMission();
+        }
+        this.executionData = this.getExecutionData(nextLine);
+        if (!this.executionData) {
+            this.logger(`Disbanding ${this.getUniqueName} because it reached an unhandled step`);
+            return disbandMission();
+        }
         return noop();
     }
 
