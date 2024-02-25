@@ -1,19 +1,10 @@
-import {
-    ActionsApi,
-    AttackState,
-    GameApi,
-    GameMath,
-    MovementZone,
-    PlayerData,
-    UnitData,
-    Vector2,
-} from "@chronodivide/game-api";
+import { ActionsApi, GameApi, GameMath, MovementZone, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../../awareness.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
 import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../../common/utils.js";
 import { ActionBatcher, BatchableAction } from "../../actionBatcher.js";
 import { Squad } from "./squad.js";
-import { Mission, MissionAction, grabCombatants, noop } from "../../mission.js";
+import { Mission } from "../../mission.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 
@@ -63,7 +54,7 @@ export class CombatSquad implements Squad {
         mission: Mission<any>,
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
-    ): MissionAction {
+    ) {
         if (
             mission.getUnitIds().length > 0 &&
             (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
@@ -116,14 +107,14 @@ export class CombatSquad implements Squad {
                     // Switch back to gather mode
                     logger(`CombatSquad ${mission.getUniqueName()} switching back to gather (${maxDistance})`);
                     this.state = SquadState.Gathering;
-                    return noop();
+                    return;
                 }
                 // The unit with the shortest range chooses the target. Otherwise, a base range of 5 is chosen.
                 const getRangeForUnit = (unit: UnitData) =>
                     unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
                 const attackLeader = minBy(units, getRangeForUnit);
                 if (!attackLeader) {
-                    return noop();
+                    return;
                 }
                 // Find units within double the range of the leader.
                 const nearbyHostiles = matchAwareness
@@ -149,7 +140,6 @@ export class CombatSquad implements Squad {
                 }
             }
         }
-        return noop();
     }
 
     /**

@@ -10,6 +10,7 @@ import {
 } from "@chronodivide/game-api";
 import { GlobalThreat } from "./threat.js";
 import { getCachedTechnoRules } from "../common/rulesCache.js";
+import { groupBy } from "../common/utils.js";
 
 export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, visibleAreaPercent: number): GlobalThreat {
     let groundUnits = game.getVisibleUnits(
@@ -40,18 +41,23 @@ export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, vis
         (r) => r.movementZone == MovementZone.Fly && r.isSelectableCombatant,
     );
 
-    let observedGroundThreat = calculateFirepowerForUnits(game, groundUnits);
-    let observedAirThreat = calculateFirepowerForUnits(game, airUnits);
-    let observedAntiAirThreat = calculateFirepowerForUnits(game, antiAirPower);
-    let observedGroundDefence = calculateFirepowerForUnits(game, groundDefence);
+    let observedGroundThreat = calculateFirepowerForUnitIds(game, groundUnits);
+    let observedAirThreat = calculateFirepowerForUnitIds(game, airUnits);
+    let observedAntiAirThreat = calculateFirepowerForUnitIds(game, antiAirPower);
+    let observedGroundDefence = calculateFirepowerForUnitIds(game, groundDefence);
 
-    let ourAntiGroundPower = calculateFirepowerForUnits(game, ourAntiGroundUnits);
-    let ourAntiAirPower = calculateFirepowerForUnits(game, ourAntiAirUnits);
-    let ourAirPower = calculateFirepowerForUnits(game, ourAirUnits);
-    let ourGroundDefencePower = calculateFirepowerForUnits(game, ourGroundDefence);
+    let ourAntiGroundPower = calculateFirepowerForUnitIds(game, ourAntiGroundUnits);
+    let ourAntiAirPower = calculateFirepowerForUnitIds(game, ourAntiAirUnits);
+    let ourAirPower = calculateFirepowerForUnitIds(game, ourAirUnits);
+    let ourGroundDefencePower = calculateFirepowerForUnitIds(game, ourGroundDefence);
 
-    const totalThreatPerPlayer = {};
-    const allGameObjects = game.getAllUnits();
+    // Create a map of player names to their total threat (that we can see).
+    const totalThreatPerPlayer: { [name: string]: number } = {};
+    const allPlayers = game.getPlayers();
+    for (const player of allPlayers) {
+        const playerUnits = game.getVisibleUnits(player, "self");
+        totalThreatPerPlayer[player] = calculateFirepowerForUnitIds(game, playerUnits);
+    }
 
     return new GlobalThreat(
         visibleAreaPercent,
@@ -120,18 +126,15 @@ function calculateFirepowerForUnit(gameApi: GameApi, gameObjectData: GameObjectD
         const weapon = gameApi.rulesApi.getWeapon(rules.secondary);
         threat += (hpRatio * ((weapon.damage + 1) * GameMath.sqrt(weapon.range + 1))) / Math.max(weapon.rof, 1);
     }
+    // clamp the threat at 800, as we don't want to overestimate the threat of a single unit.
     return Math.min(800, threat);
 }
 
-function calculateFirepowerForUnits(game: GameApi, unitIds: number[]) {
-    let threat = 0;
-    unitIds.forEach((unitId) => {
-        const gameObjectData = game.getGameObjectData(unitId);
-        if (gameObjectData) {
-            threat += calculateFirepowerForUnit(game, gameObjectData);
-        }
-    });
-    return threat;
+function calculateFirepowerForUnitIds(game: GameApi, unitIds: number[]) {
+    return calculateFirepowerForGameObjects(
+        game,
+        unitIds.map((unitId) => game.getGameObjectData(unitId)).filter((x): x is GameObjectData => !!x),
+    );
 }
 
 function calculateFirepowerForGameObjects(game: GameApi, gameObjects: GameObjectData[]) {

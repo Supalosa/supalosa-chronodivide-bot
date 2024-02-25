@@ -130,6 +130,8 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
 
         const stepArgs: OnStepArgs = {
             gameApi,
+            mission: this,
+            playerData,
             actionsApi,
             actionBatcher,
             matchAwareness,
@@ -162,7 +164,7 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
                 return assertNever(result);
         }
         if (nextLine >= this.teamType.script.actions.length) {
-            this.logger(`Disbanding ${this.getUniqueName} because the script finished`);
+            this.logger(`Disbanding ${this.getUniqueName()} because the script finished`);
             return disbandMission();
         }
 
@@ -171,7 +173,7 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
 
         this.executionData = this.getExecutionData(nextLine);
         if (!this.executionData) {
-            this.logger(`Disbanding ${this.getUniqueName} because it reached an unhandled step`);
+            this.logger(`Disbanding ${this.getUniqueName()} because it reached an unhandled step`);
             return disbandMission();
         }
         return noop();
