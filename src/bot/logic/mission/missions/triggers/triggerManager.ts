@@ -18,6 +18,7 @@ import { MatchAwareness } from "../../../awareness.js";
 import { match } from "assert";
 import { MissionFactory } from "../../missionFactories.js";
 import { Mission } from "../../mission.js";
+import { AiScriptType, loadScriptTypes } from "./scriptTypes.js";
 
 type AiTriggerCacheState = {
     enemyUnitCount: { [name: string]: number };
@@ -94,8 +95,9 @@ const conditionEvaluators: Map<ConditionType, ConditionEvaluator> = new Map([
     [ConditionType.NeutralHouseOwns, EVALUATOR_NOT_IMPLEMENTED],
 ]);
 
-type ResolvedTeamType = Omit<AiTeamType, "taskForce"> & {
+type ResolvedTeamType = Omit<AiTeamType, "taskForce" | "script"> & {
     taskForce: AiTaskForce;
+    script: AiScriptType;
 };
 
 type ResolvedTriggerType = Omit<AiTriggerType, "teamType"> & {
@@ -179,13 +181,34 @@ export class TriggeredAttackMissionFactory implements MissionFactory {
 
         const aiTeamTypes = loadTeamTypes(aiIni);
         const aiTaskForces = loadTaskForces(aiIni);
+        const aiScriptTypes = loadScriptTypes(aiIni);
 
         type ResolvedTeamTypes = { [name: string]: ResolvedTeamType };
 
         const resolvedTeamTypes: ResolvedTeamTypes = Object.entries(aiTeamTypes).reduce<ResolvedTeamTypes>((pV, cV) => {
             const [teamName, teamType] = cV;
-            return Object.assign(pV, { [teamName]: { ...teamType, taskForce: aiTaskForces[teamType.taskForce] } });
+            return Object.assign(pV, {
+                [teamName]: {
+                    ...teamType,
+                    taskForce: aiTaskForces[teamType.taskForce],
+                    script: aiScriptTypes[teamType.script],
+                },
+            });
         }, {});
+
+        const histogram = new Map<number, number>();
+        Object.values(resolvedTeamTypes).forEach((type) => {
+            type.script.actions.forEach((action) => {
+                histogram.set(action.action, (histogram.get(action.action) ?? 0) + 1);
+            });
+        });
+
+        /*
+        * Debug code, but possibly useful later?
+        [...histogram.entries()].forEach(([k, v]) => {
+            console.log(k, v);
+        });
+        */
 
         aiTriggerTypes.entries.forEach((value, id) => {
             const trigger = new AiTriggerType(id, value);
