@@ -113,7 +113,7 @@ export enum QuarryType {
 
 export type QuarryTypeFilter = (rules: TechnoRules) => boolean;
 
-const quarryTypes = new Map<QuarryType, QuarryTypeFilter>([
+export const QUARRY_TYPES = new Map<QuarryType, QuarryTypeFilter>([
     [QuarryType.CancelAttackMission, () => false],
     [QuarryType.Anything, () => true],
     [QuarryType.Structures, (rules) => rules.type === ObjectType.Building],
@@ -129,7 +129,7 @@ const quarryTypes = new Map<QuarryType, QuarryTypeFilter>([
 ]);
 
 // Only listing script types that are used in the default ini.
-const scriptTypeActions = new Map<ScriptTypeAction, ScriptTypeActionData>([
+export const SCRIPT_TYPE_ACTIONS = new Map<ScriptTypeAction, ScriptTypeActionData>([
     [ScriptTypeAction.AttackQuarryType, { name: "AttackQuarryType", argumentType: "QuarryType" }],
     [ScriptTypeAction.GuardArea, { name: "GuardArea", argumentType: "Time" }],
     [ScriptTypeAction.JumpToLine, { name: "JumpToLine", argumentType: "Line" }],
