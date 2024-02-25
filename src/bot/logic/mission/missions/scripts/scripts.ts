@@ -8,6 +8,7 @@ import { Mission } from "../../mission.js";
 import { MoveToHandler, MoveToTargetType } from "./moveToBuildingHandlers.js";
 import { GatherOrRegroupHandler, GatherOrRegroup } from "./gatherRegroupHandlers.js";
 import { GuardAreaHandler } from "./guardAreaHandler.js";
+import { AttackQuarryTypeHandler } from "./attackQuarryTypeHandler.js";
 
 type Repeat = {
     type: "repeat";
@@ -50,6 +51,7 @@ export interface ScriptStepHandler {
 }
 
 export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHandler>([
+    [ScriptTypeAction.AttackQuarryType, () => new AttackQuarryTypeHandler()],
     [ScriptTypeAction.GuardArea, () => new GuardAreaHandler()],
     [ScriptTypeAction.JumpToLine, () => new JumpToLineHandler()],
     [ScriptTypeAction.MoveToEnemyStructure, () => new MoveToHandler(MoveToTargetType.Enemy)],
@@ -60,8 +62,6 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
 
 /**
  * TODO for implementation:
-   0 219 -> AttackQuarryType
-   6 3 -> JumpToLine
    8 12 -> Unload
    11 15 -> AssignNewMission
    14 13 -> LoadOntoTransport

@@ -102,7 +102,7 @@ export type ScriptTypeActionData = {
 };
 
 export enum QuarryType {
-    CancelAttackMission = 0,
+    None = 0,
     Anything = 1,
     Structures = 2,
     Harvesters = 3,
@@ -119,7 +119,7 @@ export enum QuarryType {
 export type QuarryTypeFilter = (rules: TechnoRules) => boolean;
 
 export const QUARRY_TYPES = new Map<QuarryType, QuarryTypeFilter>([
-    [QuarryType.CancelAttackMission, () => false],
+    [QuarryType.None, () => false],
     [QuarryType.Anything, () => true],
     [QuarryType.Structures, (rules) => rules.type === ObjectType.Building],
     [QuarryType.Harvesters, (rules) => rules.harvester],
