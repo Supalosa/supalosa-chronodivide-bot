@@ -1,9 +1,9 @@
-import { GameApi, PlayerData } from "@chronodivide/game-api";
+import { GameApi, PlayerData, ProductionApi } from "@chronodivide/game-api";
 import { ExpansionMissionFactory } from "./missions/expansionMission.js";
 import { Mission } from "./mission.js";
 import { MatchAwareness } from "../awareness.js";
 import { ScoutingMissionFactory } from "./missions/scoutingMission.js";
-import { AttackMissionFactory } from "./missions/attackMission.js";
+import { DynamicAttackMissionFactory } from "./missions/attackMission.js";
 import { MissionController } from "./missionController.js";
 import { DefenceMissionFactory } from "./missions/defenceMission.js";
 import { DebugLogger } from "../common/utils.js";
@@ -16,12 +16,14 @@ export interface MissionFactory {
      * Queries the factory for new missions to be spawned.
      *
      * @param gameApi
+     * @param productionApi
      * @param playerData
      * @param matchAwareness
      * @param missionController
      */
     maybeCreateMissions(
         gameApi: GameApi,
+        productionApi: ProductionApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
@@ -42,10 +44,9 @@ export interface MissionFactory {
     ): void;
 }
 
-export const createMissionFactories = () => [
+export const createBaseMissionFactories = () => [
     new ExpansionMissionFactory(),
     new ScoutingMissionFactory(),
-    new AttackMissionFactory(),
     new DefenceMissionFactory(),
     new EngineerMissionFactory(),
 ];

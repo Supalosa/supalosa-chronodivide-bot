@@ -1,4 +1,13 @@
-import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2 } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    GameApi,
+    ObjectType,
+    PlayerData,
+    ProductionApi,
+    SideType,
+    UnitData,
+    Vector2,
+} from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
@@ -60,8 +69,9 @@ export class AttackMission extends Mission<AttackFailReason> {
         rallyArea: Vector2,
         private attackArea: Vector2,
         private radius: number,
-        private composition: UnitComposition,
         logger: DebugLogger,
+        private composition: UnitComposition,
+        private dissolveUnfulfilledAt: number | null = null,
     ) {
         super(uniqueName, logger);
         this.squad = new CombatSquad(rallyArea, attackArea, radius);
@@ -96,6 +106,10 @@ export class AttackMission extends Mission<AttackFailReason> {
         const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
             return !currentComposition[unitType] || currentComposition[unitType] < targetAmount;
         });
+
+        if (this.dissolveUnfulfilledAt && gameApi.getCurrentTick() > this.dissolveUnfulfilledAt) {
+            return disbandMission();
+        }
 
         if (missingUnits.length > 0) {
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
@@ -169,7 +183,10 @@ export class AttackMission extends Mission<AttackFailReason> {
         actionBatcher: ActionBatcher,
     ) {
         this.getUnits(gameApi).forEach((unitId) => {
-            actionBatcher.push(manageMoveMicro(unitId, matchAwareness.getMainRallyPoint()));
+            const moveAction = manageMoveMicro(unitId, matchAwareness.getMainRallyPoint());
+            if (moveAction) {
+                actionBatcher.push(moveAction);
+            }
         });
         return disbandMission();
     }
@@ -204,7 +221,7 @@ const getTargetWeight: (unitData: UnitData, tryFocusHarvester: boolean) => numbe
     }
 };
 
-function generateTarget(
+export function generateTarget(
     gameApi: GameApi,
     playerData: PlayerData,
     matchAwareness: MatchAwareness,
@@ -216,7 +233,7 @@ function generateTarget(
         const enemyUnits = gameApi
             .getVisibleUnits(playerData.name, "enemy")
             .map((unitId) => gameApi.getUnitData(unitId))
-            .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
+            .filter((u) => !!u && u.hitPoints > 0 && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
         const maxUnit = maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
         if (maxUnit) {
@@ -256,15 +273,16 @@ const BASE_ATTACK_COOLDOWN_TICKS = 1800;
 
 const ATTACK_MISSION_INITIAL_PRIORITY = 1;
 
-export class AttackMissionFactory implements MissionFactory {
+export class DynamicAttackMissionFactory implements MissionFactory {
     constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {}
 
     getName(): string {
-        return "AttackMissionFactory";
+        return "DynamicAttackMissionFactory";
     }
 
     maybeCreateMissions(
         gameApi: GameApi,
+        productionApi: ProductionApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
@@ -307,8 +325,8 @@ export class AttackMissionFactory implements MissionFactory {
                 matchAwareness.getMainRallyPoint(),
                 attackArea,
                 attackRadius,
-                composition,
                 logger,
+                composition,
             ).then((unitIds, reason) => {
                 missionController.addMission(
                     new RetreatMission(

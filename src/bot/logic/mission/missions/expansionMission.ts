@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, OrderType, PlayerData } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, OrderType, PlayerData, ProductionApi } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, noop, requestSpecificUnits, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
@@ -79,6 +79,7 @@ export class ExpansionMissionFactory implements MissionFactory {
 
     maybeCreateMissions(
         gameApi: GameApi,
+        productionApi: ProductionApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
