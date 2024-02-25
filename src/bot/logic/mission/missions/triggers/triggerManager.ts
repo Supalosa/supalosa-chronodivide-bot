@@ -185,7 +185,7 @@ export class TriggeredAttackMissionFactory implements MissionFactory {
 
         const aiTeamTypes = loadTeamTypes(aiIni);
         const aiTaskForces = loadTaskForces(aiIni);
-        const aiScriptTypes = loadScriptTypes(aiIni);
+        const aiScriptTypes = loadScriptTypes(aiIni, rulesIni);
 
         type ResolvedTeamTypes = { [name: string]: ResolvedTeamType };
 

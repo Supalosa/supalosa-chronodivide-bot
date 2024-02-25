@@ -5,7 +5,7 @@ import { DummyBot } from "./dummyBot/dummyBot.js";
 import { Countries } from "./bot/logic/common/utils.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
-const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours
+const MAX_GAME_LENGTH_SECONDS: number | null = 1800; // 7200 = two hours
 
 async function main() {
     /*

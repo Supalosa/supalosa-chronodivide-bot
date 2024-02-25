@@ -2,11 +2,16 @@
 
 import { FactoryType, IniFile, IniSection, ObjectType, TechnoRules } from "@chronodivide/game-api";
 import { scryptSync } from "crypto";
+import { Script } from "vm";
 
-export const loadScriptTypes = (aiIni: IniFile): { [id: string]: AiScriptType } => {
+export const loadScriptTypes = (aiIni: IniFile, rulesIni: IniFile): { [id: string]: AiScriptType } => {
     const scriptTypesIndex = aiIni.getSection("ScriptTypes");
     if (!scriptTypesIndex) {
         throw new Error("Missing ScriptTypes in ai.ini");
+    }
+    const buildingTypesSection = rulesIni.getSection("BuildingTypes");
+    if (!buildingTypesSection) {
+        throw new Error(`Missing BuildingTypes in rules.ini`);
     }
     const scriptTypes: { [id: string]: AiScriptType } = {};
 
@@ -15,7 +20,7 @@ export const loadScriptTypes = (aiIni: IniFile): { [id: string]: AiScriptType } 
         if (!section) {
             throw new Error(`Missing ScriptType ${scriptTypeId} in ai.ini`);
         }
-        scriptTypes[scriptTypeId] = new AiScriptType(scriptTypeId, section);
+        scriptTypes[scriptTypeId] = new AiScriptType(scriptTypeId, section, buildingTypesSection);
     });
 
     return scriptTypes;
@@ -185,17 +190,68 @@ export type GuardAreaStep = {
     time: number;
 };
 
+export type AttackEnemyStructureStep = _BuildingWithPropertyStep<ScriptTypeAction.AttackEnemyStructure>;
+
+export type MoveToEnemyStructureStep = _BuildingWithPropertyStep<ScriptTypeAction.MoveToEnemyStructure>;
+
+export type MoveToFriendlyStructureStep = _BuildingWithPropertyStep<ScriptTypeAction.MoveToFriendlyStructure>;
+
 export type DefaultScriptStep = {
     action: ScriptTypeAction;
     argument: number;
 };
 
-export type ResolvedScriptTypeEntry = AttackQuarryTypeStep | GuardAreaStep | DefaultScriptStep;
+export type ResolvedScriptTypeEntry =
+    | AttackQuarryTypeStep
+    | GuardAreaStep
+    | AttackEnemyStructureStep
+    | MoveToEnemyStructureStep
+    | MoveToFriendlyStructureStep
+    | DefaultScriptStep;
 
-function resolveAction({ action, argument }: { action: ScriptTypeAction; argument: number }): ResolvedScriptTypeEntry {
+export type BuildingWithPropertyArguments = {
+    buildingType: string;
+    selectionMode: BuildingWithPropertySelectionMode;
+};
+
+type _BuildingWithPropertyStep<T extends ScriptTypeAction> = {
+    action: T;
+} & BuildingWithPropertyArguments;
+
+function resolveBuildingWithProperty<T extends ScriptTypeAction>(
+    action: T,
+    argument: number,
+    buildingTypes: string[],
+): _BuildingWithPropertyStep<T> {
+    return {
+        action,
+        buildingType: buildingTypes[argument & 0x0000ff],
+        selectionMode: (argument & 0xff0000) >> 16,
+    };
+}
+
+export enum BuildingWithPropertySelectionMode {
+    LeastThreat,
+    HighestThreat,
+    Nearest,
+    Farthest,
+}
+
+function resolveAction(
+    { action, argument }: { action: ScriptTypeAction; argument: number },
+    buildingTypes: string[],
+): ResolvedScriptTypeEntry {
     switch (action) {
         case ScriptTypeAction.AttackQuarryType:
             return { action, quarryType: argument };
+        case ScriptTypeAction.GuardArea:
+            return { action, time: argument };
+        case ScriptTypeAction.AttackEnemyStructure:
+            return resolveBuildingWithProperty(action, argument, buildingTypes);
+        case ScriptTypeAction.MoveToEnemyStructure:
+            return resolveBuildingWithProperty(action, argument, buildingTypes);
+        case ScriptTypeAction.MoveToFriendlyStructure:
+            return resolveBuildingWithProperty(action, argument, buildingTypes);
         default:
             return { action, argument };
     }
@@ -209,9 +265,18 @@ export class AiScriptType {
     constructor(
         public readonly id: string,
         iniSection: IniSection,
+        buildingTypesSection: IniSection,
     ) {
         // it is assumed that iniSection is genuinely a TeamType, and not some other key.
         this.name = iniSection.getString("Name");
+
+        const high = buildingTypesSection.getHighestNumericIndex();
+        const buildingTypes: string[] = new Array(high);
+        buildingTypesSection.entries.forEach((value, key) => {
+            const index = parseInt(key);
+            buildingTypes[index] = value;
+        });
+
         for (let i = 0; i < MAX_SCRIPT_TYPE_COUNT; ++i) {
             if (!iniSection.has(i.toString())) {
                 break;
@@ -219,7 +284,7 @@ export class AiScriptType {
             const text = iniSection.getString(i.toString());
             const [action, argument] = text.split(",");
             const rawAction = { action: parseInt(action), argument: parseInt(argument) };
-            this.actions.push(resolveAction(rawAction));
+            this.actions.push(resolveAction(rawAction, buildingTypes));
         }
     }
 }
