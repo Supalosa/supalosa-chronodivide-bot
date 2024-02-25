@@ -19,6 +19,7 @@ import { match } from "assert";
 import { MissionFactory } from "../../missionFactories.js";
 import { Mission } from "../../mission.js";
 import { AiScriptType, loadScriptTypes } from "./scriptTypes.js";
+import { ScriptedTeamMission } from "../scriptedTeamMission.js";
 
 type AiTriggerCacheState = {
     enemyUnitCount: { [name: string]: number };
@@ -104,6 +105,10 @@ type ResolvedTriggerType = Omit<AiTriggerType, "teamType"> & {
     teamType: ResolvedTeamType;
 };
 
+export type GeneralAiRules = {
+    dissolveUnfilledTeamDelay: number;
+};
+
 /**
  * The TriggeredAttackMissionFactory is a special type of MissionFactory that obeys the ai.ini triggers to create Attack Missions
  */
@@ -113,7 +118,7 @@ export class TriggeredAttackMissionFactory implements MissionFactory {
 
     private teamCounts: { [teamName: string]: number } = {};
 
-    private dissolveUnfilledTeamDelay: number;
+    private generalRules: GeneralAiRules;
 
     private lastTeamCheckAt = 0;
     private previousValidTriggers = new Set<string>();
@@ -141,7 +146,7 @@ export class TriggeredAttackMissionFactory implements MissionFactory {
                 break;
         }
         this.triggerTypes = triggerTypes;
-        this.dissolveUnfilledTeamDelay = dissolveUnfilledTeamDelay;
+        this.generalRules = { dissolveUnfilledTeamDelay };
     }
 
     getName(): string {
@@ -338,15 +343,11 @@ export class TriggeredAttackMissionFactory implements MissionFactory {
         if (!attackTarget) {
             return;
         }
-        const mission = new AttackMission(
+        const mission = new ScriptedTeamMission(
             `aiTriggerMission_${chosenMission.name}_${game.getCurrentTick()}`,
-            chosenMission.teamType.priority,
-            matchAwareness.getMainRallyPoint(),
-            attackTarget,
-            30,
+            chosenMission.teamType,
+            this.generalRules,
             logger,
-            chosenMission.teamType.taskForce.units,
-            game.getCurrentTick() + this.dissolveUnfilledTeamDelay,
         );
         const newMission = missionController.addMission(mission);
 
