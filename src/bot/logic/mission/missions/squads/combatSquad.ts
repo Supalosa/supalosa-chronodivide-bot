@@ -43,15 +43,9 @@ export class CombatSquad implements Squad {
 
     /**
      *
-     * @param rallyArea the initial location to grab combatants
-     * @param targetArea
-     * @param radius
+     * @param targetArea the area to move the combat squad
      */
-    constructor(
-        private rallyArea: Vector2,
-        private targetArea: Vector2,
-        private radius: number,
-    ) {}
+    constructor(private targetArea: Vector2) {}
 
     public getGlobalDebugText(): string | undefined {
         return this.debugLastTarget ?? "<none>";

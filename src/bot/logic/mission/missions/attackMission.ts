@@ -74,7 +74,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         private dissolveUnfulfilledAt: number | null = null,
     ) {
         super(uniqueName, logger);
-        this.squad = new CombatSquad(rallyArea, attackArea, radius);
+        this.squad = new CombatSquad(attackArea);
     }
 
     _onAiUpdate(

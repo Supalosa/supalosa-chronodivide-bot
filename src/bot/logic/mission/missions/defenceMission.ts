@@ -25,7 +25,7 @@ export class DefenceMission extends Mission<CombatSquad> {
         logger: DebugLogger,
     ) {
         super(uniqueName, logger);
-        this.squad = new CombatSquad(rallyArea, defenceArea, radius);
+        this.squad = new CombatSquad(defenceArea);
     }
 
     _onAiUpdate(

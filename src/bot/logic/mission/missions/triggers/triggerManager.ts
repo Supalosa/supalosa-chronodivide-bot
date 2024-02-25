@@ -95,7 +95,7 @@ const conditionEvaluators: Map<ConditionType, ConditionEvaluator> = new Map([
     [ConditionType.NeutralHouseOwns, EVALUATOR_NOT_IMPLEMENTED],
 ]);
 
-type ResolvedTeamType = Omit<AiTeamType, "taskForce" | "script"> & {
+export type ResolvedTeamType = Omit<AiTeamType, "taskForce" | "script"> & {
     taskForce: AiTaskForce;
     script: AiScriptType;
 };
