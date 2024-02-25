@@ -1,4 +1,8 @@
-import { AiScriptType, ScriptTypeAction } from "../triggers/scriptTypes";
+import { ActionsApi, GameApi } from "@chronodivide/game-api";
+import { MatchAwareness } from "../../../awareness.js";
+import { AiScriptType, ScriptTypeAction } from "../triggers/scriptTypes.js";
+import { ActionBatcher } from "../../actionBatcher.js";
+import { DebugLogger } from "../../../common/utils.js";
 
 type Repeat = {
     type: "repeat";
@@ -20,7 +24,13 @@ type GoToLine = {
 
 type ScriptStepResult = Repeat | Step | Disband | GoToLine;
 
-export type OnStepArgs = {};
+export type OnStepArgs = {
+    gameApi: GameApi;
+    actionsApi: ActionsApi;
+    actionBatcher: ActionBatcher;
+    matchAwareness: MatchAwareness;
+    logger: DebugLogger;
+};
 
 export interface ScriptStepHandler {
     onStartStep?(): void;
@@ -30,10 +40,12 @@ export interface ScriptStepHandler {
     onCleanupStep?(): void;
 }
 
-export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, ScriptStepHandler>([]);
+export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHandler>([
+    [ScriptTypeAction.GatherAtEnemyBase, () => new GatherAtEnemyBase()],
+]);
 
 class GatherAtEnemyBase implements ScriptStepHandler {
-    onStep(args: OnStepArgs): ScriptStepResult {
+    onStep({ matchAwareness, gameApi }: OnStepArgs): ScriptStepResult {
         return { type: "repeat" };
     }
 }

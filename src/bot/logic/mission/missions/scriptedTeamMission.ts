@@ -1,15 +1,11 @@
-import { ActionsApi, GameApi, PlayerData, UnitData } from "@chronodivide/game-api";
-import { CombatSquad } from "./squads/combatSquad.js";
+import { ActionsApi, GameApi, PlayerData } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MatchAwareness } from "../../awareness.js";
-import { DebugLogger, countBy, isOwnedByNeutral } from "../../common/utils.js";
+import { DebugLogger, countBy } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { UnitComposition } from "../../composition/common.js";
-import { manageMoveMicro } from "./squads/common.js";
 import { GeneralAiRules, ResolvedTeamType } from "./triggers/triggerManager.js";
 import { OnStepArgs, SCRIPT_STEP_HANDLERS, ScriptStepHandler } from "./scripts/scripts.js";
-import { match } from "assert";
-import { exec } from "child_process";
 
 export enum ScriptEndedReason {}
 
@@ -101,21 +97,22 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
                 );
                 return disbandMission();
             }
+            this.executionData = startingData;
             return this.handleExecutingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
         }
     }
 
     private getExecutionData(line: number) {
         const { actions } = this.teamType.script;
-        const firstHandler = SCRIPT_STEP_HANDLERS.get(actions[line].action);
-        if (!firstHandler) {
+        const handlerFactory = SCRIPT_STEP_HANDLERS.get(actions[line].action);
+        if (!handlerFactory) {
             const unhandledStep = actions[line];
             this.logger(`WARN: unhandled action ${unhandledStep}`);
             return null;
         }
         return {
             step: line,
-            handler: firstHandler,
+            handler: handlerFactory(),
         };
     }
 
@@ -131,7 +128,13 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
         }
         const { step: stepIndex, handler: stepHandler } = this.executionData;
 
-        const stepArgs: OnStepArgs = {};
+        const stepArgs: OnStepArgs = {
+            gameApi,
+            actionsApi,
+            actionBatcher,
+            matchAwareness,
+            logger: this.logger,
+        };
         const result = stepHandler.onStep(stepArgs);
 
         let nextLine = stepIndex + 1;

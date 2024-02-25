@@ -6,7 +6,6 @@ import {
     ObjectType,
     PlayerData,
     ProjectileRules,
-    UnitData,
     WeaponRules,
 } from "@chronodivide/game-api";
 import { GlobalThreat } from "./threat.js";
@@ -51,6 +50,9 @@ export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, vis
     let ourAirPower = calculateFirepowerForUnits(game, ourAirUnits);
     let ourGroundDefencePower = calculateFirepowerForUnits(game, ourGroundDefence);
 
+    const totalThreatPerPlayer = {};
+    const allGameObjects = game.getAllUnits();
+
     return new GlobalThreat(
         visibleAreaPercent,
         observedGroundThreat,
@@ -61,6 +63,7 @@ export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, vis
         ourAntiGroundPower,
         ourAntiAirPower,
         ourAirPower,
+        totalThreatPerPlayer,
     );
 }
 
@@ -129,4 +132,8 @@ function calculateFirepowerForUnits(game: GameApi, unitIds: number[]) {
         }
     });
     return threat;
+}
+
+function calculateFirepowerForGameObjects(game: GameApi, gameObjects: GameObjectData[]) {
+    return gameObjects.reduce((pV, gO) => pV + calculateFirepowerForUnit(game, gO), 0);
 }

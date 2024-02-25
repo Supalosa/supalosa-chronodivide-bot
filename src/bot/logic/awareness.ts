@@ -35,9 +35,19 @@ export interface MatchAwareness {
     getHostilesNearPoint(x: number, y: number, radius: number): UnitPositionQuery[];
 
     /**
-     * Returns the main rally point for the AI, which updates every few ticks.
+     * Returns the main rally point for the current player, which updates every few ticks.
      */
     getMainRallyPoint(): Vector2;
+
+    /**
+     * Returns the gather point near the currently targeted player.
+     */
+    getGatherPoint(): Vector2 | null;
+
+    /**
+     * Returns the name of the player we are directing our hostility to.
+     */
+    getTargetedPlayer(): string | null;
 
     onGameStart(gameApi: GameApi, playerData: PlayerData): void;
 
@@ -78,6 +88,10 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
     private hostileQuadTree: Quadtree<QTUnit>;
     private scoutingManager: ScoutingManager;
+
+    private currentTarget: string | null = null;
+
+    private currentGatherPoint: Vector2 | null = null;
 
     constructor(
         private threatCache: GlobalThreat | null,
@@ -135,7 +149,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
         this.scoutingManager.onGameStart(gameApi, playerData, this.sectorCache);
     }
 
-    onAiUpdate(game: GameApi, playerData: PlayerData): void {
+    public onAiUpdate(game: GameApi, playerData: PlayerData): void {
         const sectorCache = this.sectorCache;
 
         sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE, game.mapApi, playerData);
@@ -188,6 +202,9 @@ export class MatchAwarenessImpl implements MatchAwareness {
                     }
                 }
             }
+
+            // Current target is the hostile player with the highest threat.
+            this.currentTarget = 
         }
 
         // Update rally point every few ticks.
@@ -205,6 +222,14 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 0,
             );
         }
+    }
+
+    public getGatherPoint(): Vector2 | null {
+        return this.currentGatherPoint;
+    }
+
+    public getTargetedPlayer(): string | null {
+        return this.currentTarget;
     }
 
     public getGlobalDebugText(): string | undefined {
