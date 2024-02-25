@@ -2,21 +2,6 @@ import { GuardAreaStep } from "../triggers/scriptTypes.js";
 import { CombatSquad } from "../squads/combatSquad.js";
 import { ScriptStepHandler, OnStepArgs, ScriptStepResult } from "./scripts";
 
-/**
- * These need to be implemented:
-   0 219 -> AttackQuarryType
-   5 16 -> GuardArea
-   6 3 -> JumpToLine
-   8 12 -> Unload
-   11 15 -> AssignNewMission
-   14 13 -> LoadOntoTransport
-   21 1 -> Scatter
-   43 13 -> WaitUntilFullyLoaded
-   46 35 -> AttackEnemyStructure
-   49 65 -> RegisterSuccess
-   55 7 -> ActivateIronCurtainOnTaskForce
-   57 2 -> ChronoshiftTaskForceToTargetType
- */
 export class GuardAreaHandler implements ScriptStepHandler {
     private endAt: number | null = null;
 

@@ -118,7 +118,7 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
         const handlerFactory = SCRIPT_STEP_HANDLERS.get(actions[line].action);
         if (!handlerFactory) {
             const unhandledStep = actions[line];
-            this.logger(`WARN: unhandled action ${unhandledStep}`);
+            this.logger(`WARN: unhandled action ${unhandledStep.action}`);
             return null;
         }
         return {

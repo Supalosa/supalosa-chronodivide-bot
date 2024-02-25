@@ -190,6 +190,11 @@ export type GuardAreaStep = {
     time: number;
 };
 
+export type JumpToLineStep = {
+    action: ScriptTypeAction.JumpToLine;
+    line: number;
+};
+
 export type AttackEnemyStructureStep = _BuildingWithPropertyStep<ScriptTypeAction.AttackEnemyStructure>;
 
 export type MoveToEnemyStructureStep = _BuildingWithPropertyStep<ScriptTypeAction.MoveToEnemyStructure>;
@@ -204,6 +209,7 @@ export type DefaultScriptStep = {
 export type ResolvedScriptTypeEntry =
     | AttackQuarryTypeStep
     | GuardAreaStep
+    | JumpToLineStep
     | AttackEnemyStructureStep
     | MoveToEnemyStructureStep
     | MoveToFriendlyStructureStep
@@ -246,6 +252,8 @@ function resolveAction(
             return { action, quarryType: argument };
         case ScriptTypeAction.GuardArea:
             return { action, time: argument };
+        case ScriptTypeAction.JumpToLine:
+            return { action, line: argument };
         case ScriptTypeAction.AttackEnemyStructure:
             return resolveBuildingWithProperty(action, argument, buildingTypes);
         case ScriptTypeAction.MoveToEnemyStructure:
@@ -273,7 +281,8 @@ export class AiScriptType {
         const high = buildingTypesSection.getHighestNumericIndex();
         const buildingTypes: string[] = new Array(high);
         buildingTypesSection.entries.forEach((value, key) => {
-            const index = parseInt(key);
+            // We subtract one, because the references in the script types are actually zero-based (but the keys are 1-based)
+            const index = parseInt(key) - 1;
             buildingTypes[index] = value;
         });
 

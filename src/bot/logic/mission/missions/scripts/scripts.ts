@@ -1,6 +1,6 @@
 import { ActionsApi, GameApi, PlayerData } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../../awareness.js";
-import { ResolvedScriptTypeEntry, ScriptTypeAction } from "../triggers/scriptTypes.js";
+import { JumpToLineStep, ResolvedScriptTypeEntry, ScriptTypeAction } from "../triggers/scriptTypes.js";
 import { ActionBatcher } from "../../actionBatcher.js";
 import { DebugLogger } from "../../../common/utils.js";
 import { Mission } from "../../mission.js";
@@ -51,8 +51,31 @@ export interface ScriptStepHandler {
 
 export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHandler>([
     [ScriptTypeAction.GuardArea, () => new GuardAreaHandler()],
+    [ScriptTypeAction.JumpToLine, () => new JumpToLineHandler()],
     [ScriptTypeAction.MoveToEnemyStructure, () => new MoveToHandler(MoveToTargetType.Enemy)],
     [ScriptTypeAction.GatherAtEnemyBase, () => new GatherOrRegroupHandler(GatherOrRegroup.Gather)],
     [ScriptTypeAction.RegroupAtFriendlyBase, () => new GatherOrRegroupHandler(GatherOrRegroup.Regroup)],
     [ScriptTypeAction.MoveToFriendlyStructure, () => new MoveToHandler(MoveToTargetType.Friendly)],
 ]);
+
+/**
+ * TODO for implementation:
+   0 219 -> AttackQuarryType
+   6 3 -> JumpToLine
+   8 12 -> Unload
+   11 15 -> AssignNewMission
+   14 13 -> LoadOntoTransport
+   21 1 -> Scatter
+   43 13 -> WaitUntilFullyLoaded
+   46 35 -> AttackEnemyStructure
+   49 65 -> RegisterSuccess
+   55 7 -> ActivateIronCurtainOnTaskForce
+   57 2 -> ChronoshiftTaskForceToTargetType
+ */
+
+class JumpToLineHandler implements ScriptStepHandler {
+    onStep({ scriptStep }: OnStepArgs): GoToLine {
+        const args = scriptStep as JumpToLineStep;
+        return { type: "goToLine", line: args.line - 1 };
+    }
+}
