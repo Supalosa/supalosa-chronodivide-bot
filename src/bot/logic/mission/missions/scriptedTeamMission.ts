@@ -158,6 +158,10 @@ export class ScriptedTeamMission extends Mission<ScriptEndedReason> {
         if (this.executionData === null) {
             throw new Error(`Script ${this.getUniqueName()} entered executing state without any execution data`);
         }
+
+        // Override: if the mission is destroyed, end the mission.
+        if (this.getUnitIds().length === 0) {
+        }
         const { step: stepIndex, handler: stepHandler, scriptStep } = this.executionData;
 
         const stepArgs = this.createStepArgs(

@@ -195,6 +195,17 @@ export type JumpToLineStep = {
     line: number;
 };
 
+export enum AssignableMissions {
+    NotImplemented = -1,
+    // In default ai.ini, this is the only one that is used.
+    AreaGuard = 11,
+}
+
+export type AssignNewMissionStep = {
+    action: ScriptTypeAction.AssignNewMission;
+    mission: AssignableMissions;
+};
+
 export type AttackEnemyStructureStep = _BuildingWithPropertyStep<ScriptTypeAction.AttackEnemyStructure>;
 
 export type MoveToEnemyStructureStep = _BuildingWithPropertyStep<ScriptTypeAction.MoveToEnemyStructure>;
@@ -210,6 +221,7 @@ export type ResolvedScriptTypeEntry =
     | AttackQuarryTypeStep
     | GuardAreaStep
     | JumpToLineStep
+    | AssignNewMissionStep
     | AttackEnemyStructureStep
     | MoveToEnemyStructureStep
     | MoveToFriendlyStructureStep
@@ -254,6 +266,8 @@ function resolveAction(
             return { action, time: argument };
         case ScriptTypeAction.JumpToLine:
             return { action, line: argument };
+        case ScriptTypeAction.AssignNewMission:
+            return { action, mission: argument };
         case ScriptTypeAction.AttackEnemyStructure:
             return resolveBuildingWithProperty(action, argument, buildingTypes);
         case ScriptTypeAction.MoveToEnemyStructure:

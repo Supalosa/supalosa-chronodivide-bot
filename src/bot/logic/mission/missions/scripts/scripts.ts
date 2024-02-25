@@ -9,6 +9,7 @@ import { MoveToHandler, MoveToTargetType } from "./moveToBuildingHandlers.js";
 import { GatherOrRegroupHandler, GatherOrRegroup } from "./gatherRegroupHandlers.js";
 import { GuardAreaHandler } from "./guardAreaHandler.js";
 import { AttackQuarryTypeHandler } from "./attackQuarryTypeHandler.js";
+import { AssignNewMissionHandler } from "./assignNewMissionHandler.js";
 
 type Repeat = {
     type: "repeat";
@@ -54,6 +55,7 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
     [ScriptTypeAction.AttackQuarryType, () => new AttackQuarryTypeHandler()],
     [ScriptTypeAction.GuardArea, () => new GuardAreaHandler()],
     [ScriptTypeAction.JumpToLine, () => new JumpToLineHandler()],
+    [ScriptTypeAction.AssignNewMission, () => new AssignNewMissionHandler()],
     [ScriptTypeAction.MoveToEnemyStructure, () => new MoveToHandler(MoveToTargetType.Enemy)],
     [ScriptTypeAction.RegisterSuccess, () => new RegisterSuccess()],
     [ScriptTypeAction.GatherAtEnemyBase, () => new GatherOrRegroupHandler(GatherOrRegroup.Gather)],
@@ -64,12 +66,10 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
 /**
  * TODO for implementation:
    8 12 -> Unload
-   11 15 -> AssignNewMission
    14 13 -> LoadOntoTransport
    21 1 -> Scatter
    43 13 -> WaitUntilFullyLoaded
    46 35 -> AttackEnemyStructure
-   49 65 -> RegisterSuccess
    55 7 -> ActivateIronCurtainOnTaskForce
    57 2 -> ChronoshiftTaskForceToTargetType
  */
