@@ -57,6 +57,7 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
     [ScriptTypeAction.JumpToLine, () => new JumpToLineHandler()],
     [ScriptTypeAction.AssignNewMission, () => new AssignNewMissionHandler()],
     [ScriptTypeAction.LoadOntoTransport, () => new LoadOntoTransportHandler()],
+    [ScriptTypeAction.WaitUntilFullyLoaded, () => new WaitUntilFullyLoadedHandler()],
     [ScriptTypeAction.MoveToEnemyStructure, () => new MoveToHandler(MoveToTargetType.Enemy)],
     [ScriptTypeAction.RegisterSuccess, () => new RegisterSuccess()],
     [ScriptTypeAction.GatherAtEnemyBase, () => new GatherOrRegroupHandler(GatherOrRegroup.Gather)],
@@ -68,7 +69,6 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
  * TODO for implementation:
    8 12 -> Unload
    21 1 -> Scatter
-   43 13 -> WaitUntilFullyLoaded
    46 35 -> AttackEnemyStructure
    55 7 -> ActivateIronCurtainOnTaskForce
    57 2 -> ChronoshiftTaskForceToTargetType
@@ -123,7 +123,7 @@ class LoadOntoTransportHandler implements ScriptStepHandler {
                 }
             }
         }
-        // Unload all units from transports. This crashes
+        // Unload all units from transports.
         actionsApi.orderUnits(this.transporters, OrderType.DeploySelected);
 
         this.abortAt = gameApi.getCurrentTick() + LOAD_TIME_LIMIT;
@@ -138,9 +138,48 @@ class LoadOntoTransportHandler implements ScriptStepHandler {
             return { type: "step" };
         }
 
-        this.transporteesToTransport.forEach((unitId, transportId) => {
-            actionsApi.orderUnits([transportId], OrderType.EnterTransport, unitId);
+        this.transporteesToTransport.forEach((transportId, unitId) => {
+            actionsApi.orderUnits([unitId], OrderType.EnterTransport, transportId);
         });
+
+        return { type: "repeat" };
+    }
+}
+
+const WAIT_FOR_LOAD_LIMIT = 600;
+
+// note: in theory this could stall forever if any of the transported units are killed on the way, and we don't
+// produce/procure replacements while stepping
+class WaitUntilFullyLoadedHandler implements ScriptStepHandler {
+    private transporters: number[] | null = null;
+
+    private abortAt: number | null = null;
+
+    onStart({ gameApi, mission }: OnStepArgs): void {
+        // Decide what is being transported when we start the step.
+        const allUnits = mission.getUnits(gameApi);
+
+        const transportUnits = allUnits.filter((u) => u.rules.passengers > 0);
+        this.transporters = transportUnits.map((u) => u.id);
+        this.abortAt = gameApi.getCurrentTick() + WAIT_FOR_LOAD_LIMIT;
+    }
+
+    onStep({ gameApi, actionsApi, mission }: OnStepArgs): Step | Repeat {
+        if (!this.transporters) {
+            return { type: "step" };
+        }
+
+        if (this.abortAt && gameApi.getCurrentTick() > this.abortAt) {
+            // Unload all units from transports.
+            actionsApi.orderUnits(this.transporters, OrderType.DeploySelected);
+            return { type: "step" };
+        }
+
+        // this is NOT correct but we don't currently have a way to check that the transports are full, so we just check
+        // if the only members of the mission are the transporters.
+        if (!mission.getUnits(gameApi).some((u) => u.rules.passengers === 0)) {
+            return { type: "step" };
+        }
 
         return { type: "repeat" };
     }
