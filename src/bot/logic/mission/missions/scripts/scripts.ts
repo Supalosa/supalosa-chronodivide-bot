@@ -59,6 +59,7 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
     [ScriptTypeAction.JumpToLine, () => new JumpToLineHandler()],
     [ScriptTypeAction.AssignNewMission, () => new AssignNewMissionHandler()],
     [ScriptTypeAction.LoadOntoTransport, () => new LoadOntoTransportHandler()],
+    [ScriptTypeAction.Scatter, () => new ScatterHandler()],
     [ScriptTypeAction.WaitUntilFullyLoaded, () => new WaitUntilFullyLoadedHandler()],
     [ScriptTypeAction.MoveToEnemyStructure, () => new MoveToHandler(MoveToTargetType.Enemy)],
     [ScriptTypeAction.RegisterSuccess, () => new RegisterSuccess()],
@@ -69,7 +70,6 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
 
 /**
  * TODO for implementation:
-   21 1 -> Scatter
    46 35 -> AttackEnemyStructure
    55 7 -> ActivateIronCurtainOnTaskForce
    57 2 -> ChronoshiftTaskForceToTargetType
@@ -159,6 +159,23 @@ class LoadOntoTransportHandler implements ScriptStepHandler {
         this.transporteesToTransport.forEach((transportId, unitId) => {
             actionsApi.orderUnits([unitId], OrderType.EnterTransport, transportId);
         });
+
+        return { type: "repeat" };
+    }
+}
+
+const SCATTER_TIME_LIMIT = 60;
+class ScatterHandler implements ScriptStepHandler {
+    private abortAt: number | null = null;
+    onStart({ gameApi }: OnStepArgs): void {
+        this.abortAt = gameApi.getCurrentTick() + SCATTER_TIME_LIMIT;
+    }
+    onStep({ gameApi, actionsApi, mission }: OnStepArgs): Step | Repeat {
+        if (this.abortAt && gameApi.getCurrentTick() > this.abortAt) {
+            return { type: "step" };
+        }
+
+        actionsApi.orderUnits(mission.getUnitIds(), OrderType.Scatter);
 
         return { type: "repeat" };
     }
