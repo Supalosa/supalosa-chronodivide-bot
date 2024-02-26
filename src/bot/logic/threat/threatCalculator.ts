@@ -9,7 +9,7 @@ import {
     WeaponRules,
 } from "@chronodivide/game-api";
 import { GlobalThreat } from "./threat.js";
-import { getCachedTechnoRules } from "../common/rulesCache.js";
+import { getTechnoRulesForUnit } from "../common/rulesCache.js";
 import { groupBy } from "../common/utils.js";
 
 export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, visibleAreaPercent: number): GlobalThreat {
@@ -83,7 +83,7 @@ function isAntiAir(gameApi: GameApi, unitId: number): boolean {
 }
 
 function testProjectile(gameApi: GameApi, unitId: number, test: (p: ProjectileRules) => boolean) {
-    const rules = getCachedTechnoRules(gameApi, unitId);
+    const rules = getTechnoRulesForUnit(gameApi, unitId);
     if (!rules || !(rules.primary || rules.secondary)) {
         return false;
     }
@@ -109,7 +109,7 @@ function getProjectileRules(gameApi: GameApi, weapon: WeaponRules | null): Proje
 }
 
 function calculateFirepowerForUnit(gameApi: GameApi, gameObjectData: GameObjectData): number {
-    const rules = getCachedTechnoRules(gameApi, gameObjectData.id);
+    const rules = getTechnoRulesForUnit(gameApi, gameObjectData.id);
     if (!rules) {
         return 0;
     }

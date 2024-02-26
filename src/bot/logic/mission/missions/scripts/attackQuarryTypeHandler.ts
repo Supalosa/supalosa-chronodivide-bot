@@ -11,7 +11,7 @@ import {
 } from "@chronodivide/game-api";
 import { AttackQuarryTypeStep, QuarryType } from "../triggers/scriptTypes.js";
 import { maxBy } from "../../../common/utils.js";
-import { getCachedTechnoRules } from "../../../common/rulesCache.js";
+import { getTechnoRulesForUnit } from "../../../common/rulesCache.js";
 
 const TARGET_RECALCULATE_INTERVAL = 25;
 
@@ -84,7 +84,7 @@ export class AttackQuarryTypeHandler implements ScriptStepHandler {
             // See https://modenc.renegadeprojects.com/TargetDistanceCoefficientDefault for algorithm
             if (distance <= TARGET_DISTANCE_COEFFICIENT) {
                 // Nearest unit wins, but specialThreatValue adds a bit more threat
-                const specialFactor = getCachedTechnoRules(gameApi, unit.id)?.specialThreatValue ?? 0;
+                const specialFactor = getTechnoRulesForUnit(gameApi, unit.id)?.specialThreatValue ?? 0;
                 return -distance + specialFactor;
             } else {
                 // This looks odd, but apparently the AI targets the first unit it sees if there are no objects in range.
