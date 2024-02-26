@@ -24,7 +24,8 @@ export class AssignNewMissionHandler implements ScriptStepHandler {
         const args = scriptStep as AssignNewMissionStep;
 
         if (!this.startingArea) {
-            throw new Error(`starting area not defined for mission ${mission.getUniqueName()}`);
+            // Can happen if the mission starts with no units in it.
+            return { type: "step" };
         }
 
         if (args.mission !== AssignableMissions.AreaGuard) {

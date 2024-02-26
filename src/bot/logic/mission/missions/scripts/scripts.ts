@@ -10,6 +10,7 @@ import { GatherOrRegroupHandler, GatherOrRegroup } from "./gatherRegroupHandlers
 import { GuardAreaHandler } from "./guardAreaHandler.js";
 import { AttackQuarryTypeHandler } from "./attackQuarryTypeHandler.js";
 import { AssignNewMissionHandler } from "./assignNewMissionHandler.js";
+import { Script } from "vm";
 
 type Repeat = {
     type: "repeat";
@@ -54,6 +55,7 @@ export interface ScriptStepHandler {
 export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHandler>([
     [ScriptTypeAction.AttackQuarryType, () => new AttackQuarryTypeHandler()],
     [ScriptTypeAction.GuardArea, () => new GuardAreaHandler()],
+    [ScriptTypeAction.Unload, () => new UnloadHandler()],
     [ScriptTypeAction.JumpToLine, () => new JumpToLineHandler()],
     [ScriptTypeAction.AssignNewMission, () => new AssignNewMissionHandler()],
     [ScriptTypeAction.LoadOntoTransport, () => new LoadOntoTransportHandler()],
@@ -67,7 +69,6 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
 
 /**
  * TODO for implementation:
-   8 12 -> Unload
    21 1 -> Scatter
    46 35 -> AttackEnemyStructure
    55 7 -> ActivateIronCurtainOnTaskForce
@@ -85,6 +86,23 @@ class JumpToLineHandler implements ScriptStepHandler {
 class RegisterSuccess implements ScriptStepHandler {
     onStep(): Step {
         return { type: "step" };
+    }
+}
+
+const UNLOAD_TIME_LIMIT = 150;
+class UnloadHandler implements ScriptStepHandler {
+    private abortAt: number | null = null;
+    onStart({ gameApi }: OnStepArgs): void {
+        this.abortAt = gameApi.getCurrentTick() + UNLOAD_TIME_LIMIT;
+    }
+
+    onStep({ gameApi, mission, actionsApi }: OnStepArgs): Step | Repeat {
+        if (this.abortAt && gameApi.getCurrentTick() > this.abortAt) {
+            return { type: "step" };
+        }
+
+        actionsApi.orderUnits(mission.getUnitIds(), OrderType.DeploySelected);
+        return { type: "repeat" };
     }
 }
 
