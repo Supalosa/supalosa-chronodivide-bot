@@ -123,7 +123,13 @@ async function main() {
             console.log(`Game forced to end due to timeout`);
             break;
         }
-        await game.update();
+        try {
+            await game.update();
+        } catch (e) {
+            console.error("fatal error in game update", e);
+            game.saveReplay();
+            game.dispose();
+        }
     }
 
     game.saveReplay();

@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, PlayerData } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, OrderType, PlayerData } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../../awareness.js";
 import { JumpToLineStep, ResolvedScriptTypeEntry, ScriptTypeAction } from "../triggers/scriptTypes.js";
 import { ActionBatcher } from "../../actionBatcher.js";
@@ -56,6 +56,7 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
     [ScriptTypeAction.GuardArea, () => new GuardAreaHandler()],
     [ScriptTypeAction.JumpToLine, () => new JumpToLineHandler()],
     [ScriptTypeAction.AssignNewMission, () => new AssignNewMissionHandler()],
+    [ScriptTypeAction.LoadOntoTransport, () => new LoadOntoTransportHandler()],
     [ScriptTypeAction.MoveToEnemyStructure, () => new MoveToHandler(MoveToTargetType.Enemy)],
     [ScriptTypeAction.RegisterSuccess, () => new RegisterSuccess()],
     [ScriptTypeAction.GatherAtEnemyBase, () => new GatherOrRegroupHandler(GatherOrRegroup.Gather)],
@@ -66,7 +67,6 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
 /**
  * TODO for implementation:
    8 12 -> Unload
-   14 13 -> LoadOntoTransport
    21 1 -> Scatter
    43 13 -> WaitUntilFullyLoaded
    46 35 -> AttackEnemyStructure
@@ -85,5 +85,63 @@ class JumpToLineHandler implements ScriptStepHandler {
 class RegisterSuccess implements ScriptStepHandler {
     onStep(): Step {
         return { type: "step" };
+    }
+}
+
+const LOAD_TIME_LIMIT = 300;
+
+class LoadOntoTransportHandler implements ScriptStepHandler {
+    private transporters: number[] | null = null;
+    private transporteesToTransport: Map<number, number> = new Map();
+
+    private abortAt: number | null = null;
+
+    onStart({ gameApi, mission, actionsApi }: OnStepArgs) {
+        // Decide what is being transported when we start the step.
+        const allUnits = mission.getUnits(gameApi);
+
+        const transportUnits = allUnits.filter((u) => u.rules.passengers > 0);
+        this.transporters = transportUnits.map((u) => u.id);
+
+        // Create mapping of transportId => Passenger Slots
+        const remainingSizes = new Map<number, number>(transportUnits.map((t) => [t.id, t.rules.passengers]));
+
+        // Assign transportees to target transport.
+        // Knapsack problem but can't be bothered right now.
+        const transportedUnits = allUnits.filter((u) => u.rules.size > 0 && !this.transporters?.includes(u.id));
+
+        while (transportedUnits.length > 0 && remainingSizes.size > 0) {
+            const unit = transportedUnits.pop()!;
+            const fittingTransport =
+                [...remainingSizes.entries()].filter(([, size]) => size >= unit.rules.size).pop() ?? null;
+            if (fittingTransport) {
+                const [transportId, slots] = fittingTransport;
+                this.transporteesToTransport.set(unit.id, transportId);
+                remainingSizes.set(transportId, slots - unit.rules.size);
+                if (slots - unit.rules.size === 0) {
+                    remainingSizes.delete(transportId);
+                }
+            }
+        }
+        // Unload all units from transports. This crashes
+        actionsApi.orderUnits(this.transporters, OrderType.DeploySelected);
+
+        this.abortAt = gameApi.getCurrentTick() + LOAD_TIME_LIMIT;
+    }
+
+    onStep({ gameApi, actionsApi }: OnStepArgs): Step | Repeat {
+        if (
+            !this.transporters ||
+            !this.transporteesToTransport ||
+            (this.abortAt && gameApi.getCurrentTick() > this.abortAt)
+        ) {
+            return { type: "step" };
+        }
+
+        this.transporteesToTransport.forEach((unitId, transportId) => {
+            actionsApi.orderUnits([transportId], OrderType.EnterTransport, unitId);
+        });
+
+        return { type: "repeat" };
     }
 }
