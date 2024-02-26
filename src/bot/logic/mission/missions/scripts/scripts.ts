@@ -5,7 +5,7 @@ import { ActionBatcher } from "../../actionBatcher.js";
 import { DebugLogger } from "../../../common/utils.js";
 import { Mission } from "../../mission.js";
 
-import { MoveToHandler, MoveToTargetType } from "./moveToBuildingHandlers.js";
+import { AttackEnemyStructureHandler, MoveToHandler, MoveToTargetType } from "./moveToBuildingHandlers.js";
 import { GatherOrRegroupHandler, GatherOrRegroup } from "./gatherRegroupHandlers.js";
 import { GuardAreaHandler } from "./guardAreaHandler.js";
 import { AttackQuarryTypeHandler } from "./attackQuarryTypeHandler.js";
@@ -61,6 +61,7 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
     [ScriptTypeAction.LoadOntoTransport, () => new LoadOntoTransportHandler()],
     [ScriptTypeAction.Scatter, () => new ScatterHandler()],
     [ScriptTypeAction.WaitUntilFullyLoaded, () => new WaitUntilFullyLoadedHandler()],
+    [ScriptTypeAction.AttackEnemyStructure, () => new AttackEnemyStructureHandler()],
     [ScriptTypeAction.MoveToEnemyStructure, () => new MoveToHandler(MoveToTargetType.Enemy)],
     [ScriptTypeAction.RegisterSuccess, () => new RegisterSuccess()],
     [ScriptTypeAction.GatherAtEnemyBase, () => new GatherOrRegroupHandler(GatherOrRegroup.Gather)],
@@ -70,7 +71,6 @@ export const SCRIPT_STEP_HANDLERS = new Map<ScriptTypeAction, () => ScriptStepHa
 
 /**
  * TODO for implementation:
-   46 35 -> AttackEnemyStructure
    55 7 -> ActivateIronCurtainOnTaskForce
    57 2 -> ChronoshiftTaskForceToTargetType
  */

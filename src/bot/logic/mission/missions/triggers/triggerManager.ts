@@ -276,7 +276,9 @@ export class TriggeredAttackMissionFactory implements MissionFactory {
             return;
         }
         // Calculate expensive things only once before all triggers.
-        const enemyUnits = game.getVisibleUnits(myPlayer.name, "enemy");
+        // We only add the targeted player to the cache, otherwise we get weird situations like triggering "vs Ally" missions against Soviets in 2v2 games.
+        const targetedPlayer = matchAwareness.getTargetedPlayer();
+        const enemyUnits = targetedPlayer ? game.getVisibleUnits(targetedPlayer, "self") : [];
         const ownUnits = game.getVisibleUnits(myPlayer.name, "self");
 
         const enemyCredits = game
