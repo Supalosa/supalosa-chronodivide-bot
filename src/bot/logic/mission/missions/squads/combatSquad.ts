@@ -30,8 +30,6 @@ export class CombatSquad implements Squad {
 
     private debugLastTarget: string | undefined;
 
-    private lastOrderGiven: { [unitId: number]: BatchableAction } = {};
-
     /**
      *
      * @param targetArea the area to move the combat squad
@@ -88,7 +86,7 @@ export class CombatSquad implements Squad {
                     units.forEach((unit) => {
                         const moveAction = manageMoveMicro(unit, centerOfMass);
                         if (moveAction) {
-                            this.submitActionIfNew(actionBatcher, moveAction);
+                            actionBatcher.push(moveAction);
                         }
                     });
                 } else {
@@ -127,30 +125,18 @@ export class CombatSquad implements Squad {
                     if (bestUnit) {
                         const attackAction = manageAttackMicro(unit, bestUnit);
                         if (attackAction) {
-                            this.submitActionIfNew(actionBatcher, attackAction);
+                            actionBatcher.push(attackAction);
                         }
                         this.debugLastTarget = `Unit ${bestUnit.id.toString()}`;
                     } else {
                         const moveAction = manageMoveMicro(unit, targetPoint);
                         if (moveAction) {
-                            this.submitActionIfNew(actionBatcher, moveAction);
+                            actionBatcher.push(moveAction);
                         }
                         this.debugLastTarget = `@${targetPoint.x},${targetPoint.y}`;
                     }
                 }
             }
-        }
-    }
-
-    /**
-     * Sends an action to the acitonBatcher if and only if the action is different from the last action we submitted to it.
-     * Prevents spamming redundant orders, which affects performance and can also ccause the unit to sit around doing nothing.
-     */
-    private submitActionIfNew(actionBatcher: ActionBatcher, action: BatchableAction) {
-        const lastAction = this.lastOrderGiven[action.unitId];
-        if (!lastAction || !lastAction.isSameAs(action)) {
-            actionBatcher.push(action);
-            this.lastOrderGiven[action.unitId] = action;
         }
     }
 }

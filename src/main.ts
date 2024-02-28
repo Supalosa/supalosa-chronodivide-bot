@@ -113,7 +113,7 @@ async function main() {
         ],
     };
 
-    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings2v2);
+    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings1v1);
 
     console.profile(`cpuprofile-${timestamp}`);
 
