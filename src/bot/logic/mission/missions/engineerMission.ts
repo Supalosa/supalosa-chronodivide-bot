@@ -102,7 +102,7 @@ export class EngineerMissionFactory implements MissionFactory {
 
         eligibleTechBuildings
             .filter((b) => gameApi.getGameObjectData(b)?.hitPoints ?? 0 > 0)
-            .filter((b) => this.attemptCount.get(b) ?? 0 <= MAX_ATTEMPTS_PER_TECH_STRUCTURE)
+            .filter((b) => (this.attemptCount.get(b) ?? 0) <= MAX_ATTEMPTS_PER_TECH_STRUCTURE)
             .forEach((techBuildingId) => {
                 if (
                     missionController.addMission(
