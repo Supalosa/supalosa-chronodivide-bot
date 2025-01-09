@@ -22,6 +22,7 @@ import { ResourceCollectionBuilding } from "./resourceCollectionBuilding.js";
 import { Harvester } from "./harvester.js";
 import { uniqBy } from "../common/utils.js";
 import { AntiAirStaticDefence } from "./antiAirStaticDefence.js";
+import { NavalYard } from "./navalYard.js";
 
 export interface AiBuildingRules {
     getPriority(
@@ -201,7 +202,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["AMRADR", new BasicBuilding(10, 1, 500)], // Airforce Command (USA)
 
     ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
-    ["GAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
+    ["GAYARD", new NavalYard(15, 1, 2000, (message, sayInGame) => console.log(message))], // Naval Yard, enabled
 
     ["GAPILL", new AntiGroundStaticDefence(2, 1, 5, 5)], // Pillbox
     ["ATESLA", new AntiGroundStaticDefence(2, 1, 10, 3)], // Prism Cannon
@@ -228,7 +229,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(10, 1, 500)], // Radar
     ["NANRCT", new PowerPlant()], // Nuclear Reactor
-    ["NAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
+    ["NAYARD", new NavalYard(15, 1, 2000, (message, sayInGame) => console.log(message))], // Naval Yard, enabled
 
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 
