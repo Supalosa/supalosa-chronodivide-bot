@@ -9,6 +9,7 @@ import { DefenceMissionFactory } from "./missions/defenceMission.js";
 import { DebugLogger } from "../common/utils.js";
 import { EngineerMissionFactory } from "./missions/engineerMission.js";
 import { NavalScoutingMissionFactory } from "./missions/navalScoutingMission.js";
+import { AmphibiousScoutingMissionFactory } from "./missions/amphibiousScoutingMission.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -50,4 +51,5 @@ export const createMissionFactories = () => [
     new DefenceMissionFactory(),
     new EngineerMissionFactory(),
     new NavalScoutingMissionFactory(),
+    new AmphibiousScoutingMissionFactory(),
 ];
