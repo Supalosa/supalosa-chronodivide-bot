@@ -16,18 +16,18 @@ export const getNavalCompositions = (
     
     // 潜艇作为基础单位
     if (hasNavalYard) {
-        composition.SUB = 4; // 增加到4艘潜艇以提供足够的火力
+        composition.SUB = 3; // 增加到4艘潜艇以提供足够的火力
     }
 
     // 海蝎作为防空单位
     if (hasAirforce) {
-        composition.AEGIS = 6; // 增加到6艘海蝎提供更好的防空支援
+        composition.HYD = 3; // 增加到6艘海蝎提供更好的防空支援
     }
 
     // 无畏和乌贼作为高级单位
     if (hasBattleLab) {
-        composition.CARRIER = 1; // 1艘无畏
-        composition.DLPH = 2; // 1只巨型乌贼SQD
+        composition.DRED = 1; // 2艘无畏
+        composition.SQD = 1; // 2只巨型乌贼SQD
     }
 
     return composition;
