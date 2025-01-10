@@ -16,12 +16,12 @@ export const getNavalCompositions = (
     
     // 驱逐舰作为基础单位
     if (hasNavalYard) {
-        composition.DEST = 4; // 增加到4艘驱逐舰以提供足够的火力
+        composition.DEST = 3; // 驱逐舰
     }
 
     // 神盾巡洋舰作为防空单位
     if (hasAirforce) {
-        composition.AEGIS = 2; // 增加到2艘神盾巡洋舰提供更好的防空支援
+        composition.AEGIS = 1; // 神盾巡洋舰
     }
 
     // 航母和海豚作为高级单位

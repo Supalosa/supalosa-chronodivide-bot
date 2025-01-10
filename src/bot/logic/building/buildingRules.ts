@@ -23,6 +23,7 @@ import { Harvester } from "./harvester.js";
 import { uniqBy } from "../common/utils.js";
 import { AntiAirStaticDefence } from "./antiAirStaticDefence.js";
 import { NavalYard } from "./navalYard.js";
+import { BasicNavalUnit } from "./basicNavalUnit.js";
 
 export interface AiBuildingRules {
     getPriority(
@@ -229,7 +230,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(10, 1, 500)], // Radar
     ["NANRCT", new PowerPlant()], // Nuclear Reactor
-    ["NAYARD", new NavalYard(15, 1, 2000, (message, sayInGame) => console.log(message))], // Naval Yard, enabled
+    ["NAYARD", new NavalYard(15, 2, 2000, (message, sayInGame) => console.log(message))], // Naval Yard, enabled
 
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 
@@ -248,4 +249,16 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["HTK", new BasicGroundUnit(5, 2, 0.33, 1.5)], // Flak Track
     ["ZEP", new BasicAirUnit(5, 1, 5, 1)], // Kirov
     ["V3", new ArtilleryUnit(9, 10, 0, 3)], // V3 Rocket Launcher
+
+    // Allied Naval Units
+    ["DEST", new BasicNavalUnit(10, 4, 2, 0, 1)],  // 驱逐舰
+    ["AEGIS", new BasicNavalUnit(8, 0, 0, 6, 0)],  // 神盾巡洋舰
+    ["CARRIER", new BasicNavalUnit(15, 1, 2, 1, 1)],  // 航母
+    ["DLPH", new BasicNavalUnit(5, 2, 0, 0, 2)],  // 海豚
+
+    // Soviet Naval Units
+    ["SUB", new BasicNavalUnit(10, 4, 2, 0, 4)],  // 潜艇
+    ["HYD", new BasicNavalUnit(8, 6, 1, 2, 1)],  // 海蝎
+    ["DRED", new BasicNavalUnit(15, 1, 3, 0, 1)],  // 无畏
+    ["SQD", new BasicNavalUnit(5, 2, 0, 0, 5)],  // 巨型乌贼
 ]);

@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2, SpeedType } from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
@@ -11,6 +11,9 @@ import { getSovietComposition } from "../../composition/sovietCompositions.js";
 import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
 import { UnitComposition } from "../../composition/common.js";
 import { manageMoveMicro } from "./squads/common.js";
+import { isPointReachable } from "../../map/pathfinding.js";
+import { getNavalCompositions as getSovietNavalCompositions } from "../../composition/sovietNavalCompositions.js";
+import { getNavalCompositions as getAlliedNavalCompositions } from "../../composition/alliedNavalCompositions.js";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -30,14 +33,23 @@ function calculateTargetComposition(
     gameApi: GameApi,
     playerData: PlayerData,
     matchAwareness: MatchAwareness,
+    useNaval: boolean = false,
 ): UnitComposition {
     if (!playerData.country) {
         throw new Error(`player ${playerData.name} has no country`);
-    } else if (playerData.country.side === SideType.Nod) {
-        return getSovietComposition(gameApi, playerData, matchAwareness);
-    } else {
-        return getAlliedCompositions(gameApi, playerData, matchAwareness);
     }
+    
+    // 如果指定使用海军编队
+    if (useNaval) {
+        return playerData.country.side === SideType.Nod
+            ? getSovietNavalCompositions(gameApi, playerData, matchAwareness)  // 苏联海军
+            : getAlliedNavalCompositions(gameApi, playerData, matchAwareness);  // 盟军海军
+    }
+    
+    // 默认使用陆地编队
+    return playerData.country.side === SideType.Nod
+        ? getSovietComposition(gameApi, playerData, matchAwareness)
+        : getAlliedCompositions(gameApi, playerData, matchAwareness);
 }
 
 const ATTACK_MISSION_PRIORITY_RAMP = 1.01;
@@ -48,6 +60,10 @@ const ATTACK_MISSION_MAX_PRIORITY = 50;
  */
 export class AttackMission extends Mission<AttackFailReason> {
     private squad: CombatSquad;
+    private hasTriedLandAttack: boolean = false;
+    private landAttackFailCount: number = 0;
+    private readonly MAX_LAND_ATTACK_ATTEMPTS = 2;  // 最大陆地进攻尝试次数
+    private isNavalMission: boolean = false;
 
     private lastTargetSeenAt = 0;
     private hasPickedNewTarget: boolean = false;
@@ -57,7 +73,7 @@ export class AttackMission extends Mission<AttackFailReason> {
     constructor(
         uniqueName: string,
         private priority: number,
-        rallyArea: Vector2,
+        private rallyArea: Vector2,
         private attackArea: Vector2,
         private radius: number,
         private composition: UnitComposition,
@@ -65,6 +81,27 @@ export class AttackMission extends Mission<AttackFailReason> {
     ) {
         super(uniqueName, logger);
         this.squad = new CombatSquad(rallyArea, attackArea, radius);
+    }
+
+    private shouldSwitchToNaval(gameApi: GameApi): boolean {
+        // 如果已经是海军任务，不需要切换
+        if (this.isNavalMission) {
+            return false;
+        }
+
+        // 如果目标点对陆地单位不可达
+        if (!isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track)) {
+            this.logger("目标点陆地单位无法到达，切换为海军编队");
+            return true;
+        }
+        
+        // 如果陆地进攻多次失败
+        if (this.landAttackFailCount >= this.MAX_LAND_ATTACK_ATTEMPTS) {
+            this.logger("陆地进攻失败次数过多，切换为海军编队");
+            return true;
+        }
+        
+        return false;
     }
 
     _onAiUpdate(
@@ -91,6 +128,14 @@ export class AttackMission extends Mission<AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
+        // 检查是否需要切换到海军编队
+        if (!this.isNavalMission && this.shouldSwitchToNaval(gameApi)) {
+            this.isNavalMission = true;
+            this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, true);
+            this.logger("已切换为海军编队");
+            return noop();
+        }
+
         const currentComposition: UnitComposition = countBy(this.getUnitsGameObjectData(gameApi), (unit) => unit.name);
 
         const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
@@ -118,7 +163,13 @@ export class AttackMission extends Mission<AttackFailReason> {
         actionBatcher: ActionBatcher,
     ) {
         if (this.getUnitIds().length === 0) {
-            // TODO: disband directly (we no longer retreat when losing)
+            if (!this.isNavalMission) {
+                this.landAttackFailCount++;
+                if (this.shouldSwitchToNaval(gameApi)) {
+                    this.state = AttackMissionState.Preparing;
+                    return noop();
+                }
+            }
             this.state = AttackMissionState.Retreating;
             return noop();
         }
