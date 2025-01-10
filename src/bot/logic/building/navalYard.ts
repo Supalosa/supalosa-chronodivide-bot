@@ -41,7 +41,9 @@ export class NavalYard extends BasicBuilding {
         threatCache: GlobalThreat | null,
     ): number {
         const priority = super.getPriority(game, playerData, technoRules, threatCache);
-        this.logger(`[NavalYard] 当前建造优先级: ${priority}`, true);
+        if(priority !== -100){
+            this.logger(`[NavalYard] 当前建造优先级: ${priority}`, true);
+        }
         return priority;
     }
 } 
