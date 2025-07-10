@@ -29,6 +29,7 @@ function getAllWaterPoints(gameApi: GameApi, sectorSize: number = 8): Vector2[] 
                     // 确保这个水域点是可通行的
                     const path = gameApi.mapApi.findPath(
                         SpeedType.Float,
+                        true,
                         { tile: tile, onBridge: false },
                         { tile: tile, onBridge: false }
                     );
@@ -61,6 +62,7 @@ function getFinalReachablePoint(gameApi: GameApi, startPoint: Vector2, targetPoi
 
     const path = gameApi.mapApi.findPath(
         SpeedType.Float,
+        true,
         { tile: startTile, onBridge: false },
         { tile: targetTile, onBridge: false }
     );

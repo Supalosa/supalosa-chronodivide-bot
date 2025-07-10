@@ -14,7 +14,8 @@ export function isPointReachable(
     startPoint: Vector2,
     targetPoint: Vector2,
     speedType: SpeedType,
-    maxAllowedError: number = 1
+    maxAllowedError: number = 1,
+    considerUnitAboveCeiling: boolean = false
 ): boolean {
     // 获取起点和终点的tile
     const startTile = gameApi.mapApi.getTile(startPoint.x, startPoint.y);
@@ -28,6 +29,7 @@ export function isPointReachable(
     // 使用findPath获取路径
     const path = gameApi.mapApi.findPath(
         speedType,
+        considerUnitAboveCeiling,
         { tile: startTile, onBridge: false },
         { tile: targetTile, onBridge: false }
     );

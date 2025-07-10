@@ -25,8 +25,9 @@ function getAllAmphibiousPoints(gameApi: GameApi, sectorSize: number = 8): Vecto
                 const tile = gameApi.mapApi.getTile(x, y);
                 if (tile && (tile.landType === LandType.Water || tile.landType === LandType.Clear || tile.landType === LandType.Beach || tile.landType === LandType.Tiberium)) {
                     // 确保这个点是可通行的
-                    const path = gameApi.mapApi.findPath(
+                    const path = gameApi.mapApi.findPath( 
                         SpeedType.Amphibious,
+                        true,
                         { tile: tile, onBridge: false },
                         { tile: tile, onBridge: false }
                     );
