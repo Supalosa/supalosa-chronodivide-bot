@@ -1,4 +1,6 @@
 import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, Size } from "@chronodivide/game-api";
+import * as fs from "fs";
+import * as path from "path";
 
 import { determineMapBounds } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
@@ -18,6 +20,8 @@ export class SupalosaBot extends Bot {
     private missionController: MissionController;
     private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
+
+    private logFilePath: string | null = null;
 
     private matchAwareness: MatchAwareness | null = null;
 
@@ -54,6 +58,21 @@ export class SupalosaBot extends Bot {
         this.tryAllyWith
             .filter((playerName) => playerName !== this.name)
             .forEach((playerName) => this.actionsApi.toggleAlliance(playerName, true));
+
+        // Create battle log file
+        try {
+            const logDir = path.resolve(process.cwd(), "battle_logs");
+            if (!fs.existsSync(logDir)) {
+                fs.mkdirSync(logDir, { recursive: true });
+            }
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            this.logFilePath = path.join(logDir, `battle-${timestamp}.log`);
+            fs.writeFileSync(this.logFilePath, `=== Battle started at ${new Date().toISOString()} ===\n`);
+        } catch (err) {
+            // If FS is unavailable (e.g., browser env), silently ignore.
+            this.logger.warn?.(`Unable to create battle log file: ${err}`);
+            this.logFilePath = null;
+        }
     }
 
     override onGameTick(game: GameApi) {
@@ -117,10 +136,21 @@ export class SupalosaBot extends Bot {
         if (!this.enableLogging) {
             return;
         }
-        this.logger.info(message);
+        const gameTimestamp = this.getHumanTimestamp(this.gameApi);
+        const formattedMsg = `[${gameTimestamp}] ${message}`;
+
+        this.logger.info(formattedMsg);
+
+        if (this.logFilePath) {
+            try {
+                fs.appendFileSync(this.logFilePath, `${formattedMsg}\n`);
+            } catch (err) {
+                // Silently ignore FS errors after initialisation.
+            }
+        }
+
         if (sayInGame) {
-            const timestamp = this.getHumanTimestamp(this.gameApi);
-            this.actionsApi.sayAll(`${timestamp}: ${message}`);
+            this.actionsApi.sayAll(`${gameTimestamp}: ${message}`);
         }
     }
 

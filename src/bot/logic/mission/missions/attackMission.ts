@@ -202,7 +202,7 @@ export class AttackMission extends Mission<AttackFailReason> {
             !this.hasPickedNewTarget &&
             gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_RETARGET_TICKS
         ) {
-            const newTarget = generateTarget(gameApi, playerData, matchAwareness);
+            const newTarget = generateTarget(gameApi, playerData, matchAwareness, false, this.logger);
             if (newTarget) {
                 this.squad.setAttackArea(newTarget);
                 this.hasPickedNewTarget = true;
@@ -260,6 +260,7 @@ function generateTarget(
     playerData: PlayerData,
     matchAwareness: MatchAwareness,
     includeBaseLocations: boolean = false,
+    logger?: DebugLogger,
 ): Vector2 | null {
     // Randomly decide between harvester and base.
     try {
@@ -271,6 +272,9 @@ function generateTarget(
 
         const maxUnit = maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
         if (maxUnit) {
+            logger?.(
+                `generateTarget: picked visible enemy unit ${maxUnit.name} (id=${maxUnit.id}) at (${maxUnit.tile.rx},${maxUnit.tile.ry})`,
+            );
             return new Vector2(maxUnit.tile.rx, maxUnit.tile.ry);
         }
         if (includeBaseLocations) {
@@ -289,10 +293,13 @@ function generateTarget(
             });
             if (unexploredEnemyLocations.length > 0) {
                 const idx = gameApi.generateRandomInt(0, unexploredEnemyLocations.length - 1);
-                return unexploredEnemyLocations[idx].startLocation;
+                const targetLoc = unexploredEnemyLocations[idx].startLocation;
+                logger?.(`generateTarget: picked unexplored enemy base at (${targetLoc.x},${targetLoc.y})`);
+                return targetLoc;
             }
         }
     } catch (err) {
+        logger?.(`generateTarget: ERROR while selecting target: ${err}`);
         // There's a crash here when accessing a building that got destroyed. Will catch and ignore or now.
         return null;
     }
@@ -341,7 +348,7 @@ export class AttackMissionFactory implements MissionFactory {
 
         const includeEnemyBases = gameApi.getCurrentTick() > this.lastAttackAt + BASE_ATTACK_COOLDOWN_TICKS;
 
-        const attackArea = generateTarget(gameApi, playerData, matchAwareness, includeEnemyBases);
+        const attackArea = generateTarget(gameApi, playerData, matchAwareness, includeEnemyBases, logger);
 
         if (!attackArea) {
             return;
