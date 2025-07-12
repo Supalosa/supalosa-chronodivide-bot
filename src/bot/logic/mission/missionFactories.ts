@@ -11,6 +11,9 @@ import { EngineerMissionFactory } from "./missions/engineerMission.js";
 import { NavalScoutingMissionFactory } from "./missions/navalScoutingMission.js";
 import { AmphibiousScoutingMissionFactory } from "./missions/amphibiousScoutingMission.js";
 import { AntiShipyardMissionFactory } from "./missions/antiShipyardMission.js";
+import { AntiCoastShipMissionFactory } from "./missions/antiCoastShipMission.js";
+import { AntiSubMissionFactory } from "./missions/antiSubMission.js";
+import { ReserveRhinoMissionFactory } from "./missions/reserveRhinoMission.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -54,4 +57,7 @@ export const createMissionFactories = () => [
     new NavalScoutingMissionFactory(),
     new AmphibiousScoutingMissionFactory(),
     new AntiShipyardMissionFactory(),
+    new AntiCoastShipMissionFactory(),
+    new AntiSubMissionFactory(),
+    new ReserveRhinoMissionFactory(),
 ];
