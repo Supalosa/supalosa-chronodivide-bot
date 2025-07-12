@@ -121,25 +121,64 @@ export class CombatSquad implements Squad {
                     this.state = SquadState.Gathering;
                     return noop();
                 }
-                // The unit with the shortest range chooses the target. Otherwise, a base range of 5 is chosen.
+                // 计算每个单位射程（取主武器，否则副武器，否则 5）
                 const getRangeForUnit = (unit: UnitData) =>
                     unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
                 const attackLeader = minBy(units, getRangeForUnit);
+
+                // 动态扫描半径：至少 ATTACK_SCAN_AREA，若队伍中存在更远射程单位则取最大射程
+                const maxRangeUnit = maxBy(units, getRangeForUnit);
+                const dynamicScanRadius = Math.max(
+                    ATTACK_SCAN_AREA,
+                    maxRangeUnit ? getRangeForUnit(maxRangeUnit) : ATTACK_SCAN_AREA,
+                );
                 if (!attackLeader) {
                     return noop();
                 }
-                // Find units within double the range of the leader.
-                const nearbyHostiles = matchAwareness
-                    .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, ATTACK_SCAN_AREA)
+
+                // 预先缓存全局敌对列表（速度优化）
+                const globalHostilesRaw = matchAwareness
+                    .getHostilesNearPoint2d(this.targetArea, dynamicScanRadius * 2)
                     .map(({ unitId }) => gameApi.getUnitData(unitId))
-                    .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
+                    .filter((unit): unit is UnitData => !!unit && !isOwnedByNeutral(unit));
 
                 for (const unit of units) {
+                    // 为每个单位使用其自身射程作为扫描半径，确保远程单位（航母等）能找到目标
+                    const unitRange = getRangeForUnit(unit);
+                    const unitScanRadius = Math.max(ATTACK_SCAN_AREA, unitRange);
+
+                    const nearbyHostiles = globalHostilesRaw.filter((hostile) => {
+                        const dist = GameMath.sqrt(
+                            GameMath.pow(hostile.tile.rx - unit.tile.rx, 2) +
+                                GameMath.pow(hostile.tile.ry - unit.tile.ry, 2),
+                        );
+                        return dist <= unitScanRadius;
+                    });
+
+                    const isUnderWaterUnit = ["SUB", "DLPH", "SQD"].includes(unit.name);
+                    
+                    if (isUnderWaterUnit) {
+                        logger(`[NAVAL_DEBUG] 水下单位 ${unit.name}(id:${unit.id}) 开始寻找攻击目标 (scan=${unitScanRadius})`);
+                        logger(`[NAVAL_DEBUG]   扫描范围内发现 ${nearbyHostiles.length} 个敌对目标`);
+                        
+                        nearbyHostiles.forEach((hostile, index) => {
+                            const weight = getAttackWeight(unit, hostile);
+                            const isNavalTarget = ["DEST", "AEGIS", "CARRIER", "SUB", "HYD", "DRED", "DLPH", "SQD"].includes(hostile.name);
+                            logger(`[NAVAL_DEBUG]     目标${index + 1}: ${hostile.name}(id:${hostile.id}) 权重=${weight} 是否海军=${isNavalTarget}`);
+                        });
+                    }
+                    
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
+                        if (isUnderWaterUnit) {
+                            logger(`[NAVAL_DEBUG]   选择攻击目标: ${bestUnit.name}(id:${bestUnit.id})`);
+                        }
                         this.submitActionIfNew(actionBatcher, manageAttackMicro(unit, bestUnit));
                         this.debugLastTarget = `Unit ${bestUnit.id.toString()}`;
                     } else {
+                        if (isUnderWaterUnit) {
+                            logger(`[NAVAL_DEBUG]   没有找到合适的攻击目标，移动到目标点`);
+                        }
                         this.submitActionIfNew(actionBatcher, manageMoveMicro(unit, targetPoint));
                         this.debugLastTarget = `@${targetPoint.x},${targetPoint.y}`;
                     }

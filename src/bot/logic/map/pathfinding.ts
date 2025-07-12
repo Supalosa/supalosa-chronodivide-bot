@@ -40,7 +40,7 @@ export function isPointReachable(
     }
 
     // 获取路径的终点
-    const pathEndPoint = path[path.length - 1].tile;
+    const pathEndPoint = path[0].tile;
     
     // 计算路径终点和目标点之间的距离
     const endPointDistance = new Vector2(pathEndPoint.rx, pathEndPoint.ry).distanceTo(targetPoint);

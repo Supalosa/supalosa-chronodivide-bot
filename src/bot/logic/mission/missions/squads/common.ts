@@ -51,13 +51,62 @@ export function getAttackWeight(attacker: UnitData, target: UnitData): number | 
     const { rx: x, ry: y } = attacker.tile;
     const { rx: hX, ry: hY } = target.tile;
 
+    // DEBUG: 水下单位攻击权重调试信息
+    const isUnderWaterUnit = ["SUB", "DLPH", "SQD"].includes(attacker.name);
+    const isNavalTarget = ["DEST", "AEGIS", "CARRIER", "SUB", "HYD", "DRED", "DLPH", "SQD"].includes(target.name);
+    
+    if (isUnderWaterUnit || isNavalTarget) {
+        console.log(`[NAVAL_DEBUG] 攻击权重检查: ${attacker.name}(id:${attacker.id}) -> ${target.name}(id:${target.id})`);
+        console.log(`[NAVAL_DEBUG]   攻击者位置: (${x}, ${y}), 目标位置: (${hX}, ${hY})`);
+        console.log(`[NAVAL_DEBUG]   攻击者区域: ${attacker.zone}, 目标区域: ${target.zone}`);
+        console.log(`[NAVAL_DEBUG]   是否水下单位: ${isUnderWaterUnit}, 是否海军目标: ${isNavalTarget}`);
+        
+        if (attacker.primaryWeapon) {
+            console.log(`[NAVAL_DEBUG]   主武器信息: maxRange=${attacker.primaryWeapon.maxRange}`);
+            console.log(`[NAVAL_DEBUG]   主武器弹道: isAntiAir=${attacker.primaryWeapon.projectileRules.isAntiAir}, isAntiGround=${attacker.primaryWeapon.projectileRules.isAntiGround}`);
+        } else {
+            console.log(`[NAVAL_DEBUG]   没有主武器!`);
+        }
+        
+        if (attacker.secondaryWeapon) {
+            console.log(`[NAVAL_DEBUG]   副武器信息: maxRange=${attacker.secondaryWeapon.maxRange}`);
+            console.log(`[NAVAL_DEBUG]   副武器弹道: isAntiAir=${attacker.secondaryWeapon.projectileRules.isAntiAir}, isAntiGround=${attacker.secondaryWeapon.projectileRules.isAntiGround}`);
+        }
+    }
+
+    // 检查防空能力
     if (!attacker.primaryWeapon?.projectileRules.isAntiAir && target.zone === ZoneType.Air) {
+        if (isUnderWaterUnit) {
+            console.log(`[NAVAL_DEBUG]   -> 拒绝攻击: 没有防空能力但目标在空中`);
+        }
         return null;
     }
 
-    if (!attacker.primaryWeapon?.projectileRules.isAntiGround && target.zone === ZoneType.Ground) {
+    // 检查对地能力（航母/无畏等特殊舰船可忽略）
+    const groundAttackWhitelist = ["CARRIER", "DRED"];
+    const ignoreAntiGroundCheck = groundAttackWhitelist.includes(attacker.name);
+
+    if (
+        !ignoreAntiGroundCheck &&
+        !attacker.primaryWeapon?.projectileRules.isAntiGround &&
+        target.zone === ZoneType.Ground
+    ) {
+        if (isUnderWaterUnit) {
+            console.log(`[NAVAL_DEBUG]   -> 拒绝攻击: 没有对地能力但目标在地面`);
+        }
         return null;
     }
 
-    return 1000000 - getDistanceBetweenPoints(new Vector2(x, y), new Vector2(hX, hY));
+    // TODO: 添加对海军目标的检查
+    // 这里可能需要检查 target.zone === ZoneType.Water 或类似的海军区域
+    // 以及攻击者是否具有反舰能力
+    
+    const distance = getDistanceBetweenPoints(new Vector2(x, y), new Vector2(hX, hY));
+    const weight = 1000000 - distance;
+    
+    if (isUnderWaterUnit || isNavalTarget) {
+        console.log(`[NAVAL_DEBUG]   -> 攻击权重: ${weight} (距离: ${distance})`);
+    }
+    
+    return weight;
 }
