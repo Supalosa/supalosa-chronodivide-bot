@@ -13,7 +13,7 @@ import { MissionFactory } from "../missionFactories.js";
 import { MissionController } from "../missionController.js";
 
 const RESERVE_COUNT = 3;
-const RESERVE_PRIORITY = 10000;
+const RESERVE_PRIORITY = 500;
 
 export class ReserveRhinoMission extends Mission<null> {
     constructor(uniqueName: string, logger: DebugLogger) {

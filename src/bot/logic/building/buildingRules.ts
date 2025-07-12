@@ -194,7 +194,7 @@ export const DEFAULT_BUILDING_PRIORITY = 0;
 export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Allied
     ["GAPOWR", new PowerPlant()],
-    ["GAREFN", new ResourceCollectionBuilding(10, 3)], // Refinery
+    ["GAREFN", new ResourceCollectionBuilding(10, 2)], // Refinery
     ["GAWEAP", new BasicBuilding(15, 1)], // War Factory
     ["GAPILE", new BasicBuilding(12, 1)], // Barracks
     ["CMIN", new Harvester(15, 4, 2)], // Chrono Miner
@@ -223,7 +223,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
 
     // Soviet
     ["NAPOWR", new PowerPlant()],
-    ["NAREFN", new ResourceCollectionBuilding(10, 3)], // Refinery
+    ["NAREFN", new ResourceCollectionBuilding(10, 2)], // Refinery
     ["NAWEAP", new BasicBuilding(15, 1)], // War Factory
     ["NAHAND", new BasicBuilding(12, 1)], // Barracks
     ["HARV", new Harvester(15, 4, 2)], // War Miner
