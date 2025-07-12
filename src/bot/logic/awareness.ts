@@ -96,10 +96,25 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
     getHostilesNearPoint(searchX: number, searchY: number, radius: number): UnitPositionQuery[] {
         const intersections = this.hostileQuadTree.retrieve(new Circle({ x: searchX, y: searchY, r: radius }));
-        return intersections
+        const result = intersections
             .map(({ x, y, data: unitId }) => ({ x, y, unitId: unitId! }))
             .filter(({ x, y }) => new Vector2(x, y).distanceTo(new Vector2(searchX, searchY)) <= radius)
             .filter(({ unitId }) => !!unitId);
+        
+        // 调试海军相关的敌对单位探测
+        const navalUnitsInRange = result.filter(unit => {
+            // 需要通过unitId获取单位名称，这里先记录所有单位
+            return true; // 临时显示所有单位，因为无法直接获取单位名称
+        });
+        
+        if (result.length > 0) {
+            console.log(`[NAVAL_DEBUG] 在 (${searchX}, ${searchY}) 半径 ${radius} 内发现 ${result.length} 个敌对单位:`);
+            result.forEach(unit => {
+                console.log(`[NAVAL_DEBUG]   - 单位ID:${unit.unitId} 位置:(${unit.x}, ${unit.y})`);
+            });
+        }
+        
+        return result;
     }
 
     getThreatCache(): GlobalThreat | null {

@@ -6,7 +6,7 @@ import { MissionController } from "../missionController.js";
 import { DebugLogger } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 
-const CAPTURE_COOLDOWN_TICKS = 30;
+const CAPTURE_COOLDOWN_TICKS = 120;
 
 /**
  * A mission that tries to send an engineer into a building (e.g. to capture tech building or repair bridge)

@@ -84,13 +84,25 @@ export class AttackMission extends Mission<AttackFailReason> {
     }
 
     private shouldSwitchToNaval(gameApi: GameApi): boolean {
+        // Debug information for naval switch decision
+        this.logger(
+            `shouldSwitchToNaval? tick=${gameApi.getCurrentTick()} | isNavalMission=${this.isNavalMission} | landFails=${this.landAttackFailCount}/${this.MAX_LAND_ATTACK_ATTEMPTS}`,
+        );
+        this.logger(
+            `    rallyArea=(${this.rallyArea.x},${this.rallyArea.y}) attackArea=(${this.attackArea.x},${this.attackArea.y})`,
+        );
+
         // 如果已经是海军任务，不需要切换
         if (this.isNavalMission) {
+            this.logger("    Already naval mission, skip switch check.");
             return false;
         }
 
+        const reachable = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
+        this.logger(`    pathReachable=${reachable}`);
+
         // 如果目标点对陆地单位不可达
-        if (!isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track)) {
+        if (!reachable) {
             this.logger("目标点陆地单位无法到达，切换为海军编队");
             return true;
         }
@@ -133,22 +145,35 @@ export class AttackMission extends Mission<AttackFailReason> {
             this.isNavalMission = true;
             this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, true);
             this.logger("已切换为海军编队");
+            this.logger(`[NAVAL_DEBUG] 海军编队组成: ${JSON.stringify(this.composition)}`);
             return noop();
         }
 
         const currentComposition: UnitComposition = countBy(this.getUnitsGameObjectData(gameApi), (unit) => unit.name);
+        
+        // 调试当前单位组成
+        if (this.isNavalMission) {
+            this.logger(`[NAVAL_DEBUG] 当前海军单位组成: ${JSON.stringify(currentComposition)}`);
+            this.logger(`[NAVAL_DEBUG] 目标海军编队组成: ${JSON.stringify(this.composition)}`);
+        }
 
         const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
             return !currentComposition[unitType] || currentComposition[unitType] < targetAmount;
         });
 
         if (missingUnits.length > 0) {
+            if (this.isNavalMission) {
+                this.logger(`[NAVAL_DEBUG] 缺少海军单位: ${JSON.stringify(missingUnits)}`);
+            }
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
             return requestUnits(
                 missingUnits.map(([unitName]) => unitName),
                 this.priority,
             );
         } else {
+            if (this.isNavalMission) {
+                this.logger(`[NAVAL_DEBUG] 海军编队准备完毕，开始攻击阶段`);
+            }
             this.priority = ATTACK_MISSION_INITIAL_PRIORITY;
             this.state = AttackMissionState.Attacking;
             return noop();
@@ -262,6 +287,7 @@ function generateTarget(
     includeBaseLocations: boolean = false,
     logger?: DebugLogger,
 ): Vector2 | null {
+    const rallyPoint = matchAwareness.getMainRallyPoint();
     // Randomly decide between harvester and base.
     try {
         const tryFocusHarvester = gameApi.generateRandomInt(0, 1) === 0;
@@ -270,7 +296,22 @@ function generateTarget(
             .map((unitId) => gameApi.getUnitData(unitId))
             .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
-        const maxUnit = maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
+        // Adjusted weight: penalise targets that ground units cannot reach (e.g. water targets).
+        const computeWeight = (u: UnitData) => {
+            let weight = getTargetWeight(u, tryFocusHarvester);
+            try {
+                // If rallyPoint -> target unreachable by Track, down-weight.
+                if (!isPointReachable(gameApi, rallyPoint, new Vector2(u.tile.rx, u.tile.ry), SpeedType.Track, 6)) {
+                    weight *= 0.3; // 70% penalty
+                }
+            } catch (err) {
+                // Pathfinding error; treat as unreachable but avoid spamming logs.
+                weight *= 0.3;
+            }
+            return weight;
+        };
+
+        const maxUnit = maxBy(enemyUnits, computeWeight);
         if (maxUnit) {
             logger?.(
                 `generateTarget: picked visible enemy unit ${maxUnit.name} (id=${maxUnit.id}) at (${maxUnit.tile.rx},${maxUnit.tile.ry})`,
