@@ -14,6 +14,7 @@ import { AntiShipyardMissionFactory } from "./missions/antiShipyardMission.js";
 import { AntiCoastShipMissionFactory } from "./missions/antiCoastShipMission.js";
 import { AntiSubMissionFactory } from "./missions/antiSubMission.js";
 import { ReserveRhinoMissionFactory } from "./missions/reserveRhinoMission.js";
+import { DreadEscortMissionFactory } from "./missions/dreadEscortMission.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -60,4 +61,5 @@ export const createMissionFactories = () => [
     new AntiCoastShipMissionFactory(),
     new AntiSubMissionFactory(),
     new ReserveRhinoMissionFactory(),
+    new DreadEscortMissionFactory(),
 ];

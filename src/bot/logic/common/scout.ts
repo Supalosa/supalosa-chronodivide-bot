@@ -1,5 +1,5 @@
 import { GameApi, GameMath, PlayerData, Vector2 } from "@chronodivide/game-api";
-import { Sector, SectorCache } from "../map/sector";
+import { Sector, SectorCache, SECTOR_SIZE } from "../map/sector.js";
 import { DebugLogger } from "./utils";
 import { PriorityQueue } from "@datastructures-js/priority-queue";
 
@@ -72,6 +72,10 @@ export class ScoutingManager {
         );
     }
 
+    /**
+     * Enqueue multiple scout targets within each sector inside the given radius.
+     * For better coverage we push 3 points per sector: top-left (existing), centre, and bottom-right.
+     */
     addRadiusToScout(
         gameApi: GameApi,
         centerPoint: Vector2,
@@ -105,14 +109,64 @@ export class ScoutingManager {
                     GameMath.pow(x - startingSector.sectorX, 2) + GameMath.pow(y - startingSector.sectorY, 2);
                 const sector = sectorCache.getSector(x, y);
                 if (sector) {
-                    const maybeTarget = new PrioritisedScoutTarget(startingPriority - distanceFactor, sector);
-                    const maybePoint = maybeTarget.asVector2();
-                    if (maybePoint && gameApi.mapApi.getTile(maybePoint.x, maybePoint.y)) {
-                        this.scoutingQueue.enqueue(maybeTarget);
-                    }
+                    // Prepare multiple sampling points inside this sector
+                    const points: Vector2[] = [];
+                    // Top-left (sector start)
+                    points.push(sector.sectorStartPoint);
+                    // Centre point
+                    points.push(
+                        new Vector2(
+                            sector.sectorStartPoint.x + Math.floor(SECTOR_SIZE / 2),
+                            sector.sectorStartPoint.y + Math.floor(SECTOR_SIZE / 2),
+                        ),
+                    );
+                    // Bottom-right corner (ensure within bounds)
+                    points.push(
+                        new Vector2(
+                            Math.min(sector.sectorStartPoint.x + SECTOR_SIZE - 1, sectorCache.getMapBounds().width - 1),
+                            Math.min(sector.sectorStartPoint.y + SECTOR_SIZE - 1, sectorCache.getMapBounds().height - 1),
+                        ),
+                    );
+
+                    points.forEach((pt) => {
+                        if (!gameApi.mapApi.getTile(pt.x, pt.y)) return;
+                        const tgt = new PrioritisedScoutTarget(startingPriority - distanceFactor, pt);
+                        this.scoutingQueue.enqueue(tgt);
+                    });
                 }
             }
         }
+    }
+
+    /**
+     * Ensure every enemy starting location remains queued until actually explored.
+     */
+    private ensureEnemyStartLocations(
+        gameApi: GameApi,
+        playerData: PlayerData,
+    ) {
+        gameApi.mapApi
+            .getStartingLocations()
+            .filter((loc) => loc !== playerData.startLocation)
+            .forEach((loc) => {
+                const tile = gameApi.mapApi.getTile(loc.x, loc.y);
+                if (!tile) return;
+                if (gameApi.mapApi.isVisibleTile(tile, playerData.name)) {
+                    return; // already visible
+                }
+                // Re-enqueue if not already in queue.
+                const key = `${loc.x},${loc.y}`;
+                const existsInQueue = this.scoutingQueue
+                    .toArray()
+                    .some((t) => {
+                        const v = t.asVector2();
+                        return v && v.x === loc.x && v.y === loc.y;
+                    });
+                if (!existsInQueue) {
+                    this.logger(`Re-queue unseen enemy spawn at ${loc.x},${loc.y}`);
+                    this.scoutingQueue.enqueue(new PrioritisedScoutTarget(ENEMY_SPAWN_POINT_PRIORITY, loc, true));
+                }
+            });
     }
 
     onGameStart(gameApi: GameApi, playerData: PlayerData, sectorCache: SectorCache) {
@@ -143,6 +197,8 @@ export class ScoutingManager {
     }
 
     onAiUpdate(gameApi: GameApi, playerData: PlayerData, sectorCache: SectorCache) {
+        // Ensure unseen enemy spawn points are always considered.
+        this.ensureEnemyStartLocations(gameApi, playerData);
         const currentHead = this.scoutingQueue.front();
         if (!currentHead) {
             return;

@@ -341,9 +341,29 @@ function generateTarget(
         }
     } catch (err) {
         logger?.(`generateTarget: ERROR while selecting target: ${err}`);
-        // There's a crash here when accessing a building that got destroyed. Will catch and ignore or now.
-        return null;
+        // error; fallthrough to other logic
     }
+
+    // Fallback 1: target visible enemy MCV (undeployed construction vehicle)
+    try {
+        const baseUnitNames: string[] = gameApi.getGeneralRules().baseUnit ?? [];
+        const enemyMcvs = gameApi
+            .getVisibleUnits(playerData.name, "enemy", (r) => !!r.deploysInto && baseUnitNames.includes(r.name));
+        if (enemyMcvs.length > 0) {
+            const mcvId = enemyMcvs[0];
+            const mcvData = gameApi.getUnitData(mcvId);
+            if (mcvData) {
+                logger?.(
+                    `generateTarget: fallback to enemy MCV ${mcvData.name} (id=${mcvData.id}) at (${mcvData.tile.rx},${mcvData.tile.ry})`,
+                );
+                return new Vector2(mcvData.tile.rx, mcvData.tile.ry);
+            }
+        }
+    } catch (_) {
+        // ignore
+    }
+
+    // No suitable target
     return null;
 }
 
