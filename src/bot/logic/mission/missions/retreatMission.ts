@@ -1,5 +1,5 @@
 import { DebugLogger } from "../../common/utils.js";
-import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, OrderType, PlayerData, ProductionApi, Vector2 } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, requestSpecificUnits } from "../mission.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { MatchAwareness } from "../../awareness.js";

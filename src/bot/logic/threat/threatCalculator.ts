@@ -1,5 +1,16 @@
-import { GameApi, GameMath, MovementZone, ObjectType, PlayerData, UnitData } from "@chronodivide/game-api";
+import {
+    GameApi,
+    GameMath,
+    GameObjectData,
+    MovementZone,
+    ObjectType,
+    PlayerData,
+    ProjectileRules,
+    WeaponRules,
+} from "@chronodivide/game-api";
 import { GlobalThreat } from "./threat.js";
+import { getTechnoRulesForUnit } from "../common/rulesCache.js";
+import { groupBy } from "../common/utils.js";
 
 export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, visibleAreaPercent: number): GlobalThreat {
     let groundUnits = game.getVisibleUnits(
@@ -30,15 +41,23 @@ export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, vis
         (r) => r.movementZone == MovementZone.Fly && r.isSelectableCombatant,
     );
 
-    let observedGroundThreat = calculateFirepowerForUnits(game, groundUnits);
-    let observedAirThreat = calculateFirepowerForUnits(game, airUnits);
-    let observedAntiAirThreat = calculateFirepowerForUnits(game, antiAirPower);
-    let observedGroundDefence = calculateFirepowerForUnits(game, groundDefence);
+    let observedGroundThreat = calculateFirepowerForUnitIds(game, groundUnits);
+    let observedAirThreat = calculateFirepowerForUnitIds(game, airUnits);
+    let observedAntiAirThreat = calculateFirepowerForUnitIds(game, antiAirPower);
+    let observedGroundDefence = calculateFirepowerForUnitIds(game, groundDefence);
 
-    let ourAntiGroundPower = calculateFirepowerForUnits(game, ourAntiGroundUnits);
-    let ourAntiAirPower = calculateFirepowerForUnits(game, ourAntiAirUnits);
-    let ourAirPower = calculateFirepowerForUnits(game, ourAirUnits);
-    let ourGroundDefencePower = calculateFirepowerForUnits(game, ourGroundDefence);
+    let ourAntiGroundPower = calculateFirepowerForUnitIds(game, ourAntiGroundUnits);
+    let ourAntiAirPower = calculateFirepowerForUnitIds(game, ourAntiAirUnits);
+    let ourAirPower = calculateFirepowerForUnitIds(game, ourAirUnits);
+    let ourGroundDefencePower = calculateFirepowerForUnitIds(game, ourGroundDefence);
+
+    // Create a map of player names to their total threat (that we can see).
+    const totalThreatPerPlayer: { [name: string]: number } = {};
+    const allPlayers = game.getPlayers();
+    for (const player of allPlayers) {
+        const playerUnits = game.getVisibleUnits(player, "self");
+        totalThreatPerPlayer[player] = calculateFirepowerForUnitIds(game, playerUnits);
+    }
 
     return new GlobalThreat(
         visibleAreaPercent,
@@ -50,51 +69,74 @@ export function calculateGlobalThreat(game: GameApi, playerData: PlayerData, vis
         ourAntiGroundPower,
         ourAntiAirPower,
         ourAirPower,
+        totalThreatPerPlayer,
     );
 }
 
+// For the purposes of determining if units can target air/ground, we look purely at the technorules and only the base weapon (not elite)
+// This excludes some special cases such as IFVs changing turrets, but we have to deal with it for now.
 function isAntiGround(gameApi: GameApi, unitId: number): boolean {
-    let unit = gameApi.getUnitData(unitId);
-    if (unit && unit.primaryWeapon) {
-        return unit.primaryWeapon.projectileRules.isAntiGround;
-    }
-    return false;
+    return testProjectile(gameApi, unitId, (p) => p.isAntiGround);
 }
-
 function isAntiAir(gameApi: GameApi, unitId: number): boolean {
-    let unit = gameApi.getUnitData(unitId);
-    if (unit && unit.primaryWeapon) {
-        return unit.primaryWeapon.projectileRules.isAntiAir;
+    return testProjectile(gameApi, unitId, (p) => p.isAntiAir);
+}
+
+function testProjectile(gameApi: GameApi, unitId: number, test: (p: ProjectileRules) => boolean) {
+    const rules = getTechnoRulesForUnit(gameApi, unitId);
+    if (!rules || !(rules.primary || rules.secondary)) {
+        return false;
     }
+
+    const primaryWeapon = rules.primary ? gameApi.rulesApi.getWeapon(rules.primary) : null;
+    const primaryProjectile = getProjectileRules(gameApi, primaryWeapon);
+    if (primaryProjectile && test(primaryProjectile)) {
+        return true;
+    }
+
+    const secondaryWeapon = rules.secondary ? gameApi.rulesApi.getWeapon(rules.secondary) : null;
+    const secondaryProjectile = getProjectileRules(gameApi, secondaryWeapon);
+    if (secondaryProjectile && test(secondaryProjectile)) {
+        return true;
+    }
+
     return false;
 }
 
-function calculateFirepowerForUnit(unitData: UnitData): number {
+function getProjectileRules(gameApi: GameApi, weapon: WeaponRules | null): ProjectileRules | null {
+    const primaryProjectile = weapon ? gameApi.rulesApi.getProjectile(weapon.projectile) : null;
+    return primaryProjectile;
+}
+
+function calculateFirepowerForUnit(gameApi: GameApi, gameObjectData: GameObjectData): number {
+    const rules = getTechnoRulesForUnit(gameApi, gameObjectData.id);
+    if (!rules) {
+        return 0;
+    }
+    const currentHp = gameObjectData?.hitPoints || 0;
+    const maxHp = gameObjectData?.maxHitPoints || 0;
     let threat = 0;
-    let hpRatio = unitData.hitPoints / Math.max(1, unitData.maxHitPoints);
-    if (unitData.primaryWeapon) {
-        threat +=
-            (hpRatio *
-                ((unitData.primaryWeapon.rules.damage + 1) * GameMath.sqrt(unitData.primaryWeapon.rules.range + 1))) /
-            Math.max(unitData.primaryWeapon.rules.rof, 1);
+    const hpRatio = currentHp / Math.max(1, maxHp);
+
+    if (rules.primary) {
+        const weapon = gameApi.rulesApi.getWeapon(rules.primary);
+        threat += (hpRatio * ((weapon.damage + 1) * GameMath.sqrt(weapon.range + 1))) / Math.max(weapon.rof, 1);
     }
-    if (unitData.secondaryWeapon) {
-        threat +=
-            (hpRatio *
-                ((unitData.secondaryWeapon.rules.damage + 1) *
-                    GameMath.sqrt(unitData.secondaryWeapon.rules.range + 1))) /
-            Math.max(unitData.secondaryWeapon.rules.rof, 1);
+    if (rules.secondary) {
+        const weapon = gameApi.rulesApi.getWeapon(rules.secondary);
+        threat += (hpRatio * ((weapon.damage + 1) * GameMath.sqrt(weapon.range + 1))) / Math.max(weapon.rof, 1);
     }
+    // clamp the threat at 800, as we don't want to overestimate the threat of a single unit.
     return Math.min(800, threat);
 }
 
-function calculateFirepowerForUnits(game: GameApi, unitIds: number[]) {
-    let threat = 0;
-    unitIds.forEach((unitId) => {
-        let unitData = game.getUnitData(unitId);
-        if (unitData) {
-            threat += calculateFirepowerForUnit(unitData);
-        }
-    });
-    return threat;
+function calculateFirepowerForUnitIds(game: GameApi, unitIds: number[]) {
+    return calculateFirepowerForGameObjects(
+        game,
+        unitIds.map((unitId) => game.getGameObjectData(unitId)).filter((x): x is GameObjectData => !!x),
+    );
+}
+
+function calculateFirepowerForGameObjects(game: GameApi, gameObjects: GameObjectData[]) {
+    return gameObjects.reduce((pV, gO) => pV + calculateFirepowerForUnit(game, gO), 0);
 }

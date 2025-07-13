@@ -1,8 +1,18 @@
-import { ActionsApi, GameApi, PlayerData, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    GameApi,
+    GameObjectData,
+    PlayerData,
+    TechnoRules,
+    Tile,
+    UnitData,
+    Vector2,
+} from "@chronodivide/game-api";
 import { MatchAwareness } from "../awareness.js";
 import { DebugLogger } from "../common/utils.js";
 import { ActionBatcher } from "./actionBatcher.js";
 import { getDistanceBetweenTileAndPoint } from "../map/map.js";
+import { getTechnoRulesForUnit } from "../common/rulesCache.js";
 
 const calculateCenterOfMass: (unitTiles: Tile[]) => {
     centerOfMass: Vector2;
@@ -35,7 +45,7 @@ export abstract class Mission<FailureReasons = undefined> {
     private centerOfMass: Vector2 | null = null;
     private maxDistanceToCenterOfMass: number | null = null;
 
-    private onFinish: (unitIds: number[], reason: FailureReasons) => void = () => {};
+    private onFinishListeners: ((unitIds: number[], reason: FailureReasons) => void)[] = [];
 
     constructor(
         private uniqueName: string,
@@ -44,12 +54,11 @@ export abstract class Mission<FailureReasons = undefined> {
 
     // TODO call this
     protected updateCenterOfMass(gameApi: GameApi) {
-        const movableUnitTiles = this.unitIds
-            .map((unitId) => gameApi.getUnitData(unitId))
-            .filter((unit) => unit?.canMove)
+        const unitTiles = this.unitIds
+            .map((unitId) => gameApi.getGameObjectData(unitId))
             .map((unit) => unit?.tile)
             .filter((tile) => !!tile) as Tile[];
-        const tileMetrics = calculateCenterOfMass(movableUnitTiles);
+        const tileMetrics = calculateCenterOfMass(unitTiles);
         if (tileMetrics) {
             this.centerOfMass = tileMetrics.centerOfMass;
             this.maxDistanceToCenterOfMass = tileMetrics.maxDistance;
@@ -95,9 +104,18 @@ export abstract class Mission<FailureReasons = undefined> {
         this.unitIds.push(unitIdToAdd);
     }
 
+    // Note: don't call this unless you REALLY need the UnitData instead of the GameObjectData.
     public getUnits(gameApi: GameApi): UnitData[] {
         return this.unitIds
             .map((unitId) => gameApi.getUnitData(unitId))
+            .filter((unit) => unit != null)
+            .map((unit) => unit!);
+    }
+
+    // returns GameObjectData, which is significantly faster to retrieve.
+    public getUnitsGameObjectData(gameApi: GameApi): GameObjectData[] {
+        return this.unitIds
+            .map((unitId) => gameApi.getGameObjectData(unitId))
             .filter((unit) => unit != null)
             .map((unit) => unit!);
     }
@@ -109,11 +127,19 @@ export abstract class Mission<FailureReasons = undefined> {
             .map((unit) => unit!);
     }
 
-    public getUnitsMatching(gameApi: GameApi, filter: (r: UnitData) => boolean): UnitData[] {
+    public getUnitsMatchingByRule(gameApi: GameApi, filter: (r: TechnoRules) => boolean): number[] {
+        type ValidEntry = {
+            unitId: number;
+            rules: TechnoRules;
+        };
         return this.unitIds
-            .map((unitId) => gameApi.getUnitData(unitId))
-            .filter((unit) => !!unit && filter(unit))
-            .map((unit) => unit!);
+            .map((unitId) => ({
+                unitId,
+                rules: getTechnoRulesForUnit(gameApi, unitId),
+            }))
+            .filter((entry): entry is ValidEntry => entry.rules !== null)
+            .filter(({ rules }) => filter(rules))
+            .map(({ unitId }) => unitId);
     }
 
     public getCenterOfMass() {
@@ -129,16 +155,16 @@ export abstract class Mission<FailureReasons = undefined> {
     }
 
     // Don't call this from the mission itself
-    endMission(reason: FailureReasons): void {
-        this.onFinish(this.unitIds, reason);
+    onFinish(reason: FailureReasons): void {
+        this.onFinishListeners.forEach((listener) => listener(this.unitIds, reason));
         this.active = false;
     }
 
     /**
      * Declare a callback that is executed when the mission is disbanded for whatever reason.
      */
-    then(onFinish: (unitIds: number[], reason: FailureReasons) => void): Mission<FailureReasons> {
-        this.onFinish = onFinish;
+    then(onFinishHandler: (unitIds: number[], reason: FailureReasons) => void): Mission<FailureReasons> {
+        this.onFinishListeners.push(onFinishHandler);
         return this;
     }
 

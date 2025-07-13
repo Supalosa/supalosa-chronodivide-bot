@@ -1,19 +1,10 @@
-import {
-    ActionsApi,
-    AttackState,
-    GameApi,
-    GameMath,
-    MovementZone,
-    PlayerData,
-    UnitData,
-    Vector2,
-} from "@chronodivide/game-api";
+import { ActionsApi, GameApi, GameMath, MovementZone, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../../awareness.js";
 import { getAttackWeight, manageAttackMicro, manageMoveMicro } from "./common.js";
 import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../../common/utils.js";
 import { ActionBatcher, BatchableAction } from "../../actionBatcher.js";
 import { Squad } from "./squad.js";
-import { Mission, MissionAction, grabCombatants, noop } from "../../mission.js";
+import { Mission } from "../../mission.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 
@@ -39,19 +30,11 @@ export class CombatSquad implements Squad {
 
     private debugLastTarget: string | undefined;
 
-    private lastOrderGiven: { [unitId: number]: BatchableAction } = {};
-
     /**
      *
-     * @param rallyArea the initial location to grab combatants
-     * @param targetArea
-     * @param radius
+     * @param targetArea the area to move the combat squad
      */
-    constructor(
-        private rallyArea: Vector2,
-        private targetArea: Vector2,
-        private radius: number,
-    ) {}
+    constructor(private targetArea: Vector2) {}
 
     public getGlobalDebugText(): string | undefined {
         return this.debugLastTarget ?? "<none>";
@@ -69,7 +52,7 @@ export class CombatSquad implements Squad {
         mission: Mission<any>,
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
-    ): MissionAction {
+    ) {
         if (
             mission.getUnitIds().length > 0 &&
             (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
@@ -77,20 +60,23 @@ export class CombatSquad implements Squad {
             this.lastCommand = gameApi.getCurrentTick();
             const centerOfMass = mission.getCenterOfMass();
             const maxDistance = mission.getMaxDistanceToCenterOfMass();
-            const units = mission.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
+            const unitIds = mission.getUnitsMatchingByRule(gameApi, (r) => r.isSelectableCombatant);
+            const units = unitIds
+                .map((unitId) => gameApi.getUnitData(unitId))
+                .filter((unit): unit is UnitData => !!unit);
 
             // Only use ground units for center of mass.
-            const groundUnits = mission.getUnitsMatching(
+            const groundUnitIds = mission.getUnitsMatchingByRule(
                 gameApi,
                 (r) =>
-                    r.rules.isSelectableCombatant &&
-                    (r.rules.movementZone === MovementZone.Infantry ||
-                        r.rules.movementZone === MovementZone.Normal ||
-                        r.rules.movementZone === MovementZone.InfantryDestroyer),
+                    r.isSelectableCombatant &&
+                    (r.movementZone === MovementZone.Infantry ||
+                        r.movementZone === MovementZone.Normal ||
+                        r.movementZone === MovementZone.InfantryDestroyer),
             );
 
             if (this.state === SquadState.Gathering) {
-                const requiredGatherRadius = GameMath.sqrt(groundUnits.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
+                const requiredGatherRadius = GameMath.sqrt(groundUnitIds.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
                 if (
                     centerOfMass &&
                     maxDistance &&
@@ -98,7 +84,10 @@ export class CombatSquad implements Squad {
                     maxDistance > requiredGatherRadius
                 ) {
                     units.forEach((unit) => {
-                        this.submitActionIfNew(actionBatcher, manageMoveMicro(unit, centerOfMass));
+                        const moveAction = manageMoveMicro(unit, centerOfMass);
+                        if (moveAction) {
+                            actionBatcher.push(moveAction);
+                        }
                     });
                 } else {
                     logger(`CombatSquad ${mission.getUniqueName()} switching back to attack mode (${maxDistance})`);
@@ -106,7 +95,7 @@ export class CombatSquad implements Squad {
                 }
             } else {
                 const targetPoint = this.targetArea || playerData.startLocation;
-                const requiredGatherRadius = GameMath.sqrt(groundUnits.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
+                const requiredGatherRadius = GameMath.sqrt(groundUnitIds.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
                 if (
                     centerOfMass &&
                     maxDistance &&
@@ -116,14 +105,14 @@ export class CombatSquad implements Squad {
                     // Switch back to gather mode
                     logger(`CombatSquad ${mission.getUniqueName()} switching back to gather (${maxDistance})`);
                     this.state = SquadState.Gathering;
-                    return noop();
+                    return;
                 }
                 // The unit with the shortest range chooses the target. Otherwise, a base range of 5 is chosen.
                 const getRangeForUnit = (unit: UnitData) =>
                     unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
                 const attackLeader = minBy(units, getRangeForUnit);
                 if (!attackLeader) {
-                    return noop();
+                    return;
                 }
                 // Find units within double the range of the leader.
                 const nearbyHostiles = matchAwareness
@@ -134,27 +123,20 @@ export class CombatSquad implements Squad {
                 for (const unit of units) {
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
-                        this.submitActionIfNew(actionBatcher, manageAttackMicro(unit, bestUnit));
+                        const attackAction = manageAttackMicro(unit, bestUnit);
+                        if (attackAction) {
+                            actionBatcher.push(attackAction);
+                        }
                         this.debugLastTarget = `Unit ${bestUnit.id.toString()}`;
                     } else {
-                        this.submitActionIfNew(actionBatcher, manageMoveMicro(unit, targetPoint));
+                        const moveAction = manageMoveMicro(unit, targetPoint);
+                        if (moveAction) {
+                            actionBatcher.push(moveAction);
+                        }
                         this.debugLastTarget = `@${targetPoint.x},${targetPoint.y}`;
                     }
                 }
             }
-        }
-        return noop();
-    }
-
-    /**
-     * Sends an action to the acitonBatcher if and only if the action is different from the last action we submitted to it.
-     * Prevents spamming redundant orders, which affects performance and can also ccause the unit to sit around doing nothing.
-     */
-    private submitActionIfNew(actionBatcher: ActionBatcher, action: BatchableAction) {
-        const lastAction = this.lastOrderGiven[action.unitId];
-        if (!lastAction || !lastAction.isSameAs(action)) {
-            actionBatcher.push(action);
-            this.lastOrderGiven[action.unitId] = action;
         }
     }
 }

@@ -1,4 +1,13 @@
-import { AttackState, ObjectType, OrderType, StanceType, UnitData, Vector2, ZoneType } from "@chronodivide/game-api";
+import {
+    AttackState,
+    MovementZone,
+    ObjectType,
+    OrderType,
+    StanceType,
+    UnitData,
+    Vector2,
+    ZoneType,
+} from "@chronodivide/game-api";
 import { getDistanceBetweenPoints, getDistanceBetweenUnits } from "../../../map/map.js";
 import { BatchableAction } from "../../actionBatcher.js";
 
@@ -6,7 +15,11 @@ const NONCE_GI_DEPLOY = 0;
 const NONCE_GI_UNDEPLOY = 1;
 
 // Micro methods
-export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): BatchableAction {
+export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): BatchableAction | null {
+    if (attacker.ammo === 0) {
+        return null;
+    }
+
     if (attacker.name === "E1") {
         const isDeployed = attacker.stance === StanceType.Deployed;
         if (isDeployed) {
@@ -14,10 +27,18 @@ export function manageMoveMicro(attacker: UnitData, attackPoint: Vector2): Batch
         }
     }
 
-    return BatchableAction.toPoint(attacker.id, OrderType.AttackMove, attackPoint);
+    const rawAction = BatchableAction.toPoint(attacker.id, OrderType.AttackMove, attackPoint);
+    if (attacker.rules.movementZone === MovementZone.Fly) {
+        return rawAction.withCooldown(600 * (1 / attacker.rules.jumpjetTurnRate));
+    }
+    return rawAction;
 }
 
-export function manageAttackMicro(attacker: UnitData, target: UnitData): BatchableAction {
+export function manageAttackMicro(attacker: UnitData, target: UnitData): BatchableAction | null {
+    if (attacker.ammo === 0) {
+        return null;
+    }
+
     const distance = getDistanceBetweenUnits(attacker, target);
     if (attacker.name === "E1") {
         // Para (deployed weapon) range is 5.
@@ -36,9 +57,13 @@ export function manageAttackMicro(attacker: UnitData, target: UnitData): Batchab
         orderType = OrderType.Attack;
     } else if (targetData?.rules.canDisguise) {
         // Special case for mirage tank/spy as otherwise they just sit next to it.
-        orderType = OrderType.Attack;
+        orderType = OrderType.ForceAttack;
     }
-    return BatchableAction.toTargetId(attacker.id, orderType, target.id);
+    const rawAction = BatchableAction.toTargetId(attacker.id, orderType, target.id);
+    if (attacker.rules.movementZone === MovementZone.Fly) {
+        return rawAction.withCooldown(600 * (1 / attacker.rules.jumpjetTurnRate));
+    }
+    return rawAction;
 }
 
 /**
