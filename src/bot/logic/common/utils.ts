@@ -51,7 +51,7 @@ export function minBy<T>(array: T[], predicate: (arg: T) => number | null): T | 
             minVal = newVal;
         }
     }
-    return array[minIdx];
+    return minVal !== null ? array[minIdx] : null;
 }
 
 export function maxBy<T>(array: T[], predicate: (arg: T) => number | null): T | null {
@@ -67,7 +67,7 @@ export function maxBy<T>(array: T[], predicate: (arg: T) => number | null): T | 
             maxVal = newVal;
         }
     }
-    return array[maxIdx];
+    return maxVal !== null ? array[maxIdx] : null;
 }
 
 export function uniqBy<T>(array: T[], predicate: (arg: T) => string | number): T[] {
@@ -117,4 +117,11 @@ export function groupBy<K extends string, V>(array: V[], predicate: (arg: V) => 
         },
         {} as Record<K, V[]>,
     );
+}
+
+export function setDifference<T>(a: Set<T>, b: Set<T>): T[] {
+    const map = new Map<T, number>();
+    a.forEach((v) => map.set(v, 1));
+    b.forEach((v) => map.set(v, (map.get(v) ?? 0) + 1));
+    return [...map.entries()].filter(([key, val]) => val !== 2).map(([key]) => key);
 }

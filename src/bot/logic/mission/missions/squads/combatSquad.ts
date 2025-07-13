@@ -77,20 +77,23 @@ export class CombatSquad implements Squad {
             this.lastCommand = gameApi.getCurrentTick();
             const centerOfMass = mission.getCenterOfMass();
             const maxDistance = mission.getMaxDistanceToCenterOfMass();
-            const units = mission.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
+            const unitIds = mission.getUnitsMatchingByRule(gameApi, (r) => r.isSelectableCombatant);
+            const units = unitIds
+                .map((unitId) => gameApi.getUnitData(unitId))
+                .filter((unit): unit is UnitData => !!unit);
 
             // Only use ground units for center of mass.
-            const groundUnits = mission.getUnitsMatching(
+            const groundUnitIds = mission.getUnitsMatchingByRule(
                 gameApi,
                 (r) =>
-                    r.rules.isSelectableCombatant &&
-                    (r.rules.movementZone === MovementZone.Infantry ||
-                        r.rules.movementZone === MovementZone.Normal ||
-                        r.rules.movementZone === MovementZone.InfantryDestroyer),
+                    r.isSelectableCombatant &&
+                    (r.movementZone === MovementZone.Infantry ||
+                        r.movementZone === MovementZone.Normal ||
+                        r.movementZone === MovementZone.InfantryDestroyer),
             );
 
             if (this.state === SquadState.Gathering) {
-                const requiredGatherRadius = GameMath.sqrt(groundUnits.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
+                const requiredGatherRadius = GameMath.sqrt(groundUnitIds.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
                 if (
                     centerOfMass &&
                     maxDistance &&
@@ -98,7 +101,10 @@ export class CombatSquad implements Squad {
                     maxDistance > requiredGatherRadius
                 ) {
                     units.forEach((unit) => {
-                        this.submitActionIfNew(actionBatcher, manageMoveMicro(unit, centerOfMass));
+                        const moveAction = manageMoveMicro(unit, centerOfMass);
+                        if (moveAction) {
+                            this.submitActionIfNew(actionBatcher, moveAction);
+                        }
                     });
                 } else {
                     logger(`CombatSquad ${mission.getUniqueName()} switching back to attack mode (${maxDistance})`);
@@ -106,7 +112,7 @@ export class CombatSquad implements Squad {
                 }
             } else {
                 const targetPoint = this.targetArea || playerData.startLocation;
-                const requiredGatherRadius = GameMath.sqrt(groundUnits.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
+                const requiredGatherRadius = GameMath.sqrt(groundUnitIds.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
                 if (
                     centerOfMass &&
                     maxDistance &&
@@ -134,10 +140,16 @@ export class CombatSquad implements Squad {
                 for (const unit of units) {
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
-                        this.submitActionIfNew(actionBatcher, manageAttackMicro(unit, bestUnit));
+                        const attackAction = manageAttackMicro(unit, bestUnit);
+                        if (attackAction) {
+                            this.submitActionIfNew(actionBatcher, attackAction);
+                        }
                         this.debugLastTarget = `Unit ${bestUnit.id.toString()}`;
                     } else {
-                        this.submitActionIfNew(actionBatcher, manageMoveMicro(unit, targetPoint));
+                        const moveAction = manageMoveMicro(unit, targetPoint);
+                        if (moveAction) {
+                            this.submitActionIfNew(actionBatcher, moveAction);
+                        }
                         this.debugLastTarget = `@${targetPoint.x},${targetPoint.y}`;
                     }
                 }

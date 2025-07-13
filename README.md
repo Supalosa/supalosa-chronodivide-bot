@@ -100,4 +100,4 @@ npm publish
 
 - use-strict: Making Chrono Divide
 - Libi: Improvements to base structure placement performance
-- Dogemoon: CN Documentation
+- Dogemoon: Provide CN documentation and fix a debugging issue caused by camel case file names.

@@ -1,34 +1,26 @@
-# Supalosa关于网页红警AI的实现
+# Supalosa关于网页版红警AI的实现
 
 [English Version Doc](README.md)
 
-[Chrono Divide](https://chronodivide.com/) 是一个在浏览器中重新构建的红色警戒2游戏。它目前已经具备完整的功能，并允许与其他玩家进行在线对战。
+[Chrono Divide](https://chronodivide.com/) 是一个在浏览器中重新构建的红色警戒2游戏。它目前已经具备完整的功能，并允许与其他玩家进行在线对战、游玩单机模式和导入MOD。
 
-它还提供了[一个构建机器人的 API](https://discord.com/channels/771701199812558848/842700851520339988)，但正如你所见，正式的AI并未在游戏中放开。
+它还提供了[一个构建机器人的 API](https://discord.com/channels/771701199812558848/842700851520339988)，目前本仓库所开发的AI已经集成到Chronodivide正式游戏中，现在在持续完善。
 
-这个仓库是一个这样的机器人实现。
+## 开发状态和未来的计划
 
-## 开发状态
+Chrono Divide 的开发者表示有兴趣将这个机器人直接整合到游戏中。因此，我打算实现缺失的功能，为人类玩家创建一个令人满意的 AI 对手。
 
-目前随着越来越多的人加入到合作开发中，网页红警正式放开AI的脚步越来越近了。但距离完善的AI还有很大差距，希望大家都能参与本仓库的贡献！
+从方向上来说，这意味着我不打算让这个 AI 成为一个拥有完美阵容或微操作的对手，而是希望它能成为**新手玩家**的有趣挑战。
 
-## 未来计划
+请查看 TODO.md，其中列出了计划为机器人进行的结构性更改和功能改进的细分清单。
 
-我目前正在同时进行三个任务：
-
-- 任务系统 - 不仅遵循实际的建造顺序，还可以管理攻击、骚扰/攻击敌人、侦查、扩展到其他基地等等。
-- 队伍系统 - 能够独立控制多个单位集合（即队伍），例如由骚扰任务指导的骚扰队伍。
-- 地图控制系统 - 能够分析地图状态，并决定是否争夺控制权。目前，我们已经将地图划分为具有单独威胁计算的方块区域，但对该信息并没有做太多处理。
-
-这些概念中的很多已经被集成到我的《星际争霸2》机器人 [Supabot](https://github.com/Supalosa/supabot) 中，也许我完成那个项目后会回到这里。
+欢迎您贡献代码到代码库，甚至可以 fork 代码库并构建您自己的版本。
 
 ## 安装说明
 
-请使用Node.js 14版本，推荐使用nvm管理Node版本，方便切换。
+请使用Node.js 14版本，更高的Node版本目前不被支持。推荐使用nvm管理Node版本，方便切换。
 
-免费GPT资源可以访问 https://igpt.wang 这有助于帮助你解决开发调试中的问题~
-
-建议使用官方原版红色警戒2安装。如果你更改了游戏ini，那么可能无法运行，请知悉！
+建议使用官方原版红色警戒2安装目录。**如果你更改了游戏ini，那么可能无法运行，请知悉！**
 
 ```sh
 npm install
@@ -38,72 +30,77 @@ npx cross-env MIX_DIR="C:\指向你安装的红色警戒2目录" npm start
 
 这将创建一个回放（`.rpl`）文件，可以[导入到实际游戏中](https://game.chronodivide.com/)。
 
-## 与机器人对战
+你可以编辑 `exampleBot.ts` 来定义对局。你可以看到 `const mapName = "..."` 这样的代码，去更改他以改变地图; 或者 `const offlineSettings1v1` 这样的代码，去更改他以改变bot国家。
 
-如果你真正有兴趣与机器人对战（无论是这个机器人还是你自己的机器人），请联系 Chrono Divide 的开发者以获取详细信息。
+## 真人与机器人对战
+
+在Chronodivide的单机模式内，你可以和之前发布的Supalosa Bot对战。但是当前仓库的最新版本**只能供开发者游玩**，也就是正在看仓库的你。跟随下面的步骤，开启在线对战游玩方法吧。
+
+### 初始设置步骤（仅需一次）
+
+1. 使用官方客户端在 [https://game.chronodivide.com](https://game.chronodivide.com) 为您的机器人创建一个 Chronodivide 帐户。
+2. 如果您还没有帐户，请使用相同的链接为自己创建一个 Chronodivide 帐户。
+3. 将 `.env.template` 复制为 `.env`。`.env` 文件不会被提交到代码库中。
+4. 将 `ONLINE_BOT_NAME` 的值设置为步骤 1 中机器人的用户名。
+5. 将 `ONLINE_BOT_PASSWORD` 的值设置为步骤 1 中的密码。
+6. 将 `PLAYER_NAME` 的值设置为人类帐户的用户名。
+7. （可选）如果您想连接到另一个服务器，请更改 `SERVER_URL`。步骤 1 和步骤 2 中的 Chronodivide 帐户需要存在于该服务器上。
+
+### 运行机器人并连接到游戏
+
+使用 `ONLINE_MATCH=1` 启动机器人。例如：
+
+```sh
+ONLINE_MATCH=1 npx cross-env MIX_DIR="${GAMEPATH}" npm --node-options="${NODE_OPTIONS} --inspect" start
+```
+
+机器人将连接到服务器，并应返回如下输出：
+
+```sh
+You may use the following link(s) to join, after the game is created:
+
+https://game.chronodivide.com/#/game/12345/supalosa
+
+
+Press ENTER to create the game now...
+```
+
+进入控制台输出的这个地址，在上面的例子中，这个是“https://game.chronodivide.com/#/game/12345/supalosa”，请你以控制台实际输出为准。进入地址后，根据提示，**首先使用真人账号登录**，然后在控制台终端中按 ENTER 键，以便机器人可以创建游戏。
+
+重要提示：不要过早按下 ENTER 键，因为人类连接到比赛的时间非常短暂。
 
 ## 调试
 
+要生成启用调试的回放：
+
 ```sh
-npx cross-env MIX_DIR="C:\指向你安装的红色警戒2目录" npm --node-options="${NODE_OPTIONS} --inspect" start
+npx cross-env MIX_DIR="C:\path_to_ra2_install_dir" npm --node-options="${NODE_OPTIONS} --inspect" start
 ```
 
-## 发布
+要记录机器人生成的所有操作：
 
-将 npmjs token 放在 ~/.npmrc 或适当的位置。
-
-```bash
-npm publish
+```sh
+DEBUG_LOGGING="action" npx cross-env MIX_DIR="${GAMEPATH}" npm --node-options="${NODE_OPTIONS} --inspect" start
 ```
 
-# 忽略以下内容
+我们还利用了 CD 提供的游戏内机器人调试功能。这些基本上是仅限机器人的操作，保存在回放中，但在观看回放之前，您必须在 CD 客户端中启用可视化功能，方法是在开发控制台中输入以下内容：
 
-```bash
-# 开发电脑
-export GAMEPATH="G:\Origin\Ra2_YurisRevenge\Command and Conquer Red Alert II"
-# 开发笔记本电脑
-export GAMEPATH="D:\EA Games\Command and Conquer Red Alert II"
-
----
-
-# 不带任何调试运行
-npm run build && npx cross-env MIX_DIR="${GAMEPATH}" npm start
-
-# 带有附加调试器运行
-npm run build && npx cross-env MIX_DIR="${GAMEPATH}" npm --node-options="${NODE_OPTIONS} --inspect" start
-
-# 带有附加调试器和详细的 API 日志记录运行
-npm run build && DEBUG_LOGGING="action" npx cross-env MIX_DIR="${GAMEPATH}" npm --node-options="${NODE_OPTIONS} --inspect" start
-
-# DEBUG_LOGGING 也可以缩小范围，例如 "action" 或 "move"
 ```
-
-如果你想在观看回放时渲染游戏内的调试文本，请在开发控制台中输入以下内容：
-这将在第二个位置上调试机器人。（你无法调试第一个机器人，因为将 `debug_bot` 设置为 `0` 将禁用调试功能）。
-
-```js
-r.debug_bot = 1;
 r.debug_text = true;
 ```
 
----
+这将对已配置为 `setDebugMode(true)` 的机器人进行调试，这是在 `exampleBot.ts` 中完成的。
 
-天梯地图可以参考：https://github.com/chronodivide/pvpgn-server/blob/26bbbe39613751cff696a73f087ce5b4cd938fc8/conf/bnmaps.conf.in#L321-L328
+## 发布
 
-CDR2 1v1 2_malibu_cliffs_le.map
-CDR2 1v1 4_country_swing_le_v2.map
-CDR2 1v1 mp01t4.map
-CDR2 1v1 tn04t2.map
-CDR2 1v1 mp10s4.map
-CDR2 1v1 heckcorners.map
-CDR2 1v1 4_montana_dmz_le.map
-CDR2 1v1 barrel.map
+在 `~/.npmrc` 或适当的位置设置 npmjs 令牌。
 
----
-
-与机器人对战
-
-```bash
-export SERVER_URL="wss://<region_server>"
-export CLIENT_URL="https://game.chronodivide.com/"
 ```
+npm publish
+```
+
+## 贡献者
+
+- use-strict: Chrono Divide创始人
+- Libi: 改进建筑摆放性能
+- Dogemoon（ra2web-bot）: 提供中文文档，修复一个因文件名驼峰导致的调试问题

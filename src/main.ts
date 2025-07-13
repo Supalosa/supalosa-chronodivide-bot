@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
-import { SupalosaBot } from "./bot/bot.js";
+import { BotDifficulty, SupalosaBot } from "./bot/bot.js";
+import { DummyBot } from "./dummyBot/dummyBot.js";
 import { Countries } from "./bot/logic/common/utils.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
@@ -34,13 +35,17 @@ async function main() {
     heckcorners_b_golden.map,hecklvl.map,heckrvr.map,hecktvt.map,isleland.map,jungleofvietnam.map,2_malibu_cliffs_le.map,mojosprt.map,4_montana_dmz_le.map,6_near_ore_far.map,8_near_ore_far.map,
     offensedefense.map,ore2_startfixed.map,rekoool_fast_6players.mpr,rekoool_fast_8players.mpr,riverram.map,tourofegypt.map,unrepent.map,sinkswim_yr_port.map
     */
-    const mapName = "heckcorners_b.map";
+    const mapName = "mp19t4.map";
     // Bot names must be unique in online mode
     const timestamp = String(Date.now()).substr(-6);
-    const firstBotName = `Joe${timestamp}`;
-    const secondBotName = `Bob${timestamp}`;
-    const thirdBotName = `Mike${timestamp}`;
-    const fourthBotName = `Charlie${timestamp}`;
+    const botName1 = `Joe${timestamp}`;
+    const botName2 = `Bob${timestamp}`;
+    const botName3 = `Mike${timestamp}`;
+    const botName4 = `Charlie${timestamp}`;
+    const botName5 = `Phil${timestamp}`;
+    const botName6 = `Sam${timestamp}`;
+    const botName7 = `Ben${timestamp}`;
+    const botName8 = `Jim${timestamp}`;
 
     await cdapi.init(process.env.MIX_DIR || "./");
 
@@ -66,8 +71,8 @@ async function main() {
         serverUrl: process.env.SERVER_URL!,
         clientUrl: process.env.CLIENT_URL!,
         agents: [
-            new SupalosaBot(process.env.ONLINE_BOT_NAME ?? firstBotName, Countries.USA),
-            { name: process.env.PLAYER_NAME ?? secondBotName, country: Countries.FRANCE },
+            new SupalosaBot(process.env.ONLINE_BOT_NAME ?? botName1, Countries.USA, BotDifficulty.Hard),
+            { name: process.env.PLAYER_NAME ?? botName2, country: Countries.FRANCE },
         ] as [Bot, ...Agent[]],
         botPassword: process.env.ONLINE_BOT_PASSWORD ?? "default",
     };
@@ -76,8 +81,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(firstBotName, Countries.FRANCE, [], false),
-            new SupalosaBot(secondBotName, Countries.RUSSIA, [], true).setDebugMode(true),
+            new SupalosaBot(botName1, Countries.GREAT_BRITAIN, BotDifficulty.Hard, []).setDebugMode(true),
+            new SupalosaBot(botName2, Countries.RUSSIA, BotDifficulty.Hard, []),
         ],
     };
 
@@ -85,14 +90,34 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(firstBotName, Countries.FRANCE, [firstBotName], false),
-            new SupalosaBot(secondBotName, Countries.RUSSIA, [firstBotName], true).setDebugMode(true),
-            new SupalosaBot(thirdBotName, Countries.RUSSIA, [fourthBotName], false),
-            new SupalosaBot(fourthBotName, Countries.FRANCE, [thirdBotName], false),
+            new SupalosaBot(botName1, Countries.FRANCE, BotDifficulty.Hard, [botName2]),
+            new SupalosaBot(botName2, Countries.RUSSIA, BotDifficulty.Hard, [botName1]).setDebugMode(true),
+            new SupalosaBot(botName3, Countries.RUSSIA, BotDifficulty.Hard, [botName4]),
+            new SupalosaBot(botName4, Countries.FRANCE, BotDifficulty.Hard, [botName3]),
+        ],
+    };
+
+    const team1 = [botName1, botName2, botName3, botName4];
+    const team2 = [botName5, botName6, botName7, botName8];
+    const offlineSettings4v4: CreateOfflineOpts = {
+        ...baseSettings,
+        online: false,
+        agents: [
+            new SupalosaBot(botName1, Countries.FRANCE, BotDifficulty.Hard, team1),
+            new SupalosaBot(botName2, Countries.RUSSIA, BotDifficulty.Hard, team1).setDebugMode(true),
+            new SupalosaBot(botName3, Countries.RUSSIA, BotDifficulty.Hard, team1),
+            new SupalosaBot(botName4, Countries.FRANCE, BotDifficulty.Hard, team1),
+            new SupalosaBot(botName5, Countries.FRANCE, BotDifficulty.Hard, team2),
+            new SupalosaBot(botName6, Countries.RUSSIA, BotDifficulty.Hard, team2),
+            new SupalosaBot(botName7, Countries.RUSSIA, BotDifficulty.Hard, team2),
+            new SupalosaBot(botName8, Countries.FRANCE, BotDifficulty.Hard, team2),
         ],
     };
 
     const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings1v1);
+
+    console.profile(`cpuprofile-${timestamp}`);
+
     while (!game.isFinished()) {
         if (!!MAX_GAME_LENGTH_SECONDS && game.getCurrentTick() / 15 > MAX_GAME_LENGTH_SECONDS) {
             console.log(`Game forced to end due to timeout`);
@@ -103,6 +128,7 @@ async function main() {
 
     game.saveReplay();
     game.dispose();
+    console.profileEnd();
 }
 
 main().catch((e) => {
