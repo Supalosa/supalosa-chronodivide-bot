@@ -103,7 +103,7 @@ export class NavalScoutingMission extends Mission {
             this.waterPoints = getAllWaterPoints(gameApi);
             // 随机打乱水域点顺序，使探索更随机
             for (let i = this.waterPoints.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
+                const j = Math.floor(gameApi.generateRandom() * (i + 1));
                 [this.waterPoints[i], this.waterPoints[j]] = [this.waterPoints[j], this.waterPoints[i]];
             }
             this.logger(`找到 ${this.waterPoints.length} 个水域探索点`);

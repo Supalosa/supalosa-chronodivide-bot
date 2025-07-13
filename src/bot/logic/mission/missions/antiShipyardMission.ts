@@ -7,6 +7,7 @@ import {
     SideType,
     SpeedType,
     LandType,
+    GameMath,
 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import {
@@ -86,7 +87,7 @@ export class AntiShipyardMission extends Mission<null> {
             const ang = gameApi.generateRandom() * Math.PI * 2;
             const radius = radiusMin + gameApi.generateRandom() * (radiusMax - radiusMin);
             const dest = this.targetPos.add(
-                new Vector2(Math.round(Math.cos(ang) * radius), Math.round(Math.sin(ang) * radius)),
+                new Vector2(Math.round(GameMath.cos(ang) * radius), Math.round(GameMath.sin(ang) * radius)),
             );
             const tile = gameApi.mapApi.getTile(dest.x, dest.y);
             if (!tile) continue;
@@ -219,7 +220,7 @@ export class AntiShipyardMission extends Mission<null> {
                 for (let i = 0; i < 3; i++) {
                     const ang = (Math.PI * 2 * i) / 3;
                     const pt = this.targetPos.add(
-                        new Vector2(Math.round(Math.cos(ang) * 6), Math.round(Math.sin(ang) * 6)),
+                        new Vector2(Math.round(GameMath.cos(ang) * 6), Math.round(GameMath.sin(ang) * 6)),
                     );
                     this.patrolPoints.push(pt);
                 }
