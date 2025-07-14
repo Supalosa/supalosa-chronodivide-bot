@@ -251,14 +251,14 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["V3", new ArtilleryUnit(9, 10, 0, 3)], // V3 Rocket Launcher
 
     // Allied Naval Units
-    ["DEST", new BasicNavalUnit(10, 4, 2, 0, 1)],  // 驱逐舰
+    ["DEST", new BasicNavalUnit(9, 4, 2, 0, 1)],  // 驱逐舰
     ["AEGIS", new BasicNavalUnit(8, 0, 0, 6, 0)],  // 神盾巡洋舰
-    ["CARRIER", new BasicNavalUnit(15, 1, 2, 1, 1)],  // 航母
+    ["CARRIER", new BasicNavalUnit(9, 1, 2, 1, 1)],  // 航母
     ["DLPH", new BasicNavalUnit(5, 2, 0, 0, 2)],  // 海豚
 
     // Soviet Naval Units
-    ["SUB", new BasicNavalUnit(10, 4, 0, 0, 4)],  // 潜艇
-    ["HYD", new BasicNavalUnit(8, 6, 0.5, 3, 0)],  // 海蝎
-    ["DRED", new BasicNavalUnit(15, 1, 10, 0, 1)],  // 无畏
+    ["SUB", new BasicNavalUnit(9, 4, 0, 0, 4)],  // 潜艇
+    ["HYD", new BasicNavalUnit(8, 6, 0.1, 1.5, 0)],  // 海蝎
+    ["DRED", new BasicNavalUnit(9, 1, 10, 0, 1)],  // 无畏
     ["SQD", new BasicNavalUnit(5, 2, 0, 0, 5)],  // 巨型乌贼
 ]);
