@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2, SpeedType } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2, SpeedType, LandType } from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
@@ -38,14 +38,14 @@ function calculateTargetComposition(
     if (!playerData.country) {
         throw new Error(`player ${playerData.name} has no country`);
     }
-    
+
     // 如果指定使用海军编队
     if (useNaval) {
         return playerData.country.side === SideType.Nod
             ? getSovietNavalCompositions(gameApi, playerData, matchAwareness)  // 苏联海军
             : getAlliedNavalCompositions(gameApi, playerData, matchAwareness);  // 盟军海军
     }
-    
+
     // 默认使用陆地编队
     return playerData.country.side === SideType.Nod
         ? getSovietComposition(gameApi, playerData, matchAwareness)
@@ -83,7 +83,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         this.squad = new CombatSquad(rallyArea, attackArea, radius);
     }
 
-    private shouldSwitchToNaval(gameApi: GameApi): boolean {
+    private shouldSwitchToNaval(gameApi: GameApi, playerData: PlayerData): boolean {
         // Debug information for naval switch decision
         this.logger(
             `shouldSwitchToNaval? tick=${gameApi.getCurrentTick()} | isNavalMission=${this.isNavalMission} | landFails=${this.landAttackFailCount}/${this.MAX_LAND_ATTACK_ATTEMPTS}`,
@@ -103,16 +103,37 @@ export class AttackMission extends Mission<AttackFailReason> {
 
         // 如果目标点对陆地单位不可达
         if (!reachable) {
-            this.logger("目标点陆地单位无法到达，切换为海军编队");
+            const rallyTile = gameApi.mapApi.getTile(this.rallyArea.x, this.rallyArea.y);
+            const attackTile = gameApi.mapApi.getTile(this.attackArea.x, this.attackArea.y);
+            const reachable = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
+            // 获取所有可见敌方单位
+            const allEnemyUnits = gameApi
+                .getVisibleUnits(playerData.name, "enemy")
+                .map((unitId) => gameApi.getUnitData(unitId))
+                .filter((unit) => unit !== undefined) as UnitData[];
+
+            // 过滤出在attack area内的单位
+            const unitsInAttackArea = allEnemyUnits.filter((unit) => {
+                const distance = new Vector2(unit.tile.rx, unit.tile.ry).distanceTo(this.attackArea);
+                return distance <= 3;
+            });
+
+            // 打印详细信息
+            this.logger(`Attack Area (${this.attackArea.x},${this.attackArea.y}) 半径${this.radius} 内发现 ${unitsInAttackArea.length} 个敌方单位:`);
+            unitsInAttackArea.forEach((unit, index) => {
+                const distance = new Vector2(unit.tile.rx, unit.tile.ry).distanceTo(this.attackArea);
+                this.logger(`  ${index + 1}. ${unit.name}(id:${unit.id}) 距离:${distance.toFixed(1)} 类型:${unit.type} 血量:${unit.hitPoints}/${unit.maxHitPoints}`);
+            });
+            this.logger(`目标点陆地单位无法到达，切换为海军编队 | rallyTile类型: ${rallyTile?.landType ?? 'unknown'} | attackTile类型: ${attackTile?.landType ?? 'unknown'}`);
             return true;
         }
-        
+
         // 如果陆地进攻多次失败
         if (this.landAttackFailCount >= this.MAX_LAND_ATTACK_ATTEMPTS) {
             this.logger("陆地进攻失败次数过多，切换为海军编队");
             return true;
         }
-        
+
         return false;
     }
 
@@ -141,7 +162,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         actionBatcher: ActionBatcher,
     ) {
         // 检查是否需要切换到海军编队
-        if (!this.isNavalMission && this.shouldSwitchToNaval(gameApi)) {
+        if (!this.isNavalMission && this.shouldSwitchToNaval(gameApi, playerData)) {
             this.isNavalMission = true;
             this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, true);
             this.logger("已切换为海军编队");
@@ -150,7 +171,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         }
 
         const currentComposition: UnitComposition = countBy(this.getUnitsGameObjectData(gameApi), (unit) => unit.name);
-        
+
         // 调试当前单位组成
         if (this.isNavalMission) {
             this.logger(`[NAVAL_DEBUG] 当前海军单位组成: ${JSON.stringify(currentComposition)}`);
@@ -190,7 +211,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         if (this.getUnitIds().length === 0) {
             if (!this.isNavalMission) {
                 this.landAttackFailCount++;
-                if (this.shouldSwitchToNaval(gameApi)) {
+                if (this.shouldSwitchToNaval(gameApi, playerData)) {
                     this.state = AttackMissionState.Preparing;
                     return noop();
                 }
@@ -376,7 +397,7 @@ const BASE_ATTACK_COOLDOWN_TICKS = 1800;
 const ATTACK_MISSION_INITIAL_PRIORITY = 1;
 
 export class AttackMissionFactory implements MissionFactory {
-    constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {}
+    constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) { }
 
     getName(): string {
         return "AttackMissionFactory";
@@ -451,5 +472,5 @@ export class AttackMissionFactory implements MissionFactory {
         failedMission: Mission<any>,
         failureReason: any,
         missionController: MissionController,
-    ): void {}
+    ): void { }
 }

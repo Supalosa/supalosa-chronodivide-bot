@@ -190,26 +190,6 @@ export class MissionController {
         // Find un-assigned units and distribute them among all the requesting missions.
         const unitIds = gameApi.getVisibleUnits(playerData.name, "self");
 
-        // 从可见单位中确认是否有潜艇sub
-        const submarines = unitIds
-            .map((unitId) => gameApi.getGameObjectData(unitId))
-            .filter((unit): unit is GameObjectData => !!unit)
-            .filter((unit) => unit.name === "SUB");
-
-        // 从可见单位中确认是否有驱逐舰dest
-        const dests = unitIds
-            .map((unitId) => gameApi.getGameObjectData(unitId))
-            .filter((unit): unit is GameObjectData => !!unit)
-            .filter((unit) => unit.name === "DEST");
-
-        if (dests.length > 2) {
-            this.logger(`[NAVAL_DEBUG] 可见单位中存在驱逐舰: ${dests.length}`);
-        }
-
-        if (submarines.length > 2) {
-            this.logger(`[NAVAL_DEBUG] 可见单位中存在潜艇: ${submarines.length}`);
-        }
-
         type UnitWithMission = {
             unit: GameObjectData;
             mission: Mission<any> | undefined;

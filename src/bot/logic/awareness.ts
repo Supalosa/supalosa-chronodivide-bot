@@ -1,4 +1,4 @@
-import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2, SpeedType } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector";
 import { GlobalThreat } from "./threat/threat";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
@@ -101,19 +101,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
             .filter(({ x, y }) => new Vector2(x, y).distanceTo(new Vector2(searchX, searchY)) <= radius)
             .filter(({ unitId }) => !!unitId);
         
-        // 调试海军相关的敌对单位探测
-        const navalUnitsInRange = result.filter(unit => {
-            // 需要通过unitId获取单位名称，这里先记录所有单位
-            return true; // 临时显示所有单位，因为无法直接获取单位名称
-        });
-        
-        if (result.length > 0) {
-            console.log(`[NAVAL_DEBUG] 在 (${searchX}, ${searchY}) 半径 ${radius} 内发现 ${result.length} 个敌对单位:`);
-            result.forEach(unit => {
-                console.log(`[NAVAL_DEBUG]   - 单位ID:${unit.unitId} 位置:(${unit.x}, ${unit.y})`);
-            });
-        }
-        
         return result;
     }
 
@@ -211,14 +198,61 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 .getPlayers()
                 .filter((p) => p !== playerData.name && !game.areAlliedPlayers(playerData.name, p));
             const enemy = game.getPlayerData(enemyPlayers[0]);
-            this.mainRallyPoint = getPointTowardsOtherPoint(
-                game,
-                playerData.startLocation,
-                enemy.startLocation,
-                10,
-                10,
-                0,
-            );
+            // 使用findPath找到从我方startLocation到enemy.startLocation的Track路径70%位置
+            const startTile = game.mapApi.getTile(playerData.startLocation.x, playerData.startLocation.y);
+            const targetTile = game.mapApi.getTile(enemy.startLocation.x, enemy.startLocation.y);
+            
+            if (startTile && targetTile) {
+                try {
+                    const path = game.mapApi.findPath(
+                        SpeedType.Track,
+                        false,
+                        { tile: startTile, onBridge: false },
+                        { tile: targetTile, onBridge: false }
+                    );
+                    
+                    if (path && path.length > 0) {
+                        // 选择路径70%位置的点
+                        const midPointIndex = Math.floor(path.length / 10 * 3);
+                        const midTile = path[midPointIndex].tile;
+                        this.mainRallyPoint = new Vector2(midTile.rx, midTile.ry);
+                        this.logger(`Rally point set to path 70% position: (${midTile.rx}, ${midTile.ry}), path length: ${path.length}`);
+                    } else {
+                        // 如果找不到路径，使用fallback方案
+                        this.mainRallyPoint = getPointTowardsOtherPoint(
+                            game,
+                            playerData.startLocation,
+                            enemy.startLocation,
+                            10,
+                            10,
+                            0,
+                        );
+                        this.logger(`No path found, using fallback rally point: (${this.mainRallyPoint.x}, ${this.mainRallyPoint.y})`);
+                    }
+                } catch (error) {
+                    // 路径查找出错时使用fallback方案
+                    this.mainRallyPoint = getPointTowardsOtherPoint(
+                        game,
+                        playerData.startLocation,
+                        enemy.startLocation,
+                        10,
+                        10,
+                        0,
+                    );
+                    this.logger(`Path finding error, using fallback rally point: ${error}`);
+                }
+            } else {
+                // 如果无法获取tile，使用fallback方案
+                this.mainRallyPoint = getPointTowardsOtherPoint(
+                    game,
+                    playerData.startLocation,
+                    enemy.startLocation,
+                    10,
+                    10,
+                    0,
+                );
+                this.logger(`Cannot get tiles, using fallback rally point`);
+            }
         }
     }
 

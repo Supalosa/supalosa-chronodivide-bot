@@ -26,12 +26,16 @@ export function isPointReachable(
         return false;
     }
 
-    // 使用findPath获取路径
+    // 判断起点和终点是否在桥面上
+    const startOnBridge = startTile.onBridgeLandType !== undefined;
+    const targetOnBridge = targetTile.onBridgeLandType !== undefined;
+    
+    // 使用findPath获取路径，根据实际桥面状态设置onBridge参数
     const path = gameApi.mapApi.findPath(
         speedType,
         considerUnitAboveCeiling,
-        { tile: startTile, onBridge: false },
-        { tile: targetTile, onBridge: false }
+        { tile: startTile, onBridge: startOnBridge },
+        { tile: targetTile, onBridge: targetOnBridge }
     );
     
     // 如果没有找到路径，直接返回false
