@@ -14,7 +14,7 @@ export const getSovietComposition = (
     const includeInfantry = !hasBattleLab;
     return {
         ...(includeInfantry && { E2: 10 }),
-        ...(hasWarFactory && { HTNK: 3, HTK: 2 }),
+        ...(hasWarFactory && { HTNK: 6, HTK: 2 }),
         ...(hasRadar && { V3: 1 }),
         ...(hasBattleLab && { APOC: 2 }),
     };

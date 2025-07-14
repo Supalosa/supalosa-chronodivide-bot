@@ -189,6 +189,7 @@ export class MissionController {
 
         // Find un-assigned units and distribute them among all the requesting missions.
         const unitIds = gameApi.getVisibleUnits(playerData.name, "self");
+
         type UnitWithMission = {
             unit: GameObjectData;
             mission: Mission<any> | undefined;

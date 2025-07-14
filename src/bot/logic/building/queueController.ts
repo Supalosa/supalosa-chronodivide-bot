@@ -51,8 +51,11 @@ type QueueState = {
     topItem: TechnoRulesWithPriority | undefined;
 };
 
+const REPAIR_CHECK_INTERVAL = 30;
+
 export class QueueController {
     private queueStates: QueueState[] = [];
+    private lastRepairCheckAt = 0;
 
     constructor() {}
 
@@ -106,7 +109,7 @@ export class QueueController {
         });
 
         // Repair is simple - just repair everything that's damaged.
-        if (playerData.credits > 0) {
+        if (playerData.credits > 0 && game.getCurrentTick() > this.lastRepairCheckAt + REPAIR_CHECK_INTERVAL) {
             game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
                 const unit = game.getUnitData(unitId);
                 if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
@@ -116,6 +119,7 @@ export class QueueController {
                     actionsApi.toggleRepairWrench(unitId);
                 }
             });
+            this.lastRepairCheckAt = game.getCurrentTick();
         }
     }
 

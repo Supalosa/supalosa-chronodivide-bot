@@ -51,13 +51,33 @@ export function getAttackWeight(attacker: UnitData, target: UnitData): number | 
     const { rx: x, ry: y } = attacker.tile;
     const { rx: hX, ry: hY } = target.tile;
 
+    // DEBUG: 水下单位攻击权重调试信息
+    const isUnderWaterUnit = ["SUB", "DLPH", "SQD"].includes(attacker.name);
+    const isNavalTarget = ["DEST", "AEGIS", "CARRIER", "SUB", "HYD", "DRED", "DLPH", "SQD"].includes(target.name);
+
+    // 检查防空能力
     if (!attacker.primaryWeapon?.projectileRules.isAntiAir && target.zone === ZoneType.Air) {
         return null;
     }
 
-    if (!attacker.primaryWeapon?.projectileRules.isAntiGround && target.zone === ZoneType.Ground) {
+    // 检查对地能力（航母/无畏等特殊舰船可忽略）
+    const groundAttackWhitelist = ["CARRIER", "DRED"];
+    const ignoreAntiGroundCheck = groundAttackWhitelist.includes(attacker.name);
+
+    if (
+        !ignoreAntiGroundCheck &&
+        !attacker.primaryWeapon?.projectileRules.isAntiGround &&
+        target.zone === ZoneType.Ground
+    ) {
         return null;
     }
 
-    return 1000000 - getDistanceBetweenPoints(new Vector2(x, y), new Vector2(hX, hY));
+    // TODO: 添加对海军目标的检查
+    // 这里可能需要检查 target.zone === ZoneType.Water 或类似的海军区域
+    // 以及攻击者是否具有反舰能力
+    
+    const distance = getDistanceBetweenPoints(new Vector2(x, y), new Vector2(hX, hY));
+    const weight = 1000000 - distance;
+    
+    return weight;
 }

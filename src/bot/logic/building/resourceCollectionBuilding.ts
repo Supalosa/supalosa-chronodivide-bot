@@ -24,8 +24,8 @@ export class ResourceCollectionBuilding extends BasicBuilding {
             let tileResourceData = allTileResourceData[i];
             if (tileResourceData.spawnsOre) {
                 let dist = GameMath.sqrt(
-                    (selectedLocation.x - tileResourceData.tile.rx) ** 2 +
-                        (selectedLocation.y - tileResourceData.tile.ry) ** 2,
+                    GameMath.pow(selectedLocation.x - tileResourceData.tile.rx, 2) +
+                        GameMath.pow(selectedLocation.y - tileResourceData.tile.ry, 2),
                 );
                 if (closeOreDist == undefined || dist < closeOreDist) {
                     closeOreDist = dist;

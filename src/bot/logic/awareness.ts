@@ -1,4 +1,4 @@
-import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2, SpeedType } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector";
 import { GlobalThreat } from "./threat/threat";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
@@ -96,10 +96,12 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
     getHostilesNearPoint(searchX: number, searchY: number, radius: number): UnitPositionQuery[] {
         const intersections = this.hostileQuadTree.retrieve(new Circle({ x: searchX, y: searchY, r: radius }));
-        return intersections
+        const result = intersections
             .map(({ x, y, data: unitId }) => ({ x, y, unitId: unitId! }))
             .filter(({ x, y }) => new Vector2(x, y).distanceTo(new Vector2(searchX, searchY)) <= radius)
             .filter(({ unitId }) => !!unitId);
+        
+        return result;
     }
 
     getThreatCache(): GlobalThreat | null {
@@ -131,14 +133,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
         return scaledGroundPower > scaledGroundThreat || scaledAirPower > scaledAirThreat;
     }
 
-    private isHostileUnit(unit: UnitData | undefined, hostilePlayerNames: string[]): boolean {
-        if (!unit) {
-            return false;
-        }
-
-        return hostilePlayerNames.includes(unit.owner);
-    }
-
     public onGameStart(gameApi: GameApi, playerData: PlayerData) {
         this.scoutingManager.onGameStart(gameApi, playerData, this.sectorCache);
     }
@@ -154,17 +148,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
         if (updateRatio && updateRatio < 1.0) {
             this.logger(`${updateRatio * 100.0}% of sectors updated in last 60 seconds.`);
         }
-
-        const hostilePlayerNames = game
-            .getPlayers()
-            .map((name) => game.getPlayerData(name))
-            .filter(
-                (other) =>
-                    other.name !== playerData.name &&
-                    other.isCombatant &&
-                    !game.areAlliedPlayers(playerData.name, other.name),
-            )
-            .map((other) => other.name);
 
         // Build the quadtree, if this is too slow we should consider doing this periodically.
         const hostileUnitIds = game.getVisibleUnits(playerData.name, "enemy");
@@ -215,14 +198,61 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 .getPlayers()
                 .filter((p) => p !== playerData.name && !game.areAlliedPlayers(playerData.name, p));
             const enemy = game.getPlayerData(enemyPlayers[0]);
-            this.mainRallyPoint = getPointTowardsOtherPoint(
-                game,
-                playerData.startLocation,
-                enemy.startLocation,
-                10,
-                10,
-                0,
-            );
+            // 使用findPath找到从我方startLocation到enemy.startLocation的Track路径70%位置
+            const startTile = game.mapApi.getTile(playerData.startLocation.x, playerData.startLocation.y);
+            const targetTile = game.mapApi.getTile(enemy.startLocation.x, enemy.startLocation.y);
+            
+            if (startTile && targetTile) {
+                try {
+                    const path = game.mapApi.findPath(
+                        SpeedType.Track,
+                        false,
+                        { tile: startTile, onBridge: false },
+                        { tile: targetTile, onBridge: false }
+                    );
+                    
+                    if (path && path.length > 0) {
+                        // 选择路径70%位置的点
+                        const midPointIndex = Math.floor(path.length / 10 * 3);
+                        const midTile = path[midPointIndex].tile;
+                        this.mainRallyPoint = new Vector2(midTile.rx, midTile.ry);
+                        this.logger(`Rally point set to path 70% position: (${midTile.rx}, ${midTile.ry}), path length: ${path.length}`);
+                    } else {
+                        // 如果找不到路径，使用fallback方案
+                        this.mainRallyPoint = getPointTowardsOtherPoint(
+                            game,
+                            playerData.startLocation,
+                            enemy.startLocation,
+                            10,
+                            10,
+                            0,
+                        );
+                        this.logger(`No path found, using fallback rally point: (${this.mainRallyPoint.x}, ${this.mainRallyPoint.y})`);
+                    }
+                } catch (error) {
+                    // 路径查找出错时使用fallback方案
+                    this.mainRallyPoint = getPointTowardsOtherPoint(
+                        game,
+                        playerData.startLocation,
+                        enemy.startLocation,
+                        10,
+                        10,
+                        0,
+                    );
+                    this.logger(`Path finding error, using fallback rally point: ${error}`);
+                }
+            } else {
+                // 如果无法获取tile，使用fallback方案
+                this.mainRallyPoint = getPointTowardsOtherPoint(
+                    game,
+                    playerData.startLocation,
+                    enemy.startLocation,
+                    10,
+                    10,
+                    0,
+                );
+                this.logger(`Cannot get tiles, using fallback rally point`);
+            }
         }
     }
 

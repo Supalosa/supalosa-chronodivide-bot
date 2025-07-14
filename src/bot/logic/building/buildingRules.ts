@@ -22,6 +22,8 @@ import { ResourceCollectionBuilding } from "./resourceCollectionBuilding.js";
 import { Harvester } from "./harvester.js";
 import { uniqBy } from "../common/utils.js";
 import { AntiAirStaticDefence } from "./antiAirStaticDefence.js";
+import { NavalYard } from "./navalYard.js";
+import { BasicNavalUnit } from "./basicNavalUnit.js";
 
 export interface AiBuildingRules {
     getPriority(
@@ -192,7 +194,7 @@ export const DEFAULT_BUILDING_PRIORITY = 0;
 export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Allied
     ["GAPOWR", new PowerPlant()],
-    ["GAREFN", new ResourceCollectionBuilding(10, 3)], // Refinery
+    ["GAREFN", new ResourceCollectionBuilding(10, 2)], // Refinery
     ["GAWEAP", new BasicBuilding(15, 1)], // War Factory
     ["GAPILE", new BasicBuilding(12, 1)], // Barracks
     ["CMIN", new Harvester(15, 4, 2)], // Chrono Miner
@@ -201,7 +203,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["AMRADR", new BasicBuilding(10, 1, 500)], // Airforce Command (USA)
 
     ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
-    ["GAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
+    ["GAYARD", new NavalYard(15, 1, 2000, (message, sayInGame) => console.log(message))], // Naval Yard, enabled
 
     ["GAPILL", new AntiGroundStaticDefence(2, 1, 5, 5)], // Pillbox
     ["ATESLA", new AntiGroundStaticDefence(2, 1, 10, 3)], // Prism Cannon
@@ -221,14 +223,14 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
 
     // Soviet
     ["NAPOWR", new PowerPlant()],
-    ["NAREFN", new ResourceCollectionBuilding(10, 3)], // Refinery
+    ["NAREFN", new ResourceCollectionBuilding(10, 2)], // Refinery
     ["NAWEAP", new BasicBuilding(15, 1)], // War Factory
     ["NAHAND", new BasicBuilding(12, 1)], // Barracks
     ["HARV", new Harvester(15, 4, 2)], // War Miner
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(10, 1, 500)], // Radar
     ["NANRCT", new PowerPlant()], // Nuclear Reactor
-    ["NAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
+    ["NAYARD", new NavalYard(15, 2, 2000, (message, sayInGame) => console.log(message))], // Naval Yard, enabled
 
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 
@@ -247,4 +249,16 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["HTK", new BasicGroundUnit(5, 2, 0.33, 1.5)], // Flak Track
     ["ZEP", new BasicAirUnit(5, 1, 5, 1)], // Kirov
     ["V3", new ArtilleryUnit(9, 10, 0, 3)], // V3 Rocket Launcher
+
+    // Allied Naval Units
+    ["DEST", new BasicNavalUnit(9, 4, 2, 0, 1)],  // 驱逐舰
+    ["AEGIS", new BasicNavalUnit(8, 0, 0, 6, 0)],  // 神盾巡洋舰
+    ["CARRIER", new BasicNavalUnit(9, 1, 2, 1, 1)],  // 航母
+    ["DLPH", new BasicNavalUnit(5, 2, 0, 0, 2)],  // 海豚
+
+    // Soviet Naval Units
+    ["SUB", new BasicNavalUnit(9, 4, 0, 0, 4)],  // 潜艇
+    ["HYD", new BasicNavalUnit(8, 6, 0.1, 1.5, 0)],  // 海蝎
+    ["DRED", new BasicNavalUnit(9, 1, 10, 0, 1)],  // 无畏
+    ["SQD", new BasicNavalUnit(5, 2, 0, 0, 5)],  // 巨型乌贼
 ]);
