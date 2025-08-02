@@ -202,6 +202,15 @@ export class MatchAwarenessImpl implements MatchAwareness {
             const startTile = game.mapApi.getTile(playerData.startLocation.x, playerData.startLocation.y);
             const targetTile = game.mapApi.getTile(enemy.startLocation.x, enemy.startLocation.y);
             
+            const fallbackRallyPoint = getPointTowardsOtherPoint(
+                game,
+                playerData.startLocation,
+                enemy.startLocation,
+                9, // 9 to fit the map like lostlake.map
+                9,
+                0,
+            );
+
             if (startTile && targetTile) {
                 try {
                     const path = game.mapApi.findPath(
@@ -221,39 +230,15 @@ export class MatchAwarenessImpl implements MatchAwareness {
                         this.mainRallyPoint = new Vector2(midTile.rx, midTile.ry);
                         this.logger(`Rally point set to path 70% position: (${midTile.rx}, ${midTile.ry}), path length: ${path.length}`);
                     } else {
-                        // 如果找不到路径，使用fallback方案
-                        this.mainRallyPoint = getPointTowardsOtherPoint(
-                            game,
-                            playerData.startLocation,
-                            enemy.startLocation,
-                            9,
-                            9,
-                            0,
-                        );
+                        this.mainRallyPoint = fallbackRallyPoint;
                         this.logger(`No path found, using fallback rally point: (${this.mainRallyPoint.x}, ${this.mainRallyPoint.y})`);
                     }
                 } catch (error) {
-                    // 路径查找出错时使用fallback方案
-                    this.mainRallyPoint = getPointTowardsOtherPoint(
-                        game,
-                        playerData.startLocation,
-                        enemy.startLocation,
-                        10,
-                        10,
-                        0,
-                    );
+                    this.mainRallyPoint = fallbackRallyPoint;
                     this.logger(`Path finding error, using fallback rally point: ${error}`);
                 }
             } else {
-                // 如果无法获取tile，使用fallback方案
-                this.mainRallyPoint = getPointTowardsOtherPoint(
-                    game,
-                    playerData.startLocation,
-                    enemy.startLocation,
-                    10,
-                    10,
-                    0,
-                );
+                this.mainRallyPoint = fallbackRallyPoint;
                 this.logger(`Cannot get tiles, using fallback rally point`);
             }
         }
