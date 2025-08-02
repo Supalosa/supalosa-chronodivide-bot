@@ -1,4 +1,5 @@
 import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2, SpeedType, LandType } from "@chronodivide/game-api";
+import { subscribe } from "../../common/eventBus.js";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
@@ -64,6 +65,12 @@ export class AttackMission extends Mission<AttackFailReason> {
     private landAttackFailCount: number = 0;
     private readonly MAX_LAND_ATTACK_ATTEMPTS = 2;  // 最大陆地进攻尝试次数
     private isNavalMission: boolean = false;
+    // --- Naval yard management ---
+    private navalModeStartTick: number = 0;
+    private navalYardRequestAttempts: number = 0;
+    private unsubscribeFromEvents: (() => void) | null = null;
+    private readonly MAX_NAVAL_YARD_ATTEMPTS = 2;
+    private readonly NAVAL_YARD_WAIT_TICKS = 4500;
 
     private lastTargetSeenAt = 0;
     private hasPickedNewTarget: boolean = false;
@@ -163,7 +170,17 @@ export class AttackMission extends Mission<AttackFailReason> {
     ) {
         // 检查是否需要切换到海军编队
         if (!this.isNavalMission && this.shouldSwitchToNaval(gameApi, playerData)) {
+            // 首次切到海军，开始监听造船失败事件
             this.isNavalMission = true;
+            if (!this.unsubscribeFromEvents) {
+                this.unsubscribeFromEvents = subscribe((ev) => {
+                    if (ev.type === "yardFailed" && ev.player === playerData.name) {
+                        this.navalYardRequestAttempts++;
+                    }
+                });
+            }
+            this.navalModeStartTick = gameApi.getCurrentTick();
+            this.navalYardRequestAttempts = 0;
             this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, true);
             this.logger("已切换为海军编队");
             this.logger(`[NAVAL_DEBUG] 海军编队组成: ${JSON.stringify(this.composition)}`);
@@ -171,6 +188,39 @@ export class AttackMission extends Mission<AttackFailReason> {
         }
 
         const currentComposition: UnitComposition = countBy(this.getUnitsGameObjectData(gameApi), (unit) => unit.name);
+
+        // -------- Check if land path is now reachable --------
+        if (this.isNavalMission) {
+            const reachableNow = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
+            if (reachableNow) {
+                this.logger("[NAVAL_DEBUG] 陆路路径已打通，切回陆军模式");
+                if (this.unsubscribeFromEvents) { this.unsubscribeFromEvents(); this.unsubscribeFromEvents = null; }
+                this.isNavalMission = false;
+                this.priority = ATTACK_MISSION_INITIAL_PRIORITY;
+                this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, false);
+                return noop();
+            }
+        }
+
+        // -------- Naval yard build management --------
+        const hasNavalYard = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAYARD" || r.name === "NAYARD").length > 0;
+        if (this.isNavalMission && !hasNavalYard) {
+            // 如果等待过久或尝试次数过多，则回退陆军模式
+            if (
+                gameApi.getCurrentTick() - this.navalModeStartTick > this.NAVAL_YARD_WAIT_TICKS ||
+                this.navalYardRequestAttempts >= this.MAX_NAVAL_YARD_ATTEMPTS
+            ) {
+                this.logger(`[NAVAL_DEBUG] 造船厂长期无法建成，回退陆军模式，尝试次数: ${this.navalYardRequestAttempts}, 等待时间: ${gameApi.getCurrentTick() - this.navalModeStartTick}`);
+                if (this.unsubscribeFromEvents) { this.unsubscribeFromEvents(); this.unsubscribeFromEvents = null; }
+                this.isNavalMission = false;
+                this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, false);
+                return noop();
+            }
+            if (this.navalYardRequestAttempts < this.MAX_NAVAL_YARD_ATTEMPTS) {
+                const yardName = playerData.country?.side === SideType.Nod ? "NAYARD" : "GAYARD";
+                return requestUnits([yardName], this.priority * 100);
+            }
+        }
 
         // 调试当前单位组成
         if (this.isNavalMission) {

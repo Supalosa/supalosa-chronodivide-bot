@@ -15,6 +15,7 @@ import {
     getDefaultPlacementLocation,
 } from "./buildingRules.js";
 import { DebugLogger } from "../common/utils";
+import { publish } from "../common/eventBus.js";
 
 export const QUEUES = [
     QueueType.Structures,
@@ -162,6 +163,10 @@ export class QueueController {
                     actionsApi.placeBuilding(objectReady.name, location.rx, location.ry);
                 } else {
                     logger(`Completed: ${queueTypeToName(queueType)}: ${objectReady.name} but nowhere to place it`);
+                    if (objectReady.name === "GAYARD" || objectReady.name === "NAYARD") {
+                        publish({ type: "yardFailed", player: playerData.name });
+                    }
+                    actionsApi.unqueueFromProduction(queueType, objectReady.name, objectReady.type, 1);
                 }
             }
         } else if (queueData.status == QueueStatus.Active && queueData.items.length > 0 && decision != null) {
