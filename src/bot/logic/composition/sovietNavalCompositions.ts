@@ -12,15 +12,15 @@ export const getNavalCompositions = (
     const hasAirforce = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NARADR").length > 0;
     const hasBattleLab = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NATECH").length > 0;
 
-    // 基础海军编队
+    // Basic naval formation
     let composition: UnitComposition = {};
 
-    // 海蝎作为防空单位
+    // Sea Scorpion as anti-air unit
     if (hasAirforce) {
         composition.HYD = 3;
     }
 
-    // 无畏和乌贼作为高级单位
+    // Dreadnought and squid as advanced units
     if (hasBattleLab) {
         composition.DRED = 1;
     }

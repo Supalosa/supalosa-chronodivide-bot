@@ -16,7 +16,7 @@ export class BasicNavalUnit implements AiBuildingRules {
         playerData: PlayerData,
         technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
-        return undefined;  // 海军单位不需要放置位置
+        return undefined;  // Naval units don't need placement position
     }
 
     getPriority(
@@ -25,7 +25,7 @@ export class BasicNavalUnit implements AiBuildingRules {
         technoRules: TechnoRules,
         threatCache: GlobalThreat | null,
     ): number {
-        // 单位不会自动建造，而是由任务请求建造
+        // Units are not automatically built, but built by mission requests
         return 0;
     }
 

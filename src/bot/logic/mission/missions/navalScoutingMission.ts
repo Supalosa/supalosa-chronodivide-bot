@@ -11,22 +11,22 @@ import { determineMapBounds } from "../../map/map.js";
 const NAVAL_SCOUT_MOVE_COOLDOWN_TICKS = 30;
 const MAX_ATTEMPTS_PER_TARGET = 5;
 const MAX_TICKS_PER_TARGET = 600;
-const POSITION_CHECK_INTERVAL = 60; // 检查单位是否停止移动的间隔
-const STUCK_THRESHOLD = 2; // 判定为停止移动的阈值（2x2区域）
+const POSITION_CHECK_INTERVAL = 60; // Interval for checking if unit has stopped moving
+const STUCK_THRESHOLD = 2; // Threshold for determining stopped movement (2x2 area)
 
-// 获取地图上所有的水域点
+// Get all water points on the map
 function getAllWaterPoints(gameApi: GameApi, sectorSize: number = 8): Vector2[] {
     const waterPoints: Vector2[] = [];
     const mapBounds = determineMapBounds(gameApi.mapApi);
     
-    // 确保不会超出地图边界
+    // Ensure not exceeding map boundaries
     for (let x = 0; x < mapBounds.width; x += sectorSize) {
         for (let y = 0; y < mapBounds.height; y += sectorSize) {
-            // 检查当前点是否在地图范围内
+            // Check if current point is within map bounds
             if (x >= 0 && x < mapBounds.width && y >= 0 && y < mapBounds.height) {
                 const tile = gameApi.mapApi.getTile(x, y);
                 if (tile && tile.landType === LandType.Water) {
-                    // 确保这个水域点是可通行的
+                    // Ensure this water point is passable
                     const path = gameApi.mapApi.findPath(
                         SpeedType.Float,
                         true,
@@ -42,7 +42,7 @@ function getAllWaterPoints(gameApi: GameApi, sectorSize: number = 8): Vector2[] 
     }
 
     if (waterPoints.length === 0) {
-        // 如果没有找到水域点，可能需要使用更小的采样间隔
+        // If no water points found, may need to use smaller sampling interval
         if (sectorSize > 2) {
             return getAllWaterPoints(gameApi, Math.floor(sectorSize / 2));
         }
@@ -51,7 +51,7 @@ function getAllWaterPoints(gameApi: GameApi, sectorSize: number = 8): Vector2[] 
     return waterPoints;
 }
 
-// 获取最终可达的水域位置
+// Get final reachable water position
 function getFinalReachablePoint(gameApi: GameApi, startPoint: Vector2, targetPoint: Vector2): Vector2 | null {
     const startTile = gameApi.mapApi.getTile(startPoint.x, startPoint.y);
     const targetTile = gameApi.mapApi.getTile(targetPoint.x, targetPoint.y);
@@ -76,7 +76,7 @@ function getFinalReachablePoint(gameApi: GameApi, startPoint: Vector2, targetPoi
 }
 
 /**
- * 海军侦察任务，使用海军单位进行地图侦察
+ * Naval scouting mission, using naval units for map reconnaissance
  */
 export class NavalScoutingMission extends Mission {
     private scoutTarget: Vector2 | null = null;
@@ -101,12 +101,12 @@ export class NavalScoutingMission extends Mission {
     private initializeWaterPoints(gameApi: GameApi): void {
         if (this.waterPoints === null) {
             this.waterPoints = getAllWaterPoints(gameApi);
-            // 随机打乱水域点顺序，使探索更随机
+            // Randomly shuffle water point order to make exploration more random
             for (let i = this.waterPoints.length - 1; i > 0; i--) {
                 const j = Math.floor(gameApi.generateRandom() * (i + 1));
                 [this.waterPoints[i], this.waterPoints[j]] = [this.waterPoints[j], this.waterPoints[i]];
             }
-            this.logger(`找到 ${this.waterPoints.length} 个水域探索点`);
+            this.logger(`Found ${this.waterPoints.length} water exploration points`);
         }
     }
 
@@ -116,12 +116,12 @@ export class NavalScoutingMission extends Mission {
             return null;
         }
 
-        // 从当前位置开始寻找最近的未访问且未被探索的水域点
+        // Search for nearest unvisited and unexplored water point from current position
         let nearestPoint = null;
         let minDistance = Number.MAX_VALUE;
         const sectorCache = matchAwareness.getSectorCache();
 
-        // 更新已探索点集合
+        // Update explored points set
         const exploredPoints = new Set<string>();
         this.waterPoints.forEach(point => {
             const sector = sectorCache.getSectorForWorldPosition(point.x, point.y);
@@ -130,7 +130,7 @@ export class NavalScoutingMission extends Mission {
             }
         });
 
-        // 如果所有点都已访问，但还有未探索的点，重置访问记录
+        // If all points visited but there are still unexplored points, reset visit records
         if (this.visitedWaterPoints.size >= this.waterPoints.length) {
             this.visitedWaterPoints = exploredPoints;
         }
@@ -139,12 +139,12 @@ export class NavalScoutingMission extends Mission {
             const target = this.waterPoints[i];
             const pointKey = `${target.x},${target.y}`;
             
-            // 跳过已访问的点
+            // Skip already visited points
             if (this.visitedWaterPoints.has(pointKey)) {
                 continue;
             }
 
-            // 跳过已探索的点
+            // Skip already explored points
             if (exploredPoints.has(pointKey)) {
                 this.visitedWaterPoints.add(pointKey);
                 continue;
@@ -163,9 +163,9 @@ export class NavalScoutingMission extends Mission {
         if (nearestPoint) {
             const pointKey = `${nearestPoint.x},${nearestPoint.y}`;
             this.visitedWaterPoints.add(pointKey);
-            this.logger(`选择新的水域探索点 ${nearestPoint.x},${nearestPoint.y}`);
+            this.logger(`Selected new water exploration point ${nearestPoint.x},${nearestPoint.y}`);
         } else if (this.visitedWaterPoints.size < this.waterPoints.length) {
-            this.logger("重新探索未被发现的区域");
+            this.logger("Re-explore undiscovered areas");
         }
 
         return nearestPoint;
@@ -205,10 +205,10 @@ export class NavalScoutingMission extends Mission {
         const currentScout = scouts[0];
         const currentPosition = new Vector2(currentScout.tile.rx, currentScout.tile.ry);
 
-        // 检查单位是否停止移动
+        // Check if unit has stopped moving
         if (gameApi.getCurrentTick() >= this.lastPositionCheckTick + POSITION_CHECK_INTERVAL) {
             if (this.lastPosition && this.isUnitStuck(currentPosition)) {
-                this.logger(`单位在 ${currentPosition.x},${currentPosition.y} 停止移动，寻找新目标`);
+                this.logger(`Unit stopped moving at ${currentPosition.x},${currentPosition.y}, searching for new target`);
                 this.setScoutTarget(null, gameApi.getCurrentTick());
             }
             this.lastPosition = currentPosition;
@@ -220,12 +220,12 @@ export class NavalScoutingMission extends Mission {
 
             if (!this.scoutTargetIsPermanent) {
                 if (this.attemptsOnCurrentTarget > MAX_ATTEMPTS_PER_TARGET) {
-                    this.logger(`侦察目标 ${this.scoutTarget.x},${this.scoutTarget.y} 尝试次数过多，切换下一个目标`);
+                    this.logger(`Scout target ${this.scoutTarget.x},${this.scoutTarget.y} attempted too many times, switching to next target`);
                     this.setScoutTarget(null, 0);
                     return noop();
                 }
                 if (gameApi.getCurrentTick() > this.scoutTargetRefreshedAt + MAX_TICKS_PER_TARGET) {
-                    this.logger(`侦察目标 ${this.scoutTarget.x},${this.scoutTarget.y} 耗时过长，切换下一个目标`);
+                    this.logger(`Scout target ${this.scoutTarget.x},${this.scoutTarget.y} taking too long, switching to next target`);
                     this.setScoutTarget(null, 0);
                     return noop();
                 }
@@ -233,7 +233,7 @@ export class NavalScoutingMission extends Mission {
 
             const targetTile = gameApi.mapApi.getTile(this.scoutTarget.x, this.scoutTarget.y);
             if (!targetTile) {
-                throw new Error(`目标位置 ${this.scoutTarget.x},${this.scoutTarget.y} 不存在`);
+                throw new Error(`Target position ${this.scoutTarget.x},${this.scoutTarget.y} does not exist`);
             }
 
             if (gameApi.getCurrentTick() > this.lastMoveCommandTick + NAVAL_SCOUT_MOVE_COOLDOWN_TICKS) {
@@ -248,31 +248,31 @@ export class NavalScoutingMission extends Mission {
             if (gameApi.mapApi.isVisibleTile(targetTile, playerData.name)) {
                 const pointKey = `${this.scoutTarget.x},${this.scoutTarget.y}`;
                 this.visitedWaterPoints.add(pointKey);
-                this.logger(`目标 ${this.scoutTarget.x},${this.scoutTarget.y} 侦察成功，切换下一个目标`);
+                this.logger(`Target ${this.scoutTarget.x},${this.scoutTarget.y} scouted successfully, switching to next target`);
                 this.setScoutTarget(null, gameApi.getCurrentTick());
             }
         } else {
-            // 获取新的侦察目标
+            // Get new scout target
             const nextScoutTarget = matchAwareness.getScoutingManager().getNewScoutTarget();
             if (nextScoutTarget) {
                 const targetPoint = nextScoutTarget.asVector2();
                 if (targetPoint) {
-                    // 直接获取最终可达点
+                    // Directly get final reachable point
                     const finalPoint = getFinalReachablePoint(gameApi, currentPosition, targetPoint);
                     if (finalPoint) {
                         this.setScoutTarget(finalPoint, gameApi.getCurrentTick());
-                        this.logger(`前往侦察目标 ${finalPoint.x},${finalPoint.y}`);
+                        this.logger(`Heading to scout target ${finalPoint.x},${finalPoint.y}`);
                         return noop();
                     }
                 }
             }
 
-            // 如果没有可用的侦察目标，选择就近的水域点
+            // If no scout targets available, choose nearest water point
             const nextWaterTarget = this.getNextWaterTarget(gameApi, currentPosition, matchAwareness);
             if (nextWaterTarget) {
                 this.setScoutTarget(nextWaterTarget, gameApi.getCurrentTick());
             } else {
-                this.logger(`没有找到可达的水域探索点，任务结束`);
+                this.logger(`No reachable water exploration points found, mission ends`);
                 return disbandMission();
             }
         }
@@ -284,13 +284,13 @@ export class NavalScoutingMission extends Mission {
         this.scoutTargetRefreshedAt = currentTick;
         this.scoutTarget = target;
         this.scoutTargetIsPermanent = false;
-        // 重置位置检查
+        // Reset position check
         this.lastPosition = null;
         this.lastPositionCheckTick = currentTick;
     }
 
     public getGlobalDebugText(): string | undefined {
-        return "海军侦察中";
+        return "Naval scouting in progress";
     }
 
     public getPriority() {
@@ -312,7 +312,7 @@ export class NavalScoutingMissionFactory implements MissionFactory {
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
-        // 每300个tick检查一次是否需要创建新的海军侦察任务
+        // Check every 300 ticks whether to create new naval scouting mission
         if (gameApi.getCurrentTick() < this.lastScoutAt + 300) {
             return;
         }

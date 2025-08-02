@@ -198,7 +198,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 .getPlayers()
                 .filter((p) => p !== playerData.name && !game.areAlliedPlayers(playerData.name, p));
             const enemy = game.getPlayerData(enemyPlayers[0]);
-            // 使用findPath找到从我方startLocation到enemy.startLocation的Track路径70%位置
+            // Use findPath to find 70% position of Track path from our startLocation to enemy.startLocation
             const startTile = game.mapApi.getTile(playerData.startLocation.x, playerData.startLocation.y);
             const targetTile = game.mapApi.getTile(enemy.startLocation.x, enemy.startLocation.y);
             
@@ -224,7 +224,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
                     );
                     
                     if (path && path.length > 0) {
-                        // 选择路径70%位置的点
+                        // Select point at 70% position of path
                         const midPointIndex = Math.floor(path.length / 10 * 3);
                         const midTile = path[midPointIndex].tile;
                         this.mainRallyPoint = new Vector2(midTile.rx, midTile.ry);

@@ -1,48 +1,48 @@
 import { Mission } from "./mission.js";
 import { Vector2 } from "@chronodivide/game-api";
 
-// 基础任务动作接口
+// Base mission action interface
 export interface MissionAction {
     type: string;
     priority: number;
 }
 
-// 空动作
+// Empty action
 export interface MissionActionNoop extends MissionAction {
     type: "noop";
 }
 
-// 请求单位类型的动作
+// Action to request unit types
 export interface MissionActionRequestUnitTypes extends MissionAction {
     type: "requestUnitTypes";
     unitTypes: Record<string, number>;
 }
 
-// 释放单位的动作
+// Action to release units
 export interface MissionActionReleaseUnits extends MissionAction {
     type: "releaseUnits";
     unitIds: number[];
 }
 
-// 请求特定单位的动作
+// Action to request specific units
 export interface MissionActionRequestSpecificUnits extends MissionAction {
     type: "requestSpecificUnits";
     unitIds: number[];
 }
 
-// 移动到目标点的动作
+// Action to move to target point
 export interface MissionActionMoveToPoint extends MissionAction {
     type: "moveToPoint";
     targetPoint: Vector2;
 }
 
-// 任务与动作的组合
+// Combination of mission and action
 export interface MissionWithAction<T extends MissionAction> {
     mission: Mission;
     action: T;
 }
 
-// 类型守卫函数
+// Type guard function
 export function isReleaseUnits(
     missionWithAction: MissionWithAction<MissionAction>
 ): missionWithAction is MissionWithAction<MissionActionReleaseUnits> {

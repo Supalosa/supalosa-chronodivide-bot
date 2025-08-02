@@ -40,14 +40,14 @@ function calculateTargetComposition(
         throw new Error(`player ${playerData.name} has no country`);
     }
 
-    // 如果指定使用海军编队
+    // If specified to use naval formation
     if (useNaval) {
         return playerData.country.side === SideType.Nod
-            ? getSovietNavalCompositions(gameApi, playerData, matchAwareness)  // 苏联海军
-            : getAlliedNavalCompositions(gameApi, playerData, matchAwareness);  // 盟军海军
+            ? getSovietNavalCompositions(gameApi, playerData, matchAwareness)  // Soviet Navy
+            : getAlliedNavalCompositions(gameApi, playerData, matchAwareness);  // Allied Navy
     }
 
-    // 默认使用陆地编队
+    // Use land formation by default
     return playerData.country.side === SideType.Nod
         ? getSovietComposition(gameApi, playerData, matchAwareness)
         : getAlliedCompositions(gameApi, playerData, matchAwareness);
@@ -63,7 +63,7 @@ export class AttackMission extends Mission<AttackFailReason> {
     private squad: CombatSquad;
     private hasTriedLandAttack: boolean = false;
     private landAttackFailCount: number = 0;
-    private readonly MAX_LAND_ATTACK_ATTEMPTS = 2;  // 最大陆地进攻尝试次数
+    private readonly MAX_LAND_ATTACK_ATTEMPTS = 2;  // Maximum land attack attempts
     private isNavalMission: boolean = false;
     // --- Naval yard management ---
     private navalModeStartTick: number = 0;
@@ -99,7 +99,7 @@ export class AttackMission extends Mission<AttackFailReason> {
             `    rallyArea=(${this.rallyArea.x},${this.rallyArea.y}) attackArea=(${this.attackArea.x},${this.attackArea.y})`,
         );
 
-        // 如果已经是海军任务，不需要切换
+        // If already naval mission, no need to switch
         if (this.isNavalMission) {
             this.logger("    Already naval mission, skip switch check.");
             return false;
@@ -108,36 +108,36 @@ export class AttackMission extends Mission<AttackFailReason> {
         const reachable = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
         this.logger(`    pathReachable=${reachable}`);
 
-        // 如果目标点对陆地单位不可达
+        // If target point is unreachable for land units
         if (!reachable) {
             const rallyTile = gameApi.mapApi.getTile(this.rallyArea.x, this.rallyArea.y);
             const attackTile = gameApi.mapApi.getTile(this.attackArea.x, this.attackArea.y);
             const reachable = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
-            // 获取所有可见敌方单位
+            // Get all visible enemy units
             const allEnemyUnits = gameApi
                 .getVisibleUnits(playerData.name, "enemy")
                 .map((unitId) => gameApi.getUnitData(unitId))
                 .filter((unit) => unit !== undefined) as UnitData[];
 
-            // 过滤出在attack area内的单位
+            // Filter units within attack area
             const unitsInAttackArea = allEnemyUnits.filter((unit) => {
                 const distance = new Vector2(unit.tile.rx, unit.tile.ry).distanceTo(this.attackArea);
                 return distance <= 3;
             });
 
-            // 打印详细信息
-            this.logger(`Attack Area (${this.attackArea.x},${this.attackArea.y}) 半径${this.radius} 内发现 ${unitsInAttackArea.length} 个敌方单位:`);
+            // Print detailed information
+            this.logger(`Attack Area (${this.attackArea.x},${this.attackArea.y}) radius ${this.radius} found ${unitsInAttackArea.length} enemy units:`);
             unitsInAttackArea.forEach((unit, index) => {
                 const distance = new Vector2(unit.tile.rx, unit.tile.ry).distanceTo(this.attackArea);
-                this.logger(`  ${index + 1}. ${unit.name}(id:${unit.id}) 距离:${distance.toFixed(1)} 类型:${unit.type} 血量:${unit.hitPoints}/${unit.maxHitPoints}`);
+                this.logger(`  ${index + 1}. ${unit.name}(id:${unit.id}) distance:${distance.toFixed(1)} type:${unit.type} health:${unit.hitPoints}/${unit.maxHitPoints}`);
             });
-            this.logger(`目标点陆地单位无法到达，切换为海军编队 | rallyTile类型: ${rallyTile?.landType ?? 'unknown'} | attackTile类型: ${attackTile?.landType ?? 'unknown'}`);
+            this.logger(`Target point unreachable for land units, switching to naval formation | rallyTile type: ${rallyTile?.landType ?? 'unknown'} | attackTile type: ${attackTile?.landType ?? 'unknown'}`);
             return true;
         }
 
-        // 如果陆地进攻多次失败
+        // If land attacks failed multiple times
         if (this.landAttackFailCount >= this.MAX_LAND_ATTACK_ATTEMPTS) {
-            this.logger("陆地进攻失败次数过多，切换为海军编队");
+            this.logger("Too many land attack failures, switching to naval formation");
             return true;
         }
 
@@ -168,9 +168,9 @@ export class AttackMission extends Mission<AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
-        // 检查是否需要切换到海军编队
+        // Check if need to switch to naval formation
         if (!this.isNavalMission && this.shouldSwitchToNaval(gameApi, playerData)) {
-            // 首次切到海军，开始监听造船失败事件
+            // First switch to naval, start listening for shipyard failure events
             this.isNavalMission = true;
             if (!this.unsubscribeFromEvents) {
                 this.unsubscribeFromEvents = subscribe((ev) => {
@@ -182,8 +182,8 @@ export class AttackMission extends Mission<AttackFailReason> {
             this.navalModeStartTick = gameApi.getCurrentTick();
             this.navalYardRequestAttempts = 0;
             this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, true);
-            this.logger("已切换为海军编队");
-            this.logger(`[NAVAL_DEBUG] 海军编队组成: ${JSON.stringify(this.composition)}`);
+            this.logger("Switched to naval formation");
+            this.logger(`[NAVAL_DEBUG] Naval formation composition: ${JSON.stringify(this.composition)}`);
             return noop();
         }
 
@@ -193,7 +193,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         if (this.isNavalMission) {
             const reachableNow = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
             if (reachableNow) {
-                this.logger("[NAVAL_DEBUG] 陆路路径已打通，切回陆军模式");
+                this.logger("[NAVAL_DEBUG] Land path is now clear, switching back to land mode");
                 if (this.unsubscribeFromEvents) { this.unsubscribeFromEvents(); this.unsubscribeFromEvents = null; }
                 this.isNavalMission = false;
                 this.priority = ATTACK_MISSION_INITIAL_PRIORITY;
@@ -205,12 +205,12 @@ export class AttackMission extends Mission<AttackFailReason> {
         // -------- Naval yard build management --------
         const hasNavalYard = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAYARD" || r.name === "NAYARD").length > 0;
         if (this.isNavalMission && !hasNavalYard) {
-            // 如果等待过久或尝试次数过多，则回退陆军模式
+            // If waited too long or too many attempts, fall back to land mode
             if (
                 gameApi.getCurrentTick() - this.navalModeStartTick > this.NAVAL_YARD_WAIT_TICKS ||
                 this.navalYardRequestAttempts >= this.MAX_NAVAL_YARD_ATTEMPTS
             ) {
-                this.logger(`[NAVAL_DEBUG] 造船厂长期无法建成，回退陆军模式，尝试次数: ${this.navalYardRequestAttempts}, 等待时间: ${gameApi.getCurrentTick() - this.navalModeStartTick}`);
+                this.logger(`[NAVAL_DEBUG] Naval yard unable to build for long time, falling back to land mode, attempts: ${this.navalYardRequestAttempts}, wait time: ${gameApi.getCurrentTick() - this.navalModeStartTick}`);
                 if (this.unsubscribeFromEvents) { this.unsubscribeFromEvents(); this.unsubscribeFromEvents = null; }
                 this.isNavalMission = false;
                 this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, false);
@@ -222,10 +222,10 @@ export class AttackMission extends Mission<AttackFailReason> {
             }
         }
 
-        // 调试当前单位组成
+        // Debug current unit composition
         if (this.isNavalMission) {
-            this.logger(`[NAVAL_DEBUG] 当前海军单位组成: ${JSON.stringify(currentComposition)}`);
-            this.logger(`[NAVAL_DEBUG] 目标海军编队组成: ${JSON.stringify(this.composition)}`);
+            this.logger(`[NAVAL_DEBUG] Current naval unit composition: ${JSON.stringify(currentComposition)}`);
+            this.logger(`[NAVAL_DEBUG] Target naval formation composition: ${JSON.stringify(this.composition)}`);
         }
 
         const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
@@ -234,7 +234,7 @@ export class AttackMission extends Mission<AttackFailReason> {
 
         if (missingUnits.length > 0) {
             if (this.isNavalMission) {
-                this.logger(`[NAVAL_DEBUG] 缺少海军单位: ${JSON.stringify(missingUnits)}`);
+                this.logger(`[NAVAL_DEBUG] Missing naval units: ${JSON.stringify(missingUnits)}`);
             }
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
             return requestUnits(
@@ -243,7 +243,7 @@ export class AttackMission extends Mission<AttackFailReason> {
             );
         } else {
             if (this.isNavalMission) {
-                this.logger(`[NAVAL_DEBUG] 海军编队准备完毕，开始攻击阶段`);
+                this.logger(`[NAVAL_DEBUG] Naval formation ready, starting attack phase`);
             }
             this.priority = ATTACK_MISSION_INITIAL_PRIORITY;
             this.state = AttackMissionState.Attacking;

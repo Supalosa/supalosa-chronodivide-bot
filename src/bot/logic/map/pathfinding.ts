@@ -1,13 +1,13 @@
 import { GameApi, Vector2, SpeedType } from "@chronodivide/game-api";
 
 /**
- * 判断目标点是否可达
- * @param gameApi GameApi实例
- * @param startPoint 起始点
- * @param targetPoint 目标点
- * @param speedType 移动类型
- * @param maxAllowedError 允许的最大误差（格子数），默认为1
- * @returns 如果目标点可达返回true，否则返回false
+ * Check if target point is reachable
+ * @param gameApi GameApi instance
+ * @param startPoint start point
+ * @param targetPoint target point
+ * @param speedType movement type
+ * @param maxAllowedError maximum allowed error (in tiles), default is 1
+ * @returns returns true if target point is reachable, false otherwise
  */
 export function isPointReachable(
     gameApi: GameApi,
@@ -17,20 +17,20 @@ export function isPointReachable(
     maxAllowedError: number = 1,
     considerUnitAboveCeiling: boolean = false
 ): boolean {
-    // 获取起点和终点的tile
+    // Get tiles for start and end points
     const startTile = gameApi.mapApi.getTile(startPoint.x, startPoint.y);
     const targetTile = gameApi.mapApi.getTile(targetPoint.x, targetPoint.y);
     
-    // 如果任一点不是有效的tile，返回false
+    // If either point is not a valid tile, return false
     if (!startTile || !targetTile) {
         return false;
     }
 
-    // 判断起点和终点是否在桥面上
+    // Check if start and end points are on bridges
     const startOnBridge = startTile.onBridgeLandType !== undefined;
     const targetOnBridge = targetTile.onBridgeLandType !== undefined;
     
-    // 使用findPath获取路径，根据实际桥面状态设置onBridge参数
+    // Use findPath to get path, set onBridge parameter based on actual bridge status
     const path = gameApi.mapApi.findPath(
         speedType,
         considerUnitAboveCeiling,
@@ -38,17 +38,17 @@ export function isPointReachable(
         { tile: targetTile, onBridge: targetOnBridge }
     );
     
-    // 如果没有找到路径，直接返回false
+    // If no path found, return false directly
     if (!path || path.length === 0) {
         return false;
     }
 
-    // 获取路径的终点
+    // Get the end point of the path
     const pathEndPoint = path[0].tile;
     
-    // 计算路径终点和目标点之间的距离
+    // Calculate distance between path end point and target point
     const endPointDistance = new Vector2(pathEndPoint.rx, pathEndPoint.ry).distanceTo(targetPoint);
     
-    // 如果距离小于等于允许的最大误差，则认为可达
+    // If distance is less than or equal to maximum allowed error, consider it reachable
     return endPointDistance <= maxAllowedError;
 } 

@@ -17,7 +17,7 @@ import { MissionFactory } from "../missionFactories.js";
 import { MissionController } from "../missionController.js";
 
 /**
- * 抵御盟军驱逐舰贴岸骚扰：召集 3 辆犀牛 (MTNK) 前往岸边并攻击 DEST。
+ * Defend against Allied destroyer coastal harassment: gather 3 Rhinos (MTNK) to go to the shore and attack DEST.
  */
 export class AntiCoastShipMission extends Mission<null> {
     private readonly requiredUnits: Record<string, number> = { MTNK: 3 };
@@ -50,23 +50,23 @@ export class AntiCoastShipMission extends Mission<null> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
-        // 驱逐舰是否仍存活
+        // Check if destroyer is still alive
         const destData = gameApi.getUnitData(this.targetId);
         if (!destData) {
             return disbandMission();
         }
         this.targetPos.set(destData.tile.rx, destData.tile.ry);
 
-        // 统计现有 MTNK
+        // Count existing MTNK
         const currentComp = countBy(this.getUnitsGameObjectData(gameApi), (u) => u.name);
         const missing = Object.entries(this.requiredUnits).filter(
             ([unit, want]) => (currentComp[unit] || 0) < want,
         );
         if (missing.length > 0) {
-            // 同时申请制造缺口坦克，并立即抓取附近所有可用战斗单位参与岸防
+            // Request to build missing tanks and immediately grab all available combat units nearby to participate in coastal defense
             const requested = requestUnits(missing.map(([u]) => u), this.getPriority());
             const grab = grabCombatants(playerData.startLocation, this.getPriority());
-            // 返回 grab，让 MissionController 把自由战斗单位分配过来；请求会在 updateUnitTypes 被记录
+            // Return grab, let MissionController assign free combat units; requests will be recorded in updateUnitTypes
             return grab;
         }
 
@@ -86,7 +86,7 @@ export class AntiCoastShipMission extends Mission<null> {
 
         // ATTACK stage
         squadUnits.forEach((u) => {
-            // 对地单位使用 AttackMove 到驱逐舰当前坐标附近 2 格内岸边
+            // Ground units use AttackMove to within 2 tiles of destroyer's current shore position
             pushToPointSafe(gameApi, actionBatcher, u.id, OrderType.AttackMove, this.targetPos);
         });
         return noop();
@@ -108,7 +108,7 @@ export class AntiCoastShipMissionFactory implements MissionFactory {
         // skip if mission already exists
         if (missionController.getMissions().some((m) => m instanceof AntiCoastShipMission)) return;
 
-        // 感兴趣的舰船列表
+        // List of ships of interest
         const COAST_THREAT_UNITS = ["DEST", "AEGIS", "CARRIER", "DRED", "HYD"];
 
         const coastThreats = gameApi
@@ -118,7 +118,7 @@ export class AntiCoastShipMissionFactory implements MissionFactory {
                 if (!u) return false;
                 if (u.rules.movementZone !== MovementZone.Water) return false;
 
-                // 尝试寻路；如果陆路能靠近并且终点离目标 <= 6 格则认为可打
+                // Try pathfinding; if land route can approach and endpoint is <= 6 tiles from target, consider it attackable
                 try {
                     const startTile = gameApi.mapApi.getTile(playerData.startLocation.x, playerData.startLocation.y);
                     const targetTile = gameApi.mapApi.getTile(u.tile.rx, u.tile.ry);
