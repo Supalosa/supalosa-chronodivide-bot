@@ -258,7 +258,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
 
     // Soviet Naval Units
     ["SUB", new BasicNavalUnit(9, 4, 0, 0, 4)],  // 潜艇
-    ["HYD", new BasicNavalUnit(8, 6, 0.1, 1.5, 0)],  // 海蝎
-    ["DRED", new BasicNavalUnit(9, 1, 10, 0, 1)],  // 无畏
+    ["HYD", new BasicNavalUnit(8, 0, 0.1, 1.5, 0)],  // 海蝎
+    ["DRED", new BasicNavalUnit(9, 0, 10, 0, 1)],  // 无畏
     ["SQD", new BasicNavalUnit(5, 2, 0, 0, 5)],  // 巨型乌贼
 ]);
