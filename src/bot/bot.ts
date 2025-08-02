@@ -60,18 +60,20 @@ export class SupalosaBot extends Bot {
             .forEach((playerName) => this.actionsApi.toggleAlliance(playerName, true));
 
         // Create battle log file
-        try {
-            const logDir = path.resolve(process.cwd(), "battle_logs");
-            if (!fs.existsSync(logDir)) {
-                fs.mkdirSync(logDir, { recursive: true });
+        if (this.enableLogging) {
+            try {
+                const logDir = path.resolve(process.cwd(), "battle_logs");
+                if (!fs.existsSync(logDir)) {
+                    fs.mkdirSync(logDir, { recursive: true });
+                }
+                const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+                this.logFilePath = path.join(logDir, `battle-${timestamp}.log`);
+                fs.writeFileSync(this.logFilePath, `=== Battle started at ${new Date().toISOString()} ===\n`);
+            } catch (err) {
+                // If FS is unavailable (e.g., browser env), silently ignore.
+                this.logger.warn?.(`Unable to create battle log file: ${err}`);
+                this.logFilePath = null;
             }
-            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            this.logFilePath = path.join(logDir, `battle-${timestamp}.log`);
-            fs.writeFileSync(this.logFilePath, `=== Battle started at ${new Date().toISOString()} ===\n`);
-        } catch (err) {
-            // If FS is unavailable (e.g., browser env), silently ignore.
-            this.logger.warn?.(`Unable to create battle log file: ${err}`);
-            this.logFilePath = null;
         }
     }
 
