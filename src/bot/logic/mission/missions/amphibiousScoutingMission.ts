@@ -14,7 +14,7 @@ const MAX_TICKS_PER_TARGET = 600;
 const POSITION_CHECK_INTERVAL = 60;
 const STUCK_THRESHOLD = 2;
 
-// 获取地图上所有的可通行点（包括水域和陆地）
+// Get all passable points on the map (including water and land)
 function getAllAmphibiousPoints(gameApi: GameApi, sectorSize: number = 8): Vector2[] {
     const amphibiousPoints: Vector2[] = [];
     const mapBounds = determineMapBounds(gameApi.mapApi);
@@ -24,7 +24,7 @@ function getAllAmphibiousPoints(gameApi: GameApi, sectorSize: number = 8): Vecto
             if (x >= 0 && x < mapBounds.width && y >= 0 && y < mapBounds.height) {
                 const tile = gameApi.mapApi.getTile(x, y);
                 if (tile && (tile.landType === LandType.Water || tile.landType === LandType.Clear || tile.landType === LandType.Beach || tile.landType === LandType.Tiberium)) {
-                    // 确保这个点是可通行的
+                    // Ensure this point is passable
                     const path = gameApi.mapApi.findPath( 
                         SpeedType.Amphibious,
                         true,
@@ -47,7 +47,7 @@ function getAllAmphibiousPoints(gameApi: GameApi, sectorSize: number = 8): Vecto
 }
 
 /**
- * 两栖侦察任务，使用两栖单位进行地图侦察
+ * Amphibious scouting mission, using amphibious units to scout the map
  */
 export class AmphibiousScoutingMission extends Mission {
     private scoutTarget: Vector2 | null = null;
@@ -73,12 +73,12 @@ export class AmphibiousScoutingMission extends Mission {
     private initializeAmphibiousPoints(gameApi: GameApi): void {
         if (this.amphibiousPoints === null) {
             this.amphibiousPoints = getAllAmphibiousPoints(gameApi);
-            // 随机打乱探索点顺序
+            // Randomly shuffle the exploration points order
             for (let i = this.amphibiousPoints.length - 1; i > 0; i--) {
                 const j = Math.floor(gameApi.generateRandomInt(0, i));
                 [this.amphibiousPoints[i], this.amphibiousPoints[j]] = [this.amphibiousPoints[j], this.amphibiousPoints[i]];
             }
-            this.logger(`找到 ${this.amphibiousPoints.length} 个两栖探索点`);
+            this.logger(`Found ${this.amphibiousPoints.length} amphibious exploration points`);
         }
     }
 
@@ -93,7 +93,7 @@ export class AmphibiousScoutingMission extends Mission {
         this.initializeAmphibiousPoints(gameApi);
         if (!this.amphibiousPoints || this.amphibiousPoints.length === 0) return null;
 
-        // 找到最近的未访问点
+        // Find the nearest unvisited point
         let bestPoint = null;
         let bestDistance = Infinity;
 
@@ -124,7 +124,7 @@ export class AmphibiousScoutingMission extends Mission {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
-        const scoutNames = ["SAPC", "LCRF"]; // 两栖单位
+        const scoutNames = ["SAPC", "LCRF"]; // Amphibious units
         const scouts = this.getUnitsOfTypes(gameApi, ...scoutNames);
 
         if ((matchAwareness.getSectorCache().getOverallVisibility() || 0) > 0.9) {
@@ -142,10 +142,10 @@ export class AmphibiousScoutingMission extends Mission {
         const currentScout = scouts[0];
         const currentPosition = new Vector2(currentScout.tile.rx, currentScout.tile.ry);
 
-        // 检查单位是否停止移动
+        // Check if unit has stopped moving
         if (gameApi.getCurrentTick() >= this.lastPositionCheckTick + POSITION_CHECK_INTERVAL) {
             if (this.lastPosition && this.isUnitStuck(currentPosition)) {
-                this.logger(`单位在 ${currentPosition.x},${currentPosition.y} 停止移动，寻找新目标`);
+                this.logger(`Unit stuck at ${currentPosition.x},${currentPosition.y}, looking for new target`);
                 this.setScoutTarget(null, gameApi.getCurrentTick());
             }
             this.lastPosition = currentPosition;
@@ -157,12 +157,12 @@ export class AmphibiousScoutingMission extends Mission {
 
             if (!this.scoutTargetIsPermanent) {
                 if (this.attemptsOnCurrentTarget > MAX_ATTEMPTS_PER_TARGET) {
-                    this.logger(`侦察目标 ${this.scoutTarget.x},${this.scoutTarget.y} 尝试次数过多，切换下一个目标`);
+                    this.logger(`Scout target ${this.scoutTarget.x},${this.scoutTarget.y} exceeded max attempts, switching to next target`);
                     this.setScoutTarget(null, 0);
                     return noop();
                 }
                 if (gameApi.getCurrentTick() > this.scoutTargetRefreshedAt + MAX_TICKS_PER_TARGET) {
-                    this.logger(`侦察目标 ${this.scoutTarget.x},${this.scoutTarget.y} 耗时过长，切换下一个目标`);
+                    this.logger(`Scout target ${this.scoutTarget.x},${this.scoutTarget.y} taking too long, switching to next target`);
                     this.setScoutTarget(null, 0);
                     return noop();
                 }
@@ -170,7 +170,7 @@ export class AmphibiousScoutingMission extends Mission {
 
             const targetTile = gameApi.mapApi.getTile(this.scoutTarget.x, this.scoutTarget.y);
             if (!targetTile) {
-                throw new Error(`目标位置 ${this.scoutTarget.x},${this.scoutTarget.y} 不存在`);
+                throw new Error(`Target position ${this.scoutTarget.x},${this.scoutTarget.y} does not exist`);
             }
 
             if (gameApi.getCurrentTick() > this.lastMoveCommandTick + AMPHIBIOUS_SCOUT_MOVE_COOLDOWN_TICKS) {
@@ -181,11 +181,11 @@ export class AmphibiousScoutingMission extends Mission {
                     }
                 });
 
-                // 检查单位是否在接近目标
+                // Check if unit is approaching target
                 const distances = scouts.map((unit) => getDistanceBetweenTileAndPoint(unit.tile, this.scoutTarget!));
                 const newMinDistance = Math.min(...distances);
                 if (!this.scoutMinDistance || newMinDistance < this.scoutMinDistance) {
-                    this.logger(`单位接近目标点 (${newMinDistance} < ${this.scoutMinDistance})`);
+                    this.logger(`Unit approaching target point (${newMinDistance} < ${this.scoutMinDistance})`);
                     this.scoutTargetRefreshedAt = gameApi.getCurrentTick();
                     this.scoutMinDistance = newMinDistance;
                 }
@@ -194,23 +194,23 @@ export class AmphibiousScoutingMission extends Mission {
             if (gameApi.mapApi.isVisibleTile(targetTile, playerData.name)) {
                 const pointKey = `${this.scoutTarget.x},${this.scoutTarget.y}`;
                 this.visitedPoints.add(pointKey);
-                this.logger(`目标 ${this.scoutTarget.x},${this.scoutTarget.y} 侦察成功，切换下一个目标`);
+                this.logger(`Target ${this.scoutTarget.x},${this.scoutTarget.y} scouted successfully, switching to next target`);
                 this.setScoutTarget(null, gameApi.getCurrentTick());
             }
         } else {
-            // 获取新的侦察目标
+            // Get new scout target
             const nextScoutTarget = matchAwareness.getScoutingManager().getNewScoutTarget();
             if (nextScoutTarget) {
                 this.setScoutTarget(nextScoutTarget.asVector2(), gameApi.getCurrentTick());
                 return noop();
             }
 
-            // 如果没有可用的侦察目标，选择就近的两栖点
+            // If no available scout targets, choose nearby amphibious points
             const nextAmphibiousTarget = this.getNextAmphibiousTarget(gameApi, currentPosition, playerData);
             if (nextAmphibiousTarget) {
                 this.setScoutTarget(nextAmphibiousTarget, gameApi.getCurrentTick());
             } else {
-                this.logger(`没有找到可达的两栖探索点，任务结束`);
+                this.logger(`No reachable amphibious exploration points found, mission ended`);
                 return disbandMission();
             }
         }
@@ -228,7 +228,7 @@ export class AmphibiousScoutingMission extends Mission {
     }
 
     public getGlobalDebugText(): string | undefined {
-        return "两栖侦察中";
+        return "Amphibious scouting";
     }
 
     public getPriority() {

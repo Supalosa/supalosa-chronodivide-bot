@@ -22,9 +22,9 @@ import { MissionFactory } from "../missionFactories.js";
 import { MissionController } from "../missionController.js";
 
 /**
- * 一个简单的“反造船厂”任务：
- *  - 发现敌军船厂后，快速造 3 潜艇或 5 海豚
- *  - 单位到齐后直接 Attack-Move 到敌方船厂位置
+ * A simple 'anti-shipyard' mission:
+ *  - After discovering enemy shipyard, quickly build 3 submarines or 5 dolphins
+ *  - Once units are assembled, directly Attack-Move to enemy shipyard position
  */
 export class AntiShipyardMission extends Mission<null> {
     private readonly targetPos: Vector2;
@@ -40,8 +40,8 @@ export class AntiShipyardMission extends Mission<null> {
     private lastRepositionTick = 0;
 
     /**
-     * 判断 from → to 射线沿途是否存在“≥2 格宽”的可通行水面走廊。
-     * corridorHalfWidth = 1 代表中心线两侧各检查 1 格 (共 3×3 检查区域)，满足“2 格宽度”要求。
+     * Determine if there's a '≥2 tiles wide' passable water corridor along the from → to ray.
+     * corridorHalfWidth = 1 means checking 1 tile on each side of the center line (3×3 check area total), satisfying the '2 tiles width' requirement.
      */
     private hasClearWaterLoS(
         gameApi: GameApi,
@@ -58,15 +58,15 @@ export class AntiShipyardMission extends Mission<null> {
             const cx = Math.round(from.x + (dx * i) / steps);
             const cy = Math.round(from.y + (dy * i) / steps);
 
-            // 扫描中心 tile 周围 corridorHalfWidth 范围内的所有 tile，确保无遮挡
+            // Scan all tiles within corridorHalfWidth range around center tile, ensuring no obstruction
             for (let ox = -corridorHalfWidth; ox <= corridorHalfWidth; ox++) {
                 for (let oy = -corridorHalfWidth; oy <= corridorHalfWidth; oy++) {
                     const tx = cx + ox;
                     const ty = cy + oy;
                     const tile = gameApi.mapApi.getTile(tx, ty);
-                    if (!tile) return false; // 越界即阻挡
+                    if (!tile) return false; // Out of bounds means blocked
 
-                    // 若为非 Clear/Water 或 桥梁覆盖，则视为阻挡
+                    // If not Clear/Water or covered by bridge, consider it blocked
                     if ((tile.landType !== LandType.Clear && tile.landType !== LandType.Water) || tile.onBridgeLandType !== undefined) {
                         return false;
                     }
@@ -76,7 +76,7 @@ export class AntiShipyardMission extends Mission<null> {
         return true;
     }
 
-    /** 在船厂周围随机寻找一个水面、且射线无遮挡的位置 */
+    /** Randomly find a water position around shipyard with unobstructed line of sight */
     private findWaterFiringPoint(
         gameApi: GameApi,
         radiusMin: number,
@@ -92,14 +92,14 @@ export class AntiShipyardMission extends Mission<null> {
             const tile = gameApi.mapApi.getTile(dest.x, dest.y);
             if (!tile) continue;
             if (tile.landType !== LandType.Water || tile.onBridgeLandType !== undefined) continue;
-            // 必须要有到船厂的无遮挡射线
+            // Must have unobstructed line of sight to shipyard
             if (!this.hasClearWaterLoS(gameApi, dest, this.targetPos)) continue;
             return dest;
         }
         return null;
     }
 
-    /** 对 toPoint 的安全封装：若目的地 tile 非法则忽略该命令 */
+    /** Safe wrapper for toPoint: ignore command if destination tile is invalid */
     private pushToPointSafe(
         gameApi: GameApi,
         actionBatcher: ActionBatcher,
@@ -126,12 +126,12 @@ export class AntiShipyardMission extends Mission<null> {
         this.requiredUnits = wantSubs ? { SUB: 3 } : { DLPH: 5 };
     }
 
-    /** 高优先级，保证能抢到潜艇 / 海豚 */
+    /** High priority, ensures ability to acquire submarines/dolphins */
     getPriority(): number {
         return 80;
     }
 
-    /** 允许别的任务从我这再抢回单位 */
+    /** Allow other missions to steal units back from this mission */
     isUnitsLocked(): boolean {
         return false;
     }
@@ -149,9 +149,9 @@ export class AntiShipyardMission extends Mission<null> {
     ): MissionAction {
         // Initialize rally point on first call
         if (!this.initialized) {
-            // 使用当前小队中任意一个单位的位置作为起始点
+            // Use position of any unit in current squad as starting point
             const squadUnits = this.getUnits(gameApi);
-            // fallback: 使用我方船厂位置
+            // fallback: use our shipyard position
             let startPos = this.targetPos; // worst case fallback
             const ourShipyards = gameApi.getVisibleUnits(playerData.name, "self", r => r.name === "GAYARD" || r.name === "NAYARD");
             if (ourShipyards.length > 0) {
@@ -184,21 +184,21 @@ export class AntiShipyardMission extends Mission<null> {
             this.initialized = true;
         }
 
-        // 1. 统计当前已拥有的目标单位
+        // 1. Count currently owned target units
         const currentComp = countBy(this.getUnitsGameObjectData(gameApi), (u) => u.name);
         const missing = Object.entries(this.requiredUnits).filter(
             ([unitName, want]) => (currentComp[unitName] || 0) < want,
         );
 
         if (missing.length > 0) {
-            // 请求缺口单位
+            // Request missing units
             return requestUnits(
                 missing.map(([name]) => name),
                 /* priority */ this.getPriority(),
             );
         }
 
-        // ----------------- 阶段逻辑 -----------------
+        // ----------------- Stage logic -----------------
         const SIGHT_RADIUS = 12;
         const squadUnits = this.getUnits(gameApi);
 
@@ -215,7 +215,7 @@ export class AntiShipyardMission extends Mission<null> {
                 return noop();
             }
 
-            // 到齐后生成巡逻点
+            // Generate patrol points after assembly
             if (this.patrolPoints.length === 0) {
                 for (let i = 0; i < 3; i++) {
                     const ang = (Math.PI * 2 * i) / 3;
@@ -238,7 +238,7 @@ export class AntiShipyardMission extends Mission<null> {
             if (nearShipyard) {
                 this.stage = "patrol";
             } else {
-                // 从集结点前往船厂，使用 AttackMove 清理路上敌人
+                // Move from rally point to shipyard, use AttackMove to clear enemies along the way
                 squadUnits.forEach((u) => {
                     this.pushToPointSafe(gameApi, actionBatcher, u.id, OrderType.AttackMove, this.targetPos);
                 });
@@ -254,7 +254,7 @@ export class AntiShipyardMission extends Mission<null> {
 
         // --- PATROL ---
         if (this.stage === "patrol") {
-            // 搜索船厂附近的敌方海军单位 (speedtype = float)
+            // Search for enemy naval units near shipyard (speedtype = float)
             const nearbyEnemyNaval = gameApi
                 .getVisibleUnits(playerData.name, "enemy")
                 .map(id => gameApi.getUnitData(id))
@@ -266,7 +266,7 @@ export class AntiShipyardMission extends Mission<null> {
 
             if (nearbyEnemyNaval.length > 0) {
                 this.lastHostileTick = gameApi.getCurrentTick();
-                // 攻击最近的敌方海军单位
+                // Attack nearest enemy naval unit
                 squadUnits.forEach((u) => {
                     let closestEnemy = nearbyEnemyNaval[0];
                     let minDistance = new Vector2(u.tile.rx, u.tile.ry).distanceTo(new Vector2(closestEnemy.tile.rx, closestEnemy.tile.ry));
@@ -286,13 +286,13 @@ export class AntiShipyardMission extends Mission<null> {
                 return noop();
             }
 
-            // 45 tick (~3 秒) 无海军敌人则切 destroy
+            // If no naval enemies for 45 ticks (~3 seconds), switch to destroy
             if (gameApi.getCurrentTick() - this.lastHostileTick > 45) {
                 this.stage = "destroy";
             } else {
-                // 继续巡逻，使用普通Move避免拥挤
+                // Continue patrolling, use normal Move to avoid crowding
                 squadUnits.forEach((u) => {
-                    // 给每个单位分配略微不同的巡逻位置
+                    // Assign slightly different patrol positions to each unit
                     const jitter = new Vector2(
                         gameApi.generateRandomInt(-2, 2),
                         gameApi.generateRandomInt(-2, 2)
@@ -310,7 +310,7 @@ export class AntiShipyardMission extends Mission<null> {
             .map((id) => gameApi.getUnitData(id))
             .filter((u): u is NonNullable<typeof u> => !!u);
 
-        // 如有新敌方海军出现，优先击杀
+        // If new enemy naval units appear, prioritize killing them
         const enemyNavalDestroy = gameApi
             .getVisibleUnits(playerData.name, "enemy")
             .map((id) => gameApi.getUnitData(id))
@@ -322,7 +322,7 @@ export class AntiShipyardMission extends Mission<null> {
 
         if (enemyNavalDestroy.length > 0) {
             squadUnits.forEach((u) => {
-                // 寻找最近敌人
+                // Find nearest enemy
                 let closest = enemyNavalDestroy[0];
                 let minDist = new Vector2(u.tile.rx, u.tile.ry).distanceTo(new Vector2(closest.tile.rx, closest.tile.ry));
                 for (const e of enemyNavalDestroy) {
@@ -337,18 +337,18 @@ export class AntiShipyardMission extends Mission<null> {
             return noop();
         }
 
-        // 主目标：船厂
+        // Primary target: shipyard
         if (visibleShipyards.length > 0) {
             const target = visibleShipyards[0]!;
 
-            // 针对每个单位检查射击路径，必要时调整位置
+            // Check firing path for each unit, adjust position if necessary
             squadUnits.forEach((u) => {
                 const unitPos = new Vector2(u.tile.rx, u.tile.ry);
                 const clearLoS = this.hasClearWaterLoS(gameApi, unitPos, this.targetPos);
                 if (clearLoS) {
                     actionBatcher.push(BatchableAction.toTargetId(u.id, OrderType.Attack, target.id));
                 } else {
-                    // 避免过于频繁 reposition
+                    // Avoid too frequent repositioning
                     if (gameApi.getCurrentTick() - this.lastRepositionTick < 30) {
                         return;
                     }
@@ -357,7 +357,7 @@ export class AntiShipyardMission extends Mission<null> {
                         this.pushToPointSafe(gameApi, actionBatcher, u.id, OrderType.AttackMove, newPos);
                         this.lastRepositionTick = gameApi.getCurrentTick();
                     } else {
-                        // 找不到合适位置，维持 AttackMove 到船厂
+                        // Can't find suitable position, maintain AttackMove to shipyard
                         this.pushToPointSafe(gameApi, actionBatcher, u.id, OrderType.AttackMove, this.targetPos);
                     }
                 }
@@ -380,7 +380,7 @@ export class AntiShipyardMissionFactory implements MissionFactory {
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
-        // 已存在则跳过
+        // Skip if already exists
         if (missionController.getMissions().some((m) => m instanceof AntiShipyardMission)) {
             return;
         }

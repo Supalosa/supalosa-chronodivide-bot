@@ -45,7 +45,7 @@ export class AntiSubMission extends Mission<null> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
-        // 如果威胁消失
+        // If threat disappears
         const hostiles = matchAwareness.getHostilesNearPoint2d(this.threatPos, SIGHT_RADIUS);
         const subsLeft = hostiles.filter(({ unitId }) => {
             const u = gameApi.getUnitData(unitId);
@@ -55,7 +55,7 @@ export class AntiSubMission extends Mission<null> {
             return disbandMission();
         }
 
-        // 请求单位
+        // Request units
         const currentComp = countBy(this.getUnitsGameObjectData(gameApi), (u) => u.name);
         const missing = Object.entries(this.requiredUnits).filter(
             ([unit, need]) => (currentComp[unit] || 0) < need,

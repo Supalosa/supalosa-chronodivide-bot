@@ -12,23 +12,23 @@ export const getNavalCompositions = (
     const hasAirforce = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAAIRC" || r.name === "AMRADR").length > 0;
     const hasBattleLab = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GATECH").length > 0;
 
-    // 基础海军编队
+    // Basic naval formation
     let composition: UnitComposition = {};
     
-    // 驱逐舰作为基础单位
+    // Destroyer as basic unit
     if (hasNavalYard) {
-        composition.DEST = 3; // 驱逐舰
+        composition.DEST = 3; // Destroyer
     }
 
-    // 神盾巡洋舰作为防空单位
+    // Aegis cruiser as anti-air unit
     if (hasAirforce) {
-        composition.AEGIS = 1; // 神盾巡洋舰
+        composition.AEGIS = 1; // Aegis Cruiser
     }
 
-    // 航母和海豚作为高级单位
+    // Carrier and dolphins as advanced units
     if (hasBattleLab) {
-        composition.CARRIER = 1; // 1艘航母
-        composition.DLPH = 2; // 2只海豚应付巨型乌贼SQD
+        composition.CARRIER = 1; // 1 carrier
+        composition.DLPH = 2; // 2 dolphins to counter Giant Squid SQD
     }
 
     return composition;

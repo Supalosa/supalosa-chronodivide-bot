@@ -18,17 +18,17 @@ export class NavalYard extends BasicBuilding {
         playerData: PlayerData,
         technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
-        // 获取建筑的尺寸信息
+        // Get building dimension information
         const placementData = game.getBuildingPlacementData(technoRules.name);
-        this.logger(`[NavalYard] 尝试放置船厂 ${technoRules.name}，尺寸: ${placementData.foundation.width}x${placementData.foundation.height}`, true);
+        this.logger(`[NavalYard] Attempting to place naval yard ${technoRules.name}, size: ${placementData.foundation.width}x${placementData.foundation.height}`, true);
 
-        // 使用默认的放置逻辑，但指定必须在水域上
+        // Use default placement logic, but specify it must be on water
         const location = getDefaultPlacementLocation(game, playerData, playerData.startLocation, technoRules, true, 1);
         
         if (location) {
-            this.logger(`[NavalYard] 找到合适的放置位置: (${location.rx}, ${location.ry})`, true);
+            this.logger(`[NavalYard] Found suitable placement location: (${location.rx}, ${location.ry})`, true);
         } else {
-            this.logger(`[NavalYard] 未找到合适的放置位置`, true);
+            this.logger(`[NavalYard] No suitable placement location found`, true);
         }
         
         return location;
@@ -42,7 +42,7 @@ export class NavalYard extends BasicBuilding {
     ): number {
         const priority = super.getPriority(game, playerData, technoRules, threatCache);
         if(priority !== -100){
-            this.logger(`[NavalYard] 当前建造优先级: ${priority}`, true);
+            this.logger(`[NavalYard] Current build priority: ${priority}`, true);
         }
         return priority;
     }
