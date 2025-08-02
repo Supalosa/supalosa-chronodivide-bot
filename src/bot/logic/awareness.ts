@@ -208,7 +208,10 @@ export class MatchAwarenessImpl implements MatchAwareness {
                         SpeedType.Track,
                         false,
                         { tile: startTile, onBridge: false },
-                        { tile: targetTile, onBridge: false }
+                        { tile: targetTile, onBridge: false },
+                        {
+                            bestEffort: true,
+                        }
                     );
                     
                     if (path && path.length > 0) {
@@ -223,8 +226,8 @@ export class MatchAwarenessImpl implements MatchAwareness {
                             game,
                             playerData.startLocation,
                             enemy.startLocation,
-                            10,
-                            10,
+                            9,
+                            9,
                             0,
                         );
                         this.logger(`No path found, using fallback rally point: (${this.mainRallyPoint.x}, ${this.mainRallyPoint.y})`);

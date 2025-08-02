@@ -203,7 +203,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["AMRADR", new BasicBuilding(10, 1, 500)], // Airforce Command (USA)
 
     ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
-    ["GAYARD", new NavalYard(15, 1, 2000, (message, sayInGame) => console.log(message))], // Naval Yard, enabled
+    ["GAYARD", new NavalYard(0, 1, 2000, (message, sayInGame) => console.log(message))], // Naval Yard (priority raised when naval mode)
 
     ["GAPILL", new AntiGroundStaticDefence(2, 1, 5, 5)], // Pillbox
     ["ATESLA", new AntiGroundStaticDefence(2, 1, 10, 3)], // Prism Cannon
@@ -230,7 +230,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(10, 1, 500)], // Radar
     ["NANRCT", new PowerPlant()], // Nuclear Reactor
-    ["NAYARD", new NavalYard(15, 2, 2000, (message, sayInGame) => console.log(message))], // Naval Yard, enabled
+    ["NAYARD", new NavalYard(0, 2, 2000, (message, sayInGame) => console.log(message))], // Naval Yard (priority raised when naval mode)
 
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 

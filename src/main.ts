@@ -5,7 +5,7 @@ import { DummyBot } from "./dummyBot/dummyBot.js";
 import { Countries } from "./bot/logic/common/utils.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
-const MAX_GAME_LENGTH_SECONDS: number | null = 3600; // 7200 = two hours
+const MAX_GAME_LENGTH_SECONDS: number | null = 1800; // 7200 = two hours
 
 async function main() {
     /*
@@ -77,8 +77,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(botName1, Countries.FRANCE, [], true).setDebugMode(true),
-            new SupalosaBot(botName4, Countries.FRANCE, [], false),
+            new SupalosaBot(botName1, Countries.RUSSIA, [], true).setDebugMode(true),
+            new SupalosaBot(botName4, Countries.RUSSIA, [], false),
         ],
     };
 
