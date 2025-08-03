@@ -253,12 +253,12 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Allied Naval Units
     ["DEST", new BasicNavalUnit(9, 4, 2, 0, 1)],  // Destroyer
     ["AEGIS", new BasicNavalUnit(8, 0, 0, 6, 0)],  // Aegis Cruiser
-    ["CARRIER", new BasicNavalUnit(9, 1, 2, 1, 1)],  // Aircraft Carrier
+    ["CARRIER", new BasicNavalUnit(9, 1, 4, 1, 1)],  // Aircraft Carrier
     ["DLPH", new BasicNavalUnit(5, 2, 0, 0, 2)],  // Dolphin
 
     // Soviet Naval Units
     ["SUB", new BasicNavalUnit(9, 4, 0, 0, 4)],  // Submarine
-    ["HYD", new BasicNavalUnit(8, 0, 0.1, 1.5, 0)],  // Sea Scorpion
-    ["DRED", new BasicNavalUnit(9, 0, 10, 0, 1)],  // Dreadnought
+    ["HYD", new BasicNavalUnit(8, 0, 0, 1.5, 0.1)],  // Sea Scorpion
+    ["DRED", new BasicNavalUnit(9, 0, 4, 0, 1)],  // Dreadnought
     ["SQD", new BasicNavalUnit(5, 2, 0, 0, 5)],  // Giant Squid
 ]);
