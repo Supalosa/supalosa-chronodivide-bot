@@ -15,14 +15,19 @@ export const getNavalCompositions = (
     // Basic naval formation
     let composition: UnitComposition = {};
 
-    // Sea Scorpion as anti-air unit
-    if (hasAirforce) {
-        composition.HYD = 3;
+    // Sea Scorpion as basic anti-air unit
+    if (hasNavalYard) {
+        composition.HYD = 2; // Sea Scorpion for anti-air defense
     }
 
-    // Dreadnought and squid as advanced units
+    // Submarine as basic anti-ship unit
+    if (hasNavalYard) {
+        composition.SUB = 3; // Submarine for anti-ship combat
+    }
+
+    // Dreadnought as advanced unit
     if (hasBattleLab) {
-        composition.DRED = 1;
+        composition.DRED = 1; // Dreadnought as main battle ship
     }
 
     return composition;

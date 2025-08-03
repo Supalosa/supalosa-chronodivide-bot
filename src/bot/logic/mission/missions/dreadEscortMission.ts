@@ -14,10 +14,11 @@ import { MissionController } from "../missionController.js";
 import { pushToPointSafe } from "../../common/navalUtils.js";
 
 const ESCORT_SUB_COUNT = 3;
+const ESCORT_HYD_COUNT = 2;
 const ESCORT_PRIORITY = 101;
 
 /**
- * A mission that ensures each Dreadnought (DRED) has a personal escort of 3 Submarines (SUB).
+ * A mission that ensures each Dreadnought (DRED) has a personal escort of 3 Submarines (SUB) and 2 Sea Scorpions (HYD).
  */
 export class DreadEscortMission extends Mission<null> {
     private readonly dreadId: number;
@@ -41,7 +42,7 @@ export class DreadEscortMission extends Mission<null> {
     }
 
     getGlobalDebugText(): string | undefined {
-        return `Escort→DRED#${this.dreadId}`;
+        return `MixedEscort→DRED#${this.dreadId}`;
     }
 
     _onAiUpdate(
@@ -57,16 +58,27 @@ export class DreadEscortMission extends Mission<null> {
             return disbandMission();
         }
 
-        // Ensure required submarines are present.
+        // Ensure required escort units are present.
         const currentSelfComp = countBy(this.getUnitsGameObjectData(gameApi), (u) => u.name);
         const subCount = currentSelfComp["SUB"] || 0;
+        const hydCount = currentSelfComp["HYD"] || 0;
+        
+        // Check for missing units and request them
+        const missingUnits = [];
         if (subCount < ESCORT_SUB_COUNT) {
-            const missing = ESCORT_SUB_COUNT - subCount;
-            // Request additional subs.
-            return requestUnits(Array(missing).fill("SUB"), this.getPriority());
+            const missingSubs = ESCORT_SUB_COUNT - subCount;
+            missingUnits.push(...Array(missingSubs).fill("SUB"));
+        }
+        if (hydCount < ESCORT_HYD_COUNT) {
+            const missingHyds = ESCORT_HYD_COUNT - hydCount;
+            missingUnits.push(...Array(missingHyds).fill("HYD"));
+        }
+        
+        if (missingUnits.length > 0) {
+            return requestUnits(missingUnits, this.getPriority());
         }
 
-        // Follow the dreadnought – order submarines to AttackMove towards the dread's current tile.
+        // Follow the dreadnought – order escort units to AttackMove towards the dread's current tile.
         const dest = new Vector2(dread.tile.rx, dread.tile.ry);
         this.getUnits(gameApi).forEach((unit) => {
             pushToPointSafe(gameApi, actionBatcher, unit.id, OrderType.AttackMove, dest);
