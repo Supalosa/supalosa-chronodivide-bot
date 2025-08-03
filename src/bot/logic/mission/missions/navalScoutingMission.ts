@@ -102,10 +102,10 @@ export class NavalScoutingMission extends Mission {
         if (this.waterPoints === null) {
             this.waterPoints = getAllWaterPoints(gameApi);
             // Randomly shuffle water point order to make exploration more random
-            for (let i = this.waterPoints.length - 1; i > 0; i--) {
-                const j = Math.floor(gameApi.generateRandom() * (i + 1));
-                [this.waterPoints[i], this.waterPoints[j]] = [this.waterPoints[j], this.waterPoints[i]];
-            }
+            // for (let i = this.waterPoints.length - 1; i > 0; i--) {
+            //     const j = Math.floor(gameApi.generateRandom() * (i + 1));
+            //     [this.waterPoints[i], this.waterPoints[j]] = [this.waterPoints[j], this.waterPoints[i]];
+            // }
             this.logger(`Found ${this.waterPoints.length} water exploration points`);
         }
     }

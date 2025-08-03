@@ -106,7 +106,7 @@ export class SupalosaBot extends Bot {
                 (r) => r.type == ObjectType.Building && r.factory != FactoryType.None,
             );
             if (armyUnits.length == 0 && productionBuildings.length == 0 && mcvUnits.length == 0) {
-                this.logBotStatus(`No army or production left, quitting.`);
+                this.logBotStatus(`No army or production left, quitting. ${armyUnits}, ${productionBuildings}, ${mcvUnits}`);
                 this.actionsApi.quitGame();
             }
 

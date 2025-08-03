@@ -12,9 +12,9 @@ import { NavalScoutingMissionFactory } from "./missions/navalScoutingMission.js"
 import { AmphibiousScoutingMissionFactory } from "./missions/amphibiousScoutingMission.js";
 import { AntiShipyardMissionFactory } from "./missions/antiShipyardMission.js";
 import { AntiCoastShipMissionFactory } from "./missions/antiCoastShipMission.js";
-import { AntiSubMissionFactory } from "./missions/antiSubMission.js";
-import { ReserveRhinoMissionFactory } from "./missions/reserveRhinoMission.js";
 import { DreadEscortMissionFactory } from "./missions/dreadEscortMission.js";
+import { HarvesterDefenceMissionFactory } from "./missions/harvesterDefenceMission.js";
+import { AntiSubMissionFactory } from "./missions/antiSubMission.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -59,7 +59,7 @@ export const createMissionFactories = () => [
     new AmphibiousScoutingMissionFactory(),
     new AntiShipyardMissionFactory(),
     new AntiCoastShipMissionFactory(),
-    new AntiSubMissionFactory(),
-    new ReserveRhinoMissionFactory(),
+    new HarvesterDefenceMissionFactory(),
     new DreadEscortMissionFactory(),
+    //new AntiSubMissionFactory(),
 ];

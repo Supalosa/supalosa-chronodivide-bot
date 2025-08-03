@@ -67,7 +67,7 @@ async function main() {
         serverUrl: process.env.SERVER_URL!,
         clientUrl: process.env.CLIENT_URL!,
         agents: [
-            new SupalosaBot(process.env.ONLINE_BOT_NAME ?? botName1, Countries.RUSSIA),
+            new SupalosaBot(process.env.ONLINE_BOT_NAME ?? botName1, Countries.FRANCE).setDebugMode(true),
             { name: process.env.PLAYER_NAME ?? botName2, country: Countries.FRANCE },
         ] as [Bot, ...Agent[]],
         botPassword: process.env.ONLINE_BOT_PASSWORD ?? "default",
@@ -77,7 +77,7 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(botName1, Countries.RUSSIA, [], true).setDebugMode(true),
+            new SupalosaBot(botName1, Countries.FRANCE, [], true).setDebugMode(true),
             new SupalosaBot(botName4, Countries.RUSSIA, [], false),
         ],
     };

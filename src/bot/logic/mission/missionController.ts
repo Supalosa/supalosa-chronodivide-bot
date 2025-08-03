@@ -235,7 +235,7 @@ export class MissionController {
                         return (
                             canGrabUnit &&
                             request.action.point.distanceTo(new Vector2(freeUnit.tile.rx, freeUnit.tile.ry)) <=
-                                request.action.radius
+                            request.action.radius
                         );
                     });
                     if (grantedMission) {

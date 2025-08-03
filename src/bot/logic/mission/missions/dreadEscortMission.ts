@@ -14,7 +14,7 @@ import { MissionController } from "../missionController.js";
 import { pushToPointSafe } from "../../common/navalUtils.js";
 
 const ESCORT_SUB_COUNT = 3;
-const ESCORT_PRIORITY = 400;
+const ESCORT_PRIORITY = 101;
 
 /**
  * A mission that ensures each Dreadnought (DRED) has a personal escort of 3 Submarines (SUB).
@@ -58,8 +58,8 @@ export class DreadEscortMission extends Mission<null> {
         }
 
         // Ensure required submarines are present.
-        const currentComp = countBy(this.getUnitsGameObjectData(gameApi), (u) => u.name);
-        const subCount = currentComp["SUB"] || 0;
+        const currentSelfComp = countBy(this.getUnitsGameObjectData(gameApi), (u) => u.name);
+        const subCount = currentSelfComp["SUB"] || 0;
         if (subCount < ESCORT_SUB_COUNT) {
             const missing = ESCORT_SUB_COUNT - subCount;
             // Request additional subs.
