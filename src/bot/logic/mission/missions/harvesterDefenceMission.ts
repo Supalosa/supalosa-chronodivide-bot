@@ -131,7 +131,7 @@ export class HarvesterDefenceMissionFactory implements MissionFactory {
         this.lastCheckAt = gameApi.getCurrentTick();
 
         // Iterate over all visible harvesters we own
-        const harvesterIds = gameApi.getVisibleUnits(playerData.name, "self", (r) => (r as any).harvester);
+        const harvesterIds = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.harvester);
 
         harvesterIds.forEach((harvId) => {
             const harvData = gameApi.getUnitData(harvId);
