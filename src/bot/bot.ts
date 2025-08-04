@@ -1,6 +1,7 @@
 import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, Size } from "@chronodivide/game-api";
-import * as fs from "fs";
-import * as path from "path";
+// enable file logging when dev in local
+// import * as fs from "fs";
+// import * as path from "path";
 
 import { determineMapBounds } from "./logic/map/map.js";
 import { SectorCache } from "./logic/map/sector.js";
@@ -59,22 +60,22 @@ export class SupalosaBot extends Bot {
             .filter((playerName) => playerName !== this.name)
             .forEach((playerName) => this.actionsApi.toggleAlliance(playerName, true));
 
-        // Create battle log file
-        if (this.enableLogging) {
-            try {
-                const logDir = path.resolve(process.cwd(), "battle_logs");
-                if (!fs.existsSync(logDir)) {
-                    fs.mkdirSync(logDir, { recursive: true });
-                }
-                const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-                this.logFilePath = path.join(logDir, `battle-${timestamp}.log`);
-                fs.writeFileSync(this.logFilePath, `=== Battle started at ${new Date().toISOString()} ===\n`);
-            } catch (err) {
-                // If FS is unavailable (e.g., browser env), silently ignore.
-                this.logger.warn?.(`Unable to create battle log file: ${err}`);
-                this.logFilePath = null;
-            }
-        }
+        // Create battle log file when dev in local
+        // if (this.enableLogging) {
+        //     try {
+        //         const logDir = path.resolve(process.cwd(), "battle_logs");
+        //         if (!fs.existsSync(logDir)) {
+        //             fs.mkdirSync(logDir, { recursive: true });
+        //         }
+        //         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        //         this.logFilePath = path.join(logDir, `battle-${timestamp}.log`);
+        //         fs.writeFileSync(this.logFilePath, `=== Battle started at ${new Date().toISOString()} ===\n`);
+        //     } catch (err) {
+        //         // If FS is unavailable (e.g., browser env), silently ignore.
+        //         this.logger.warn?.(`Unable to create battle log file: ${err}`);
+        //         this.logFilePath = null;
+        //     }
+        // }
     }
 
     override onGameTick(game: GameApi) {
@@ -143,13 +144,14 @@ export class SupalosaBot extends Bot {
 
         this.logger.info(formattedMsg);
 
-        if (this.logFilePath) {
-            try {
-                fs.appendFileSync(this.logFilePath, `${formattedMsg}\n`);
-            } catch (err) {
-                // Silently ignore FS errors after initialisation.
-            }
-        }
+        // enable file logging when dev in local
+        // if (this.logFilePath) {
+        //     try {
+        //         fs.appendFileSync(this.logFilePath, `${formattedMsg}\n`);
+        //     } catch (err) {
+        //         // Silently ignore FS errors after initialisation.
+        //     }
+        // }
 
         if (sayInGame) {
             this.actionsApi.sayAll(`${gameTimestamp}: ${message}`);
