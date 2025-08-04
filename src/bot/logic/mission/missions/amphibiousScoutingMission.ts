@@ -23,7 +23,7 @@ function getAllAmphibiousPoints(gameApi: GameApi, sectorSize: number = 8): Vecto
         for (let y = 0; y < mapBounds.height; y += sectorSize) {
             if (x >= 0 && x < mapBounds.width && y >= 0 && y < mapBounds.height) {
                 const tile = gameApi.mapApi.getTile(x, y);
-                if (tile && (tile.landType === LandType.Water || tile.landType === LandType.Clear || tile.landType === LandType.Beach || tile.landType === LandType.Tiberium)) {
+                if (tile && gameApi.mapApi.isPassableTile(tile, SpeedType.Amphibious, false, false)) {
                     // Ensure this point is passable
                     const path = gameApi.mapApi.findPath( 
                         SpeedType.Amphibious,
