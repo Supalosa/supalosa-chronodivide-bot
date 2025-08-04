@@ -8,7 +8,6 @@ export class NavalYard extends BasicBuilding {
         basePriority: number, 
         maxNeeded: number, 
         onlyBuildWhenFloatingCreditsAmount?: number,
-        private logger: (message: string, sayInGame?: boolean) => void = () => {},
     ) {
         super(basePriority, maxNeeded, onlyBuildWhenFloatingCreditsAmount);
     }
@@ -18,19 +17,9 @@ export class NavalYard extends BasicBuilding {
         playerData: PlayerData,
         technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
-        // Get building dimension information
-        const placementData = game.getBuildingPlacementData(technoRules.name);
-        this.logger(`[NavalYard] Attempting to place naval yard ${technoRules.name}, size: ${placementData.foundation.width}x${placementData.foundation.height}`, true);
-
         // Use default placement logic, but specify it must be on water
         const location = getDefaultPlacementLocation(game, playerData, playerData.startLocation, technoRules, true, 1);
-        
-        if (location) {
-            this.logger(`[NavalYard] Found suitable placement location: (${location.rx}, ${location.ry})`, true);
-        } else {
-            this.logger(`[NavalYard] No suitable placement location found`, true);
-        }
-        
+
         return location;
     }
 
@@ -41,9 +30,6 @@ export class NavalYard extends BasicBuilding {
         threatCache: GlobalThreat | null,
     ): number {
         const priority = super.getPriority(game, playerData, technoRules, threatCache);
-        if(priority !== -100){
-            this.logger(`[NavalYard] Current build priority: ${priority}`, true);
-        }
         return priority;
     }
 } 
