@@ -1,22 +1,57 @@
 import { GameApi, TechnoRules } from "@chronodivide/game-api";
 
-// checking technorules directly reduces the amount of calls to getUnitData(), which is a relatively expensive function.
-// A null value indicates an object that does not have TechnoRules.
-const technoRulesCache: { [rulesName: string]: TechnoRules | null } = {};
+/**
+ * TechnoRules caching helper
+ * -------------------------
+ *
+ * Each ChronoDivide `GameApi` instance owns its **own** `rulesApi`. The
+ * concrete rulesets (unit stats, weapon stats, etc.) might differ between
+ * games because maps can override them.  We therefore need a cache that is
+ * *scoped* to the lifetime of the corresponding `rulesApi` instead of a
+ * process-wide singleton.
+ *
+ * A `WeakMap` is used so that once a game is disposed and its `rulesApi`
+ * object becomes unreachable, the cache entry is removed automatically by
+ * the garbage collector – giving us an elegant, maintenance-free clearing
+ * mechanism.
+ */
 
-export const getCachedTechnoRules = (gameApi: GameApi, unitId: number): TechnoRules | null => {
+type TechnoRulesCache = { [rulesName: string]: TechnoRules | null };
+
+/**
+ * Key:   the `rulesApi` object (unique per game instance)
+ * Value: cache object holding TechnoRules look-ups for that game.
+ */
+const cacheByRulesApi: WeakMap<any, TechnoRulesCache> = new WeakMap();
+
+/**
+ * Fetch TechnoRules for the given unitId using a per-game cache.
+ */
+export const getCachedTechnoRules = (
+    gameApi: GameApi,
+    unitId: number,
+): TechnoRules | null => {
+    // Obtain or create the cache for the current game's rulesApi.
+    const { rulesApi } = gameApi;
+    let technoRulesCache = cacheByRulesApi.get(rulesApi);
+    if (!technoRulesCache) {
+        technoRulesCache = {};
+        cacheByRulesApi.set(rulesApi, technoRulesCache);
+    }
+
     const gameObject = gameApi.getGameObjectData(unitId);
     if (!gameObject) {
         return null;
     }
-    const { rulesApi } = gameApi;
+
     const { name } = gameObject;
 
-    if (technoRulesCache[name]) {
-        // object is present in cache, either with TechnoRules or null (indicating that it does not have TechnoRules)
-        return technoRulesCache[name];
+    if (name in technoRulesCache) {
+        // Cached either with TechnoRules or null.
+        return technoRulesCache[name]!;
     }
 
+    // First time we encounter this object for this game – look it up.
     const aircraftRules = rulesApi.aircraftRules.get(name);
     if (aircraftRules) {
         technoRulesCache[name] = aircraftRules;
@@ -41,6 +76,7 @@ export const getCachedTechnoRules = (gameApi: GameApi, unitId: number): TechnoRu
         return vehicleRules;
     }
 
+    // Negative cache – remember that this object has no TechnoRules.
     technoRulesCache[name] = null;
     return null;
 };
