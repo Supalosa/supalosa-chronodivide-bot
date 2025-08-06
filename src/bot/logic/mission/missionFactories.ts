@@ -15,6 +15,7 @@ import { AntiCoastShipMissionFactory } from "./missions/antiCoastShipMission.js"
 import { DreadEscortMissionFactory } from "./missions/dreadEscortMission.js";
 import { HarvesterDefenceMissionFactory } from "./missions/harvesterDefenceMission.js";
 import { AntiSubMissionFactory } from "./missions/antiSubMission.js";
+import { EventBus } from "../common/eventBus.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -49,10 +50,10 @@ export interface MissionFactory {
     ): void;
 }
 
-export const createMissionFactories = () => [
+export const createMissionFactories = (eventBus: EventBus) => [
     new ExpansionMissionFactory(),
     new ScoutingMissionFactory(),
-    new AttackMissionFactory(),
+    new AttackMissionFactory(eventBus),
     new DefenceMissionFactory(),
     new EngineerMissionFactory(),
     new NavalScoutingMissionFactory(),

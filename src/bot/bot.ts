@@ -9,6 +9,7 @@ import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { Countries, formatTimeDuration } from "./logic/common/utils.js";
+import { EventBus } from "./logic/common/eventBus.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -25,6 +26,7 @@ export class SupalosaBot extends Bot {
     private logFilePath: string | null = null;
 
     private matchAwareness: MatchAwareness | null = null;
+    private eventBus = new EventBus();
 
     constructor(
         name: string,
@@ -33,8 +35,8 @@ export class SupalosaBot extends Bot {
         private enableLogging = true,
     ) {
         super(name, country);
-        this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
-        this.queueController = new QueueController();
+        this.missionController = new MissionController(this.eventBus, (message, sayInGame) => this.logBotStatus(message, sayInGame));
+        this.queueController = new QueueController(this.eventBus);
     }
 
     override onGameStart(game: GameApi) {
