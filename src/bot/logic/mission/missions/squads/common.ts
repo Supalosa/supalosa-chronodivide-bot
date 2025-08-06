@@ -34,9 +34,9 @@ export function manageAttackMicro(attacker: UnitData, target: UnitData): Batchab
     const primaryWeaponRange = attacker.primaryWeapon?.maxRange || 5;
     if (targetData?.type == ObjectType.Building && distance < primaryWeaponRange * 0.8) {
         orderType = OrderType.Attack;
-    } else if (targetData?.rules.canDisguise) {
+    } else if (targetData?.rules.canDisguise || targetData?.rules.underwater) {
         // Special case for mirage tank/spy as otherwise they just sit next to it.
-        orderType = OrderType.Attack;
+        orderType = OrderType.ForceAttack;
     }
     return BatchableAction.toTargetId(attacker.id, orderType, target.id);
 }
