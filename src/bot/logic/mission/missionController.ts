@@ -22,6 +22,7 @@ import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 import { ActionBatcher } from "./actionBatcher.js";
 import { countBy, isSelectableCombatant } from "../common/utils.js";
 import { Squad } from "./missions/squads/squad.js";
+import { EventBus } from "../common/eventBus.js";
 
 // `missingUnitTypes` priority decays by this much every update loop.
 const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
@@ -42,8 +43,8 @@ export class MissionController {
     // Tracks missions to be externally disbanded the next time the mission update loop occurs.
     private forceDisbandedMissions: string[] = [];
 
-    constructor(private logger: (message: string, sayInGame?: boolean) => void) {
-        this.missionFactories = createMissionFactories();
+    constructor(private eventBus: EventBus, private logger: (message: string, sayInGame?: boolean) => void) {
+        this.missionFactories = createMissionFactories(this.eventBus);
     }
 
     private updateUnitIds(gameApi: GameApi) {

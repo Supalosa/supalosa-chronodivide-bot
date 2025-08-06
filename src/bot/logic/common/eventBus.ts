@@ -15,17 +15,15 @@ export type BotEvent = NavalEvent; // | OtherFutureEvents
 
 type Listener = (event: BotEvent) => void;
 
-const listeners: Set<Listener> = new Set();
+export class EventBus {
+    private listeners: Set<Listener> = new Set();
 
-/**
- * Subscribe to all bot events. Returns an `unsubscribe` function.
- */
-export function subscribe(listener: Listener): () => void {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-}
+    subscribe(listener: Listener): () => void {
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    }
 
-/** Publish an event to all listeners (synchronous). */
-export function publish(event: BotEvent): void {
-    listeners.forEach((l) => l(event));
+    publish(event: BotEvent): void {
+        this.listeners.forEach((l) => l(event));
+    }
 }

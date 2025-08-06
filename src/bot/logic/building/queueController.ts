@@ -15,7 +15,7 @@ import {
     getDefaultPlacementLocation,
 } from "./buildingRules.js";
 import { DebugLogger } from "../common/utils";
-import { publish } from "../common/eventBus.js";
+import { EventBus } from "../common/eventBus.js";
 
 export const QUEUES = [
     QueueType.Structures,
@@ -58,7 +58,7 @@ export class QueueController {
     private queueStates: QueueState[] = [];
     private lastRepairCheckAt = 0;
 
-    constructor() {}
+    constructor(private eventBus: EventBus) {}
 
     public onAiUpdate(
         game: GameApi,
@@ -164,7 +164,7 @@ export class QueueController {
                 } else {
                     logger(`Completed: ${queueTypeToName(queueType)}: ${objectReady.name} but nowhere to place it`);
                     if (objectReady.name === "GAYARD" || objectReady.name === "NAYARD") {
-                        publish({ type: "yardFailed", player: playerData.name });
+                        this.eventBus.publish({ type: "yardFailed", player: playerData.name });
                     }
                     actionsApi.unqueueFromProduction(queueType, objectReady.name, objectReady.type, 1);
                 }

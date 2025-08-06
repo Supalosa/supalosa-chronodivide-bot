@@ -1,5 +1,4 @@
 import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2, SpeedType, LandType } from "@chronodivide/game-api";
-import { subscribe } from "../../common/eventBus.js";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
@@ -15,6 +14,7 @@ import { manageMoveMicro } from "./squads/common.js";
 import { isPointReachable } from "../../map/pathfinding.js";
 import { getNavalCompositions as getSovietNavalCompositions } from "../../composition/sovietNavalCompositions.js";
 import { getNavalCompositions as getAlliedNavalCompositions } from "../../composition/alliedNavalCompositions.js";
+import { EventBus } from "../../common/eventBus.js";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -85,6 +85,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         private radius: number,
         private composition: UnitComposition,
         logger: DebugLogger,
+        private eventBus: EventBus,
     ) {
         super(uniqueName, logger);
         this.squad = new CombatSquad(rallyArea, attackArea, radius);
@@ -173,7 +174,7 @@ export class AttackMission extends Mission<AttackFailReason> {
             // First switch to naval, start listening for shipyard failure events
             this.isNavalMission = true;
             if (!this.unsubscribeFromEvents) {
-                this.unsubscribeFromEvents = subscribe((ev) => {
+                this.unsubscribeFromEvents = this.eventBus.subscribe((ev) => {
                     if (ev.type === "yardFailed" && ev.player === playerData.name) {
                         this.navalYardRequestAttempts++;
                     }
@@ -447,7 +448,9 @@ const BASE_ATTACK_COOLDOWN_TICKS = 1800;
 const ATTACK_MISSION_INITIAL_PRIORITY = 1;
 
 export class AttackMissionFactory implements MissionFactory {
-    constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) { }
+    private lastAttackAt = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS;
+
+    constructor(private eventBus: EventBus) { }
 
     getName(): string {
         return "AttackMissionFactory";
@@ -499,6 +502,7 @@ export class AttackMissionFactory implements MissionFactory {
                 attackRadius,
                 composition,
                 logger,
+                this.eventBus,
             ).then((unitIds, reason) => {
                 missionController.addMission(
                     new RetreatMission(
