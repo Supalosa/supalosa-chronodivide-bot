@@ -7,11 +7,12 @@ export const getSovietComposition = (
     playerData: PlayerData,
     matchAwareness: MatchAwareness,
 ): UnitComposition => {
+    const hasBarracks = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NAHAND").length > 0;
     const hasWarFactory = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NAWEAP").length > 0;
     const hasRadar = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NARADR").length > 0;
     const hasBattleLab = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NATECH").length > 0;
 
-    const includeInfantry = !hasBattleLab;
+    const includeInfantry = !hasBattleLab && hasBarracks;
     return {
         ...(includeInfantry && { E2: 10 }),
         ...(hasWarFactory && { HTNK: 6, HTK: 2 }),
