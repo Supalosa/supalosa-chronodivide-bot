@@ -1,4 +1,4 @@
-import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2, SpeedType } from "@chronodivide/game-api";
+import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2, SpeedType, Tile } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector";
 import { GlobalThreat } from "./threat/threat";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
@@ -199,7 +199,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 .filter((p) => p !== playerData.name && !game.areAlliedPlayers(playerData.name, p));
             const enemy = game.getPlayerData(enemyPlayers[0]);
             // Use findPath to find 70% position of Track path from our startLocation to enemy.startLocation
-            const startTile = game.mapApi.getTile(playerData.startLocation.x, playerData.startLocation.y);
+            const startTile = selectPassableStartTile(game, playerData);
             const targetTile = game.mapApi.getTile(enemy.startLocation.x, enemy.startLocation.y);
             
             const fallbackRallyPoint = getPointTowardsOtherPoint(
@@ -260,4 +260,27 @@ export class MatchAwarenessImpl implements MatchAwareness {
             )}.`
         );
     }
+}
+
+function selectPassableStartTile(game: GameApi, playerData: PlayerData): Tile | null {
+    const sx = playerData.startLocation.x;
+    const sy = playerData.startLocation.y;
+    // radius 0..5, check (x±r, y) and (x, y±r)
+    for (let r = 0; r <= 5; r++) {
+        const candidates = [
+            { x: sx, y: sy },
+            { x: sx + r, y: sy },
+            { x: sx - r, y: sy },
+            { x: sx, y: sy + r },
+            { x: sx, y: sy - r },
+        ];
+        for (const { x, y } of candidates) {
+            const tile = game.mapApi.getTile(x, y);
+            if (tile && game.mapApi.isPassableTile(tile, SpeedType.Track, false, false)) {
+                return tile;
+            }
+        }
+    }
+    const fallback = game.mapApi.getTile(sx, sy);
+    return fallback ?? null;
 }
