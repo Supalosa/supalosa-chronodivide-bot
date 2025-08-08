@@ -173,6 +173,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         if (!this.isNavalMission && this.shouldSwitchToNaval(gameApi, playerData)) {
             // First switch to naval, start listening for shipyard failure events
             this.isNavalMission = true;
+            this.eventBus.publish({ type: "modeChanged", player: playerData.name, isNaval: true });
             if (!this.unsubscribeFromEvents) {
                 this.unsubscribeFromEvents = this.eventBus.subscribe((ev) => {
                     if (ev.type === "yardFailed" && ev.player === playerData.name) {
@@ -197,6 +198,7 @@ export class AttackMission extends Mission<AttackFailReason> {
                 this.logger("[NAVAL_DEBUG] Land path is now clear, switching back to land mode");
                 if (this.unsubscribeFromEvents) { this.unsubscribeFromEvents(); this.unsubscribeFromEvents = null; }
                 this.isNavalMission = false;
+                this.eventBus.publish({ type: "modeChanged", player: playerData.name, isNaval: false });
                 this.priority = ATTACK_MISSION_INITIAL_PRIORITY;
                 this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, false);
                 return noop();
@@ -214,6 +216,7 @@ export class AttackMission extends Mission<AttackFailReason> {
                 this.logger(`[NAVAL_DEBUG] Naval yard unable to build for long time, falling back to land mode, attempts: ${this.navalYardRequestAttempts}, wait time: ${gameApi.getCurrentTick() - this.navalModeStartTick}`);
                 if (this.unsubscribeFromEvents) { this.unsubscribeFromEvents(); this.unsubscribeFromEvents = null; }
                 this.isNavalMission = false;
+                this.eventBus.publish({ type: "modeChanged", player: playerData.name, isNaval: false });
                 this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, false);
                 return noop();
             }

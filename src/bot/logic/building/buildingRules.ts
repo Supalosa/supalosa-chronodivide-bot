@@ -195,7 +195,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Allied
     ["GAPOWR", new PowerPlant()],
     ["GAREFN", new ResourceCollectionBuilding(10, 2)], // Refinery
-    ["GAWEAP", new BasicBuilding(15, 1)], // War Factory
+    ["GAWEAP", new BasicBuilding(15, 3)], // War Factory (cap enforced in QueueController)
     ["GAPILE", new BasicBuilding(12, 1)], // Barracks
     ["CMIN", new Harvester(15, 4, 2)], // Chrono Miner
     ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
@@ -203,7 +203,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["AMRADR", new BasicBuilding(10, 1, 500)], // Airforce Command (USA)
 
     ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
-    ["GAYARD", new NavalYard(0, 2, 2000)], // Naval Yard (priority raised when naval mode)
+    ["GAYARD", new NavalYard(10, 2)], // Naval Yard (cap enforced by QueueController + also allows up to 4)
 
     ["GAPILL", new AntiGroundStaticDefence(2, 1, 5, 5)], // Pillbox
     ["ATESLA", new AntiGroundStaticDefence(2, 1, 10, 3)], // Prism Cannon
@@ -224,13 +224,13 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Soviet
     ["NAPOWR", new PowerPlant()],
     ["NAREFN", new ResourceCollectionBuilding(10, 2)], // Refinery
-    ["NAWEAP", new BasicBuilding(15, 1)], // War Factory
+    ["NAWEAP", new BasicBuilding(15, 3)], // War Factory (cap enforced in QueueController)
     ["NAHAND", new BasicBuilding(12, 1)], // Barracks
     ["HARV", new Harvester(15, 4, 2)], // War Miner
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
     ["NARADR", new BasicBuilding(10, 1, 500)], // Radar
     ["NANRCT", new PowerPlant()], // Nuclear Reactor
-    ["NAYARD", new NavalYard(0, 4, 2000)], // Naval Yard (priority raised when naval mode)
+    ["NAYARD", new NavalYard(10, 3)], // Naval Yard (priority raised when naval mode)
 
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 

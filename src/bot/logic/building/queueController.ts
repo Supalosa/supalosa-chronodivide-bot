@@ -57,8 +57,15 @@ const REPAIR_CHECK_INTERVAL = 30;
 export class QueueController {
     private queueStates: QueueState[] = [];
     private lastRepairCheckAt = 0;
+    private navalMode: boolean = false;
 
-    constructor(private eventBus: EventBus) {}
+    constructor(private eventBus: EventBus) {
+        this.eventBus.subscribe((ev) => {
+            if (ev.type === "modeChanged") {
+                this.navalMode = ev.isNaval;
+            }
+        });
+    }
 
     public onAiUpdate(
         game: GameApi,
@@ -226,6 +233,28 @@ export class QueueController {
     ): TechnoRulesWithPriority[] {
         let priorityQueue: TechnoRulesWithPriority[] = [];
         options.forEach((option) => {
+            // Enforce naval/land build caps within this bot instance
+            const name = option.name;
+            const isYard = name === "GAYARD" || name === "NAYARD";
+            const isWarFactory = name === "GAWEAP" || name === "NAWEAP";
+            if (isYard || isWarFactory) {
+                const count = game.getVisibleUnits(playerData.name, "self", (r) => r.name === name).length;
+                if (isYard) {
+                    if (!this.navalMode) {
+                        // Land mode: do not build any yard
+                        return;
+                    }
+                    const yardCap = 4;
+                    if (count >= yardCap) {
+                        return;
+                    }
+                } else if (isWarFactory) {
+                    const warCap = this.navalMode ? 1 : 4;
+                    if (count >= warCap) {
+                        return;
+                    }
+                }
+            }
             const calculatedPriority = this.getPriorityForBuildingOption(option, game, playerData, threatCache);
             // Get the higher of the dynamic and the mission priority for the unit.
             const actualPriority = Math.max(
