@@ -9,7 +9,13 @@ export type NavalEvent = {
     player: string;          // owning player name
 };
 
-export type BotEvent = NavalEvent; // | OtherFutureEvents
+export type ModeChangedEvent = {
+    type: "modeChanged";    // offensive mode changed (land/naval)
+    player: string;          // owning player name
+    isNaval: boolean;        // true if switched to naval mode
+};
+
+export type BotEvent = NavalEvent | ModeChangedEvent; // | OtherFutureEvents
 
 // -------------------------------------------------------------------------
 
