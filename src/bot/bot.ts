@@ -51,7 +51,9 @@ export class SupalosaBot extends Bot {
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.width}, ${this.knownMapBounds.height}`);
 
-        this.tryAllyWith.forEach((playerName) => this.actionsApi.toggleAlliance(playerName, true));
+        this.tryAllyWith
+            .filter((playerName) => playerName !== this.name)
+            .forEach((playerName) => this.actionsApi.toggleAlliance(playerName, true));
     }
 
     override onGameTick(game: GameApi) {

@@ -10,3 +10,5 @@ replays/
 *.cpuprofile
 .env
 *.ini
+*.map
+*.mpr
