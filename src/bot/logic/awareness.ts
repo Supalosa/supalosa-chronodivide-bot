@@ -1,4 +1,4 @@
-import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2, SpeedType, Tile } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector";
 import { GlobalThreat } from "./threat/threat";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
@@ -60,7 +60,7 @@ export interface MatchAwareness {
 
 const SECTORS_TO_UPDATE_PER_CYCLE = 8;
 
-const RALLY_POINT_UPDATE_INTERVAL_TICKS = 90;
+const RALLY_POINT_UPDATE_INTERVAL_TICKS = 300;
 
 const THREAT_UPDATE_INTERVAL_TICKS = 30;
 
@@ -96,10 +96,12 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
     getHostilesNearPoint(searchX: number, searchY: number, radius: number): UnitPositionQuery[] {
         const intersections = this.hostileQuadTree.retrieve(new Circle({ x: searchX, y: searchY, r: radius }));
-        return intersections
+        const result = intersections
             .map(({ x, y, data: unitId }) => ({ x, y, unitId: unitId! }))
             .filter(({ x, y }) => new Vector2(x, y).distanceTo(new Vector2(searchX, searchY)) <= radius)
             .filter(({ unitId }) => !!unitId);
+        
+        return result;
     }
 
     getThreatCache(): GlobalThreat | null {
@@ -131,14 +133,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
         return scaledGroundPower > scaledGroundThreat || scaledAirPower > scaledAirThreat;
     }
 
-    private isHostileUnit(unit: UnitData | undefined, hostilePlayerNames: string[]): boolean {
-        if (!unit) {
-            return false;
-        }
-
-        return hostilePlayerNames.includes(unit.owner);
-    }
-
     public onGameStart(gameApi: GameApi, playerData: PlayerData) {
         this.scoutingManager.onGameStart(gameApi, playerData, this.sectorCache);
     }
@@ -154,17 +148,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
         if (updateRatio && updateRatio < 1.0) {
             this.logger(`${updateRatio * 100.0}% of sectors updated in last 60 seconds.`);
         }
-
-        const hostilePlayerNames = game
-            .getPlayers()
-            .map((name) => game.getPlayerData(name))
-            .filter(
-                (other) =>
-                    other.name !== playerData.name &&
-                    other.isCombatant &&
-                    !game.areAlliedPlayers(playerData.name, other.name),
-            )
-            .map((other) => other.name);
 
         // Build the quadtree, if this is too slow we should consider doing this periodically.
         const hostileUnitIds = game.getVisibleUnits(playerData.name, "enemy");
@@ -215,14 +198,49 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 .getPlayers()
                 .filter((p) => p !== playerData.name && !game.areAlliedPlayers(playerData.name, p));
             const enemy = game.getPlayerData(enemyPlayers[0]);
-            this.mainRallyPoint = getPointTowardsOtherPoint(
+            // Use findPath to find 70% position of Track path from our startLocation to enemy.startLocation
+            const startTile = selectPassableStartTile(game, playerData);
+            const targetTile = game.mapApi.getTile(enemy.startLocation.x, enemy.startLocation.y);
+            
+            const fallbackRallyPoint = getPointTowardsOtherPoint(
                 game,
                 playerData.startLocation,
                 enemy.startLocation,
-                10,
-                10,
+                9, // 9 to fit the map like lostlake.map
+                9,
                 0,
             );
+
+            if (startTile && targetTile) {
+                try {
+                    const path = game.mapApi.findPath(
+                        SpeedType.Track,
+                        false,
+                        { tile: startTile, onBridge: false },
+                        { tile: targetTile, onBridge: false },
+                        {
+                            bestEffort: true,
+                        }
+                    );
+                    
+                    if (path && path.length > 0) {
+                        // Select point at 70% position of path
+                        const midPointIndex = Math.floor(path.length / 10 * 3);
+                        const midTile = path[midPointIndex].tile;
+                        this.mainRallyPoint = new Vector2(midTile.rx, midTile.ry);
+                        this.logger(`Rally point set to path 70% position: (${midTile.rx}, ${midTile.ry}), path length: ${path.length}`);
+                    } else {
+                        this.mainRallyPoint = fallbackRallyPoint;
+                        this.logger(`No path found, using fallback rally point: (${this.mainRallyPoint.x}, ${this.mainRallyPoint.y})`);
+                    }
+                } catch (error) {
+                    this.mainRallyPoint = fallbackRallyPoint;
+                    this.logger(`Path finding error, using fallback rally point: ${error}`);
+                }
+            } else {
+                this.mainRallyPoint = fallbackRallyPoint;
+                this.logger(`Cannot get tiles, using fallback rally point`);
+            }
         }
     }
 
@@ -242,4 +260,27 @@ export class MatchAwarenessImpl implements MatchAwareness {
             )}.`
         );
     }
+}
+
+function selectPassableStartTile(game: GameApi, playerData: PlayerData): Tile | null {
+    const sx = playerData.startLocation.x;
+    const sy = playerData.startLocation.y;
+    // radius 0..5, check (x±r, y) and (x, y±r)
+    for (let r = 0; r <= 5; r++) {
+        const candidates = [
+            { x: sx, y: sy },
+            { x: sx + r, y: sy },
+            { x: sx - r, y: sy },
+            { x: sx, y: sy + r },
+            { x: sx, y: sy - r },
+        ];
+        for (const { x, y } of candidates) {
+            const tile = game.mapApi.getTile(x, y);
+            if (tile && game.mapApi.isPassableTile(tile, SpeedType.Track, false, false)) {
+                return tile;
+            }
+        }
+    }
+    const fallback = game.mapApi.getTile(sx, sy);
+    return fallback ?? null;
 }

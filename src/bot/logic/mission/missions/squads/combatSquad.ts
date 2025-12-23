@@ -77,20 +77,23 @@ export class CombatSquad implements Squad {
             this.lastCommand = gameApi.getCurrentTick();
             const centerOfMass = mission.getCenterOfMass();
             const maxDistance = mission.getMaxDistanceToCenterOfMass();
-            const units = mission.getUnitsMatching(gameApi, (r) => r.rules.isSelectableCombatant);
+            const unitIds = mission.getUnitsMatchingByRule(gameApi, (r) => r.isSelectableCombatant);
+            const units = unitIds
+                .map((unitId) => gameApi.getUnitData(unitId))
+                .filter((unit): unit is UnitData => !!unit);
 
             // Only use ground units for center of mass.
-            const groundUnits = mission.getUnitsMatching(
+            const groundUnitIds = mission.getUnitsMatchingByRule(
                 gameApi,
                 (r) =>
-                    r.rules.isSelectableCombatant &&
-                    (r.rules.movementZone === MovementZone.Infantry ||
-                        r.rules.movementZone === MovementZone.Normal ||
-                        r.rules.movementZone === MovementZone.InfantryDestroyer),
+                    r.isSelectableCombatant &&
+                    (r.movementZone === MovementZone.Infantry ||
+                        r.movementZone === MovementZone.Normal ||
+                        r.movementZone === MovementZone.InfantryDestroyer),
             );
 
             if (this.state === SquadState.Gathering) {
-                const requiredGatherRadius = GameMath.sqrt(groundUnits.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
+                const requiredGatherRadius = GameMath.sqrt(groundUnitIds.length) * GATHER_RATIO + MIN_GATHER_RADIUS;
                 if (
                     centerOfMass &&
                     maxDistance &&
@@ -106,7 +109,7 @@ export class CombatSquad implements Squad {
                 }
             } else {
                 const targetPoint = this.targetArea || playerData.startLocation;
-                const requiredGatherRadius = GameMath.sqrt(groundUnits.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
+                const requiredGatherRadius = GameMath.sqrt(groundUnitIds.length) * GATHER_RATIO + MAX_GATHER_RADIUS;
                 if (
                     centerOfMass &&
                     maxDistance &&
@@ -118,25 +121,64 @@ export class CombatSquad implements Squad {
                     this.state = SquadState.Gathering;
                     return noop();
                 }
-                // The unit with the shortest range chooses the target. Otherwise, a base range of 5 is chosen.
+                // Calculate each unit's range (primary weapon, or secondary weapon, or 5)
                 const getRangeForUnit = (unit: UnitData) =>
                     unit.primaryWeapon?.maxRange ?? unit.secondaryWeapon?.maxRange ?? 5;
                 const attackLeader = minBy(units, getRangeForUnit);
+
+                // Dynamic scan radius: at least ATTACK_SCAN_AREA, if there are longer range units in the squad, use the maximum range
+                const maxRangeUnit = maxBy(units, getRangeForUnit);
+                const dynamicScanRadius = Math.max(
+                    ATTACK_SCAN_AREA,
+                    maxRangeUnit ? getRangeForUnit(maxRangeUnit) : ATTACK_SCAN_AREA,
+                );
                 if (!attackLeader) {
                     return noop();
                 }
-                // Find units within double the range of the leader.
-                const nearbyHostiles = matchAwareness
-                    .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, ATTACK_SCAN_AREA)
+
+                // Pre-cache global hostile list (speed optimization)
+                const globalHostilesRaw = matchAwareness
+                    .getHostilesNearPoint2d(this.targetArea, dynamicScanRadius * 2)
                     .map(({ unitId }) => gameApi.getUnitData(unitId))
-                    .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
+                    .filter((unit): unit is UnitData => !!unit && !isOwnedByNeutral(unit));
 
                 for (const unit of units) {
+                    // Use each unit's own range as scan radius, ensuring long-range units (carriers, etc.) can find targets
+                    const unitRange = getRangeForUnit(unit);
+                    const unitScanRadius = Math.max(ATTACK_SCAN_AREA, unitRange);
+
+                    const nearbyHostiles = globalHostilesRaw.filter((hostile) => {
+                        const dist = GameMath.sqrt(
+                            GameMath.pow(hostile.tile.rx - unit.tile.rx, 2) +
+                                GameMath.pow(hostile.tile.ry - unit.tile.ry, 2),
+                        );
+                        return dist <= unitScanRadius;
+                    });
+
+                    const isUnderWaterUnit = ["SUB", "DLPH", "SQD"].includes(unit.name);
+                    
+                    if (isUnderWaterUnit) {
+                        logger(`[NAVAL_DEBUG] Underwater unit ${unit.name}(id:${unit.id}) starting to find attack target (scan=${unitScanRadius})`);
+                        logger(`[NAVAL_DEBUG]   Found ${nearbyHostiles.length} hostile targets within scan range`);
+                        
+                        nearbyHostiles.forEach((hostile, index) => {
+                            const weight = getAttackWeight(unit, hostile);
+                            const isNavalTarget = ["DEST", "AEGIS", "CARRIER", "SUB", "HYD", "DRED", "DLPH", "SQD"].includes(hostile.name);
+                            logger(`[NAVAL_DEBUG]     Target ${index + 1}: ${hostile.name}(id:${hostile.id}) weight=${weight} is naval=${isNavalTarget}`);
+                        });
+                    }
+                    
                     const bestUnit = maxBy(nearbyHostiles, (target) => getAttackWeight(unit, target));
                     if (bestUnit) {
+                        if (isUnderWaterUnit) {
+                            logger(`[NAVAL_DEBUG]   Choosing attack target: ${bestUnit.name}(id:${bestUnit.id})`);
+                        }
                         this.submitActionIfNew(actionBatcher, manageAttackMicro(unit, bestUnit));
                         this.debugLastTarget = `Unit ${bestUnit.id.toString()}`;
                     } else {
+                        if (isUnderWaterUnit) {
+                            logger(`[NAVAL_DEBUG]   No suitable attack target found, moving to target point`);
+                        }
                         this.submitActionIfNew(actionBatcher, manageMoveMicro(unit, targetPoint));
                         this.debugLastTarget = `@${targetPoint.x},${targetPoint.y}`;
                     }

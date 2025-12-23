@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2, SpeedType, LandType } from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
@@ -11,6 +11,10 @@ import { getSovietComposition } from "../../composition/sovietCompositions.js";
 import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
 import { UnitComposition } from "../../composition/common.js";
 import { manageMoveMicro } from "./squads/common.js";
+import { isPointReachable } from "../../map/pathfinding.js";
+import { getNavalCompositions as getSovietNavalCompositions } from "../../composition/sovietNavalCompositions.js";
+import { getNavalCompositions as getAlliedNavalCompositions } from "../../composition/alliedNavalCompositions.js";
+import { EventBus } from "../../common/eventBus.js";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -30,14 +34,23 @@ function calculateTargetComposition(
     gameApi: GameApi,
     playerData: PlayerData,
     matchAwareness: MatchAwareness,
+    useNaval: boolean = false,
 ): UnitComposition {
     if (!playerData.country) {
         throw new Error(`player ${playerData.name} has no country`);
-    } else if (playerData.country.side === SideType.Nod) {
-        return getSovietComposition(gameApi, playerData, matchAwareness);
-    } else {
-        return getAlliedCompositions(gameApi, playerData, matchAwareness);
     }
+
+    // If specified to use naval formation
+    if (useNaval) {
+        return playerData.country.side === SideType.Nod
+            ? getSovietNavalCompositions(gameApi, playerData, matchAwareness)  // Soviet Navy
+            : getAlliedNavalCompositions(gameApi, playerData, matchAwareness);  // Allied Navy
+    }
+
+    // Use land formation by default
+    return playerData.country.side === SideType.Nod
+        ? getSovietComposition(gameApi, playerData, matchAwareness)
+        : getAlliedCompositions(gameApi, playerData, matchAwareness);
 }
 
 const ATTACK_MISSION_PRIORITY_RAMP = 1.01;
@@ -48,6 +61,16 @@ const ATTACK_MISSION_MAX_PRIORITY = 50;
  */
 export class AttackMission extends Mission<AttackFailReason> {
     private squad: CombatSquad;
+    private hasTriedLandAttack: boolean = false;
+    private landAttackFailCount: number = 0;
+    private readonly MAX_LAND_ATTACK_ATTEMPTS = 2;  // Maximum land attack attempts
+    private isNavalMission: boolean = false;
+    // --- Naval yard management ---
+    private navalModeStartTick: number = 0;
+    private navalYardRequestAttempts: number = 0;
+    private unsubscribeFromEvents: (() => void) | null = null;
+    private readonly MAX_NAVAL_YARD_ATTEMPTS = 2;
+    private readonly NAVAL_YARD_WAIT_TICKS = 4500;
 
     private lastTargetSeenAt = 0;
     private hasPickedNewTarget: boolean = false;
@@ -57,14 +80,69 @@ export class AttackMission extends Mission<AttackFailReason> {
     constructor(
         uniqueName: string,
         private priority: number,
-        rallyArea: Vector2,
+        private rallyArea: Vector2,
         private attackArea: Vector2,
         private radius: number,
         private composition: UnitComposition,
         logger: DebugLogger,
+        private eventBus: EventBus,
     ) {
         super(uniqueName, logger);
         this.squad = new CombatSquad(rallyArea, attackArea, radius);
+    }
+
+    private shouldSwitchToNaval(gameApi: GameApi, playerData: PlayerData): boolean {
+        // Debug information for naval switch decision
+        this.logger(
+            `shouldSwitchToNaval? tick=${gameApi.getCurrentTick()} | isNavalMission=${this.isNavalMission} | landFails=${this.landAttackFailCount}/${this.MAX_LAND_ATTACK_ATTEMPTS}`,
+        );
+        this.logger(
+            `    rallyArea=(${this.rallyArea.x},${this.rallyArea.y}) attackArea=(${this.attackArea.x},${this.attackArea.y})`,
+        );
+
+        // If already naval mission, no need to switch
+        if (this.isNavalMission) {
+            this.logger("    Already naval mission, skip switch check.");
+            return false;
+        }
+
+        const reachable = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
+        this.logger(`    pathReachable=${reachable}`);
+
+        // If target point is unreachable for land units
+        if (!reachable) {
+            const rallyTile = gameApi.mapApi.getTile(this.rallyArea.x, this.rallyArea.y);
+            const attackTile = gameApi.mapApi.getTile(this.attackArea.x, this.attackArea.y);
+            const reachable = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
+            // Get all visible enemy units
+            const allEnemyUnits = gameApi
+                .getVisibleUnits(playerData.name, "enemy")
+                .map((unitId) => gameApi.getUnitData(unitId))
+                .filter((unit) => unit !== undefined) as UnitData[];
+
+            // Filter units within attack area
+            const unitsInAttackArea = allEnemyUnits.filter((unit) => {
+                const distance = new Vector2(unit.tile.rx, unit.tile.ry).distanceTo(this.attackArea);
+                return distance <= 3;
+            });
+
+            // Print detailed information
+            this.logger(`Attack Area (${this.attackArea.x},${this.attackArea.y}) radius ${this.radius} found ${unitsInAttackArea.length} enemy units:`);
+            unitsInAttackArea.forEach((unit, index) => {
+                const distance = new Vector2(unit.tile.rx, unit.tile.ry).distanceTo(this.attackArea);
+                this.logger(`  ${index + 1}. ${unit.name}(id:${unit.id}) distance:${distance.toFixed(1)} type:${unit.type} health:${unit.hitPoints}/${unit.maxHitPoints}`);
+            });
+            this.logger(`Target point unreachable for land units, switching to naval formation | rallyTile type: ${rallyTile?.landType ?? 'unknown'} | attackTile type: ${attackTile?.landType ?? 'unknown'}`);
+            return true;
+        }
+
+        // If land attacks failed multiple times
+        if (this.landAttackFailCount >= this.MAX_LAND_ATTACK_ATTEMPTS) {
+            this.logger("Too many land attack failures, switching to naval formation");
+            return true;
+        }
+
+        return false;
     }
 
     _onAiUpdate(
@@ -91,19 +169,86 @@ export class AttackMission extends Mission<AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
-        const currentComposition: UnitComposition = countBy(this.getUnits(gameApi), (unit) => unit.name);
+        // Check if need to switch to naval formation
+        if (!this.isNavalMission && this.shouldSwitchToNaval(gameApi, playerData)) {
+            // First switch to naval, start listening for shipyard failure events
+            this.isNavalMission = true;
+            this.eventBus.publish({ type: "modeChanged", player: playerData.name, isNaval: true });
+            if (!this.unsubscribeFromEvents) {
+                this.unsubscribeFromEvents = this.eventBus.subscribe((ev) => {
+                    if (ev.type === "yardFailed" && ev.player === playerData.name) {
+                        this.navalYardRequestAttempts++;
+                    }
+                });
+            }
+            this.navalModeStartTick = gameApi.getCurrentTick();
+            this.navalYardRequestAttempts = 0;
+            this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, true);
+            this.logger("Switched to naval formation");
+            this.logger(`[NAVAL_DEBUG] Naval formation composition: ${JSON.stringify(this.composition)}`);
+            return noop();
+        }
+
+        const currentComposition: UnitComposition = countBy(this.getUnitsGameObjectData(gameApi), (unit) => unit.name);
+
+        // -------- Check if land path is now reachable --------
+        if (this.isNavalMission) {
+            const reachableNow = isPointReachable(gameApi, this.rallyArea, this.attackArea, SpeedType.Track, 6);
+            if (reachableNow) {
+                this.logger("[NAVAL_DEBUG] Land path is now clear, switching back to land mode");
+                if (this.unsubscribeFromEvents) { this.unsubscribeFromEvents(); this.unsubscribeFromEvents = null; }
+                this.isNavalMission = false;
+                this.eventBus.publish({ type: "modeChanged", player: playerData.name, isNaval: false });
+                this.priority = ATTACK_MISSION_INITIAL_PRIORITY;
+                this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, false);
+                return noop();
+            }
+        }
+
+        // -------- Naval yard build management --------
+        const hasNavalYard = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAYARD" || r.name === "NAYARD").length > 0;
+        if (this.isNavalMission && !hasNavalYard) {
+            // If waited too long or too many attempts, fall back to land mode
+            if (
+                gameApi.getCurrentTick() - this.navalModeStartTick > this.NAVAL_YARD_WAIT_TICKS ||
+                this.navalYardRequestAttempts >= this.MAX_NAVAL_YARD_ATTEMPTS
+            ) {
+                this.logger(`[NAVAL_DEBUG] Naval yard unable to build for long time, falling back to land mode, attempts: ${this.navalYardRequestAttempts}, wait time: ${gameApi.getCurrentTick() - this.navalModeStartTick}`);
+                if (this.unsubscribeFromEvents) { this.unsubscribeFromEvents(); this.unsubscribeFromEvents = null; }
+                this.isNavalMission = false;
+                this.eventBus.publish({ type: "modeChanged", player: playerData.name, isNaval: false });
+                this.composition = calculateTargetComposition(gameApi, playerData, matchAwareness, false);
+                return noop();
+            }
+            if (this.navalYardRequestAttempts < this.MAX_NAVAL_YARD_ATTEMPTS) {
+                const yardName = playerData.country?.side === SideType.Nod ? "NAYARD" : "GAYARD";
+                return requestUnits([yardName], this.priority * 100);
+            }
+        }
+
+        // Debug current unit composition
+        if (this.isNavalMission) {
+            this.logger(`[NAVAL_DEBUG] Current naval unit composition: ${JSON.stringify(currentComposition)}`);
+            this.logger(`[NAVAL_DEBUG] Target naval formation composition: ${JSON.stringify(this.composition)}`);
+        }
 
         const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
             return !currentComposition[unitType] || currentComposition[unitType] < targetAmount;
         });
 
         if (missingUnits.length > 0) {
+            if (this.isNavalMission) {
+                this.logger(`[NAVAL_DEBUG] Missing naval units: ${JSON.stringify(missingUnits)}`);
+            }
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
             return requestUnits(
                 missingUnits.map(([unitName]) => unitName),
                 this.priority,
             );
         } else {
+            if (this.isNavalMission) {
+                this.logger(`[NAVAL_DEBUG] Naval formation ready, starting attack phase`);
+            }
             this.priority = ATTACK_MISSION_INITIAL_PRIORITY;
             this.state = AttackMissionState.Attacking;
             return noop();
@@ -118,7 +263,13 @@ export class AttackMission extends Mission<AttackFailReason> {
         actionBatcher: ActionBatcher,
     ) {
         if (this.getUnitIds().length === 0) {
-            // TODO: disband directly (we no longer retreat when losing)
+            if (!this.isNavalMission) {
+                this.landAttackFailCount++;
+                if (this.shouldSwitchToNaval(gameApi, playerData)) {
+                    this.state = AttackMissionState.Preparing;
+                    return noop();
+                }
+            }
             this.state = AttackMissionState.Retreating;
             return noop();
         }
@@ -151,7 +302,7 @@ export class AttackMission extends Mission<AttackFailReason> {
             !this.hasPickedNewTarget &&
             gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_RETARGET_TICKS
         ) {
-            const newTarget = generateTarget(gameApi, playerData, matchAwareness);
+            const newTarget = generateTarget(gameApi, playerData, matchAwareness, false, this.logger);
             if (newTarget) {
                 this.squad.setAttackArea(newTarget);
                 this.hasPickedNewTarget = true;
@@ -209,7 +360,9 @@ function generateTarget(
     playerData: PlayerData,
     matchAwareness: MatchAwareness,
     includeBaseLocations: boolean = false,
+    logger?: DebugLogger,
 ): Vector2 | null {
+    const rallyPoint = matchAwareness.getMainRallyPoint();
     // Randomly decide between harvester and base.
     try {
         const tryFocusHarvester = gameApi.generateRandomInt(0, 1) === 0;
@@ -218,15 +371,33 @@ function generateTarget(
             .map((unitId) => gameApi.getUnitData(unitId))
             .filter((u) => !!u && gameApi.getPlayerData(u.owner).isCombatant) as UnitData[];
 
-        const maxUnit = maxBy(enemyUnits, (u) => getTargetWeight(u, tryFocusHarvester));
+        // Adjusted weight: penalise targets that ground units cannot reach (e.g. water targets).
+        const computeWeight = (u: UnitData) => {
+            let weight = getTargetWeight(u, tryFocusHarvester);
+            try {
+                // If rallyPoint -> target unreachable by Track, down-weight.
+                if (!isPointReachable(gameApi, rallyPoint, new Vector2(u.tile.rx, u.tile.ry), SpeedType.Track, 6)) {
+                    weight *= 0.3; // 70% penalty
+                }
+            } catch (err) {
+                // Pathfinding error; treat as unreachable but avoid spamming logs.
+                weight *= 0.3;
+            }
+            return weight;
+        };
+
+        const maxUnit = maxBy(enemyUnits, computeWeight);
         if (maxUnit) {
+            logger?.(
+                `generateTarget: picked visible enemy unit ${maxUnit.name} (id=${maxUnit.id}) at (${maxUnit.tile.rx},${maxUnit.tile.ry})`,
+            );
             return new Vector2(maxUnit.tile.rx, maxUnit.tile.ry);
         }
         if (includeBaseLocations) {
             const mapApi = gameApi.mapApi;
             const enemyPlayers = gameApi
                 .getPlayers()
-                .map(gameApi.getPlayerData)
+                .map(playerName => gameApi.getPlayerData(playerName))
                 .filter((otherPlayer) => !gameApi.areAlliedPlayers(playerData.name, otherPlayer.name));
 
             const unexploredEnemyLocations = enemyPlayers.filter((otherPlayer) => {
@@ -238,13 +409,36 @@ function generateTarget(
             });
             if (unexploredEnemyLocations.length > 0) {
                 const idx = gameApi.generateRandomInt(0, unexploredEnemyLocations.length - 1);
-                return unexploredEnemyLocations[idx].startLocation;
+                const targetLoc = unexploredEnemyLocations[idx].startLocation;
+                logger?.(`generateTarget: picked unexplored enemy base at (${targetLoc.x},${targetLoc.y})`);
+                return targetLoc;
             }
         }
     } catch (err) {
-        // There's a crash here when accessing a building that got destroyed. Will catch and ignore or now.
-        return null;
+        logger?.(`generateTarget: ERROR while selecting target: ${err}`);
+        // error; fallthrough to other logic
     }
+
+    // Fallback 1: target visible enemy MCV (undeployed construction vehicle)
+    try {
+        const baseUnitNames: string[] = gameApi.getGeneralRules().baseUnit ?? [];
+        const enemyMcvs = gameApi
+            .getVisibleUnits(playerData.name, "enemy", (r) => !!r.deploysInto && baseUnitNames.includes(r.name));
+        if (enemyMcvs.length > 0) {
+            const mcvId = enemyMcvs[0];
+            const mcvData = gameApi.getUnitData(mcvId);
+            if (mcvData) {
+                logger?.(
+                    `generateTarget: fallback to enemy MCV ${mcvData.name} (id=${mcvData.id}) at (${mcvData.tile.rx},${mcvData.tile.ry})`,
+                );
+                return new Vector2(mcvData.tile.rx, mcvData.tile.ry);
+            }
+        }
+    } catch (_) {
+        // ignore
+    }
+
+    // No suitable target
     return null;
 }
 
@@ -257,7 +451,9 @@ const BASE_ATTACK_COOLDOWN_TICKS = 1800;
 const ATTACK_MISSION_INITIAL_PRIORITY = 1;
 
 export class AttackMissionFactory implements MissionFactory {
-    constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {}
+    private lastAttackAt = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS;
+
+    constructor(private eventBus: EventBus) { }
 
     getName(): string {
         return "AttackMissionFactory";
@@ -290,7 +486,7 @@ export class AttackMissionFactory implements MissionFactory {
 
         const includeEnemyBases = gameApi.getCurrentTick() > this.lastAttackAt + BASE_ATTACK_COOLDOWN_TICKS;
 
-        const attackArea = generateTarget(gameApi, playerData, matchAwareness, includeEnemyBases);
+        const attackArea = generateTarget(gameApi, playerData, matchAwareness, includeEnemyBases, logger);
 
         if (!attackArea) {
             return;
@@ -309,6 +505,7 @@ export class AttackMissionFactory implements MissionFactory {
                 attackRadius,
                 composition,
                 logger,
+                this.eventBus,
             ).then((unitIds, reason) => {
                 missionController.addMission(
                     new RetreatMission(
@@ -332,5 +529,5 @@ export class AttackMissionFactory implements MissionFactory {
         failedMission: Mission<any>,
         failureReason: any,
         missionController: MissionController,
-    ): void {}
+    ): void { }
 }

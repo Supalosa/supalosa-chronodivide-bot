@@ -1,6 +1,7 @@
 .vs/
 .vscode/
 .idea/
+.DS_Store
 dist/
 node_modules/
 replays/
@@ -10,3 +11,5 @@ replays/
 *.cpuprofile
 .env
 *.ini
+*.map
+*.mpr

@@ -48,7 +48,7 @@ export class ScoutingMission extends Mission {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
-        const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
+        const scoutNames = ["ADOG", "DOG", "E1", "E2"];
         const scouts = this.getUnitsOfTypes(gameApi, ...scoutNames);
 
         if ((matchAwareness.getSectorCache().getOverallVisibility() || 0) > 0.9) {

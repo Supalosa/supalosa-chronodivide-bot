@@ -15,6 +15,7 @@ import {
     getDefaultPlacementLocation,
 } from "./buildingRules.js";
 import { DebugLogger } from "../common/utils";
+import { EventBus } from "../common/eventBus.js";
 
 export const QUEUES = [
     QueueType.Structures,
@@ -51,10 +52,20 @@ type QueueState = {
     topItem: TechnoRulesWithPriority | undefined;
 };
 
+const REPAIR_CHECK_INTERVAL = 30;
+
 export class QueueController {
     private queueStates: QueueState[] = [];
+    private lastRepairCheckAt = 0;
+    private navalMode: boolean = false;
 
-    constructor() {}
+    constructor(private eventBus: EventBus) {
+        this.eventBus.subscribe((ev) => {
+            if (ev.type === "modeChanged") {
+                this.navalMode = ev.isNaval;
+            }
+        });
+    }
 
     public onAiUpdate(
         game: GameApi,
@@ -106,7 +117,7 @@ export class QueueController {
         });
 
         // Repair is simple - just repair everything that's damaged.
-        if (playerData.credits > 0) {
+        if (playerData.credits > 0 && game.getCurrentTick() > this.lastRepairCheckAt + REPAIR_CHECK_INTERVAL) {
             game.getVisibleUnits(playerData.name, "self", (r) => r.repairable).forEach((unitId) => {
                 const unit = game.getUnitData(unitId);
                 if (!unit || !unit.hitPoints || !unit.maxHitPoints || unit.hasWrenchRepair) {
@@ -116,6 +127,7 @@ export class QueueController {
                     actionsApi.toggleRepairWrench(unitId);
                 }
             });
+            this.lastRepairCheckAt = game.getCurrentTick();
         }
     }
 
@@ -158,6 +170,10 @@ export class QueueController {
                     actionsApi.placeBuilding(objectReady.name, location.rx, location.ry);
                 } else {
                     logger(`Completed: ${queueTypeToName(queueType)}: ${objectReady.name} but nowhere to place it`);
+                    if (objectReady.name === "GAYARD" || objectReady.name === "NAYARD") {
+                        this.eventBus.publish({ type: "yardFailed", player: playerData.name });
+                    }
+                    actionsApi.unqueueFromProduction(queueType, objectReady.name, objectReady.type, 1);
                 }
             }
         } else if (queueData.status == QueueStatus.Active && queueData.items.length > 0 && decision != null) {
@@ -217,6 +233,28 @@ export class QueueController {
     ): TechnoRulesWithPriority[] {
         let priorityQueue: TechnoRulesWithPriority[] = [];
         options.forEach((option) => {
+            // Enforce naval/land build caps within this bot instance
+            const name = option.name;
+            const isYard = name === "GAYARD" || name === "NAYARD";
+            const isWarFactory = name === "GAWEAP" || name === "NAWEAP";
+            if (isYard || isWarFactory) {
+                const count = game.getVisibleUnits(playerData.name, "self", (r) => r.name === name).length;
+                if (isYard) {
+                    if (!this.navalMode) {
+                        // Land mode: do not build any yard
+                        return;
+                    }
+                    const yardCap = 4;
+                    if (count >= yardCap) {
+                        return;
+                    }
+                } else if (isWarFactory) {
+                    const warCap = this.navalMode ? 1 : 4;
+                    if (count >= warCap) {
+                        return;
+                    }
+                }
+            }
             const calculatedPriority = this.getPriorityForBuildingOption(option, game, playerData, threatCache);
             // Get the higher of the dynamic and the mission priority for the unit.
             const actualPriority = Math.max(

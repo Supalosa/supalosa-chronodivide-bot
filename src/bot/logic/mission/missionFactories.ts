@@ -8,6 +8,14 @@ import { MissionController } from "./missionController.js";
 import { DefenceMissionFactory } from "./missions/defenceMission.js";
 import { DebugLogger } from "../common/utils.js";
 import { EngineerMissionFactory } from "./missions/engineerMission.js";
+import { NavalScoutingMissionFactory } from "./missions/navalScoutingMission.js";
+import { AmphibiousScoutingMissionFactory } from "./missions/amphibiousScoutingMission.js";
+import { AntiShipyardMissionFactory } from "./missions/antiShipyardMission.js";
+import { AntiCoastShipMissionFactory } from "./missions/antiCoastShipMission.js";
+import { DreadEscortMissionFactory } from "./missions/dreadEscortMission.js";
+import { HarvesterDefenceMissionFactory } from "./missions/harvesterDefenceMission.js";
+import { AntiSubMissionFactory } from "./missions/antiSubMission.js";
+import { EventBus } from "../common/eventBus.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -42,10 +50,17 @@ export interface MissionFactory {
     ): void;
 }
 
-export const createMissionFactories = () => [
+export const createMissionFactories = (eventBus: EventBus) => [
     new ExpansionMissionFactory(),
     new ScoutingMissionFactory(),
-    new AttackMissionFactory(),
+    new AttackMissionFactory(eventBus),
     new DefenceMissionFactory(),
     new EngineerMissionFactory(),
+    new NavalScoutingMissionFactory(),
+    new AmphibiousScoutingMissionFactory(),
+    new AntiShipyardMissionFactory(),
+    new AntiCoastShipMissionFactory(),
+    new HarvesterDefenceMissionFactory(),
+    new DreadEscortMissionFactory(),
+    //new AntiSubMissionFactory(),
 ];

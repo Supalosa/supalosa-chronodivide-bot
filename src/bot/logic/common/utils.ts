@@ -18,8 +18,13 @@ export const isOwnedByNeutral = (unitData: UnitData | undefined) => unitData?.ow
 
 // Return if the given unit would have .isSelectableCombatant = true.
 // Usable on GameObjectData (which is faster to get than TechnoRules)
-export const isSelectableCombatant = (rules: GameObjectData | undefined) =>
-    !!(rules?.rules as any)?.isSelectableCombatant;
+export const isSelectableCombatant = (rules: GameObjectData | undefined) => {
+    if (!rules) return false;
+    if ((rules?.rules as any)?.isSelectableCombatant) {
+        return true;
+    }
+    return false;
+};
 
 // Thanks use-strict!
 export function formatTimeDuration(timeSeconds: number, skipZeroHours = false) {

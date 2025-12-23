@@ -7,12 +7,13 @@ export const getAlliedCompositions = (
     playerData: PlayerData,
     matchAwareness: MatchAwareness,
 ): UnitComposition => {
+    const hasBarracks = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAPILE").length > 0;
     const hasWarFactory = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAWEAP").length > 0;
     const hasAirforce =
         gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAAIRC" || r.name === "AMRADR").length > 0;
     const hasBattleLab = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GATECH").length > 0;
 
-    const includeInfantry = !hasAirforce && !hasBattleLab;
+    const includeInfantry = !hasAirforce && !hasBattleLab && hasBarracks;
     return {
         ...(includeInfantry && { E1: 5 }),
         ...(hasWarFactory && { MTNK: 3, FV: 2 }),
