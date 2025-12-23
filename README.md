@@ -90,11 +90,13 @@ This will debug the bot which has been configured with `setDebugMode(true)`, thi
 
 ## Publishing
 
-Have the npmjs token in ~/.npmrc or somewhere appropriate.
+A Github Action has been set up on the [main repo](https://github.com/Supalosa/supalosa-chronodivide-bot). To publish a new version of the bot:
 
 ```
-npm publish
+npm version v0.6.0 # major.minor.patch
 ```
+
+Then, use the Github UI to create a new release with the corresponding version.
 
 ## Contributors
 
