@@ -105,4 +105,4 @@ git push origin tag v0.6.0
 
 - use-strict: Making Chrono Divide
 - Libi: Improvements to base structure placement performance
-- Dogemoon: CN Documentation
+- Dogemoon: CN Documentation, Naval play additions
