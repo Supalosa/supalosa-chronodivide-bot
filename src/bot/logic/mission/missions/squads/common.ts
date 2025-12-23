@@ -34,9 +34,9 @@ export function manageAttackMicro(attacker: UnitData, target: UnitData): Batchab
     const primaryWeaponRange = attacker.primaryWeapon?.maxRange || 5;
     if (targetData?.type == ObjectType.Building && distance < primaryWeaponRange * 0.8) {
         orderType = OrderType.Attack;
-    } else if (targetData?.rules.canDisguise) {
+    } else if (targetData?.rules.canDisguise || targetData?.rules.underwater) {
         // Special case for mirage tank/spy as otherwise they just sit next to it.
-        orderType = OrderType.Attack;
+        orderType = OrderType.ForceAttack;
     }
     return BatchableAction.toTargetId(attacker.id, orderType, target.id);
 }
@@ -51,13 +51,33 @@ export function getAttackWeight(attacker: UnitData, target: UnitData): number | 
     const { rx: x, ry: y } = attacker.tile;
     const { rx: hX, ry: hY } = target.tile;
 
+    // DEBUG: Underwater unit attack weight debug info
+    const isUnderWaterUnit = ["SUB", "DLPH", "SQD"].includes(attacker.name);
+    const isNavalTarget = ["DEST", "AEGIS", "CARRIER", "SUB", "HYD", "DRED", "DLPH", "SQD"].includes(target.name);
+
+    // Check anti-air capability
     if (!attacker.primaryWeapon?.projectileRules.isAntiAir && target.zone === ZoneType.Air) {
         return null;
     }
 
-    if (!attacker.primaryWeapon?.projectileRules.isAntiGround && target.zone === ZoneType.Ground) {
+    // Check anti-ground capability (carriers/dreadnoughts and other special ships can be ignored)
+    const groundAttackWhitelist = ["CARRIER", "DRED"];
+    const ignoreAntiGroundCheck = groundAttackWhitelist.includes(attacker.name);
+
+    if (
+        !ignoreAntiGroundCheck &&
+        !attacker.primaryWeapon?.projectileRules.isAntiGround &&
+        target.zone === ZoneType.Ground
+    ) {
         return null;
     }
 
-    return 1000000 - getDistanceBetweenPoints(new Vector2(x, y), new Vector2(hX, hY));
+    // TODO: Add check for naval targets
+    // May need to check target.zone === ZoneType.Water or similar naval zones here
+    // and whether the attacker has anti-ship capability
+    
+    const distance = getDistanceBetweenPoints(new Vector2(x, y), new Vector2(hX, hY));
+    const weight = 1000000 - distance;
+    
+    return weight;
 }
