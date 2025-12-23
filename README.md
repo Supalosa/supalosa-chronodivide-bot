@@ -20,7 +20,7 @@ Feel free to contribute to the repository, or even fork the repo and build your 
 
 ## Install instructions
 
-Node 14 is required by the Chrono Divide API. Higher versions are not supported yet.
+Node 20 is required by the Chrono Divide API. However, publishing is done on Node 24 or above.
 
 ```sh
 npm install
