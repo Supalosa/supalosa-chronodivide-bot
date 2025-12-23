@@ -1,3 +1,5 @@
+[![Publish Package](https://github.com/Supalosa/supalosa-chronodivide-bot/actions/workflows/npm-publish.yml/badge.svg)](https://github.com/Supalosa/supalosa-chronodivide-bot/actions/workflows/npm-publish.yml)
+
 # Supalosa's Chrono Divide Bot
 
 [中文版文档](README-CN.md)
