@@ -90,13 +90,14 @@ This will debug the bot which has been configured with `setDebugMode(true)`, thi
 
 ## Publishing
 
-A Github Action has been set up on the [main repo](https://github.com/Supalosa/supalosa-chronodivide-bot). To publish a new version of the bot:
+A Github Action has been set up on the [main repo](https://github.com/Supalosa/supalosa-chronodivide-bot). We use npmjs's [trusted publisher](https://docs.npmjs.com/trusted-publishers#supported-cicd-providers) setup to do this.
+
+To publish a new version of the bot:
 
 ```
 npm version v0.6.0 # major.minor.patch
+git push origin tag v0.6.0
 ```
-
-Then, use the Github UI to create a new release with the corresponding version.
 
 ## Contributors
 
