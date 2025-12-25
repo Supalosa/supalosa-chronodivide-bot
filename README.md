@@ -110,8 +110,10 @@ A Github Action has been set up on the [main repo](https://github.com/Supalosa/s
 To publish a new version of the bot, from the **root** directory (IMPORTANT), do this. (The `--workspaces` is important to update all of the subpackages)
 
 ```
-npm version v0.6.0 --workspaces  # major.minor.patch
-git push origin tag v0.6.0
+# usually will be `patch`, can be `minor`/`major` for bigger releases
+npm version patch --workspaces
+# ... 
+git push origin tag <tag that was just created>
 ```
 
 To publish a beta version, do one of the following:
