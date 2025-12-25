@@ -107,22 +107,22 @@ This will debug the bot which has been configured with `setDebugMode(true)`, thi
 
 A Github Action has been set up on the [main repo](https://github.com/Supalosa/supalosa-chronodivide-bot). We use npmjs's [trusted publisher](https://docs.npmjs.com/trusted-publishers#supported-cicd-providers) setup to do this.
 
-To publish a new version of the bot:
+To publish a new version of the bot, from the **root** directory (IMPORTANT), do this. (The `--workspaces` is important to update all of the subpackages)
 
 ```
-npm version v0.6.0 # major.minor.patch
+npm version v0.6.0 --workspaces  # major.minor.patch
 git push origin tag v0.6.0
 ```
 
 To publish a beta version, do one of the following:
 
 ```
-npm version prepatch --preid=beta # 0.6.0 -> 0.6.1-beta.0
-npm version preminor --preid=beta # 0.6.0 -> 0.7.0-beta.0
-npm version premajor --preid=beta # 0.6.0 -> 1.0.0-beta.0
+npm version prepatch --preid=beta --workspaces # 0.6.0 -> 0.6.1-beta.0
+npm version preminor --preid=beta --workspaces # 0.6.0 -> 0.7.0-beta.0
+npm version premajor --preid=beta --workspaces # 0.6.0 -> 1.0.0-beta.0
 ```
 
-If you are already on a beta version, use `npm version prerelease` to increment the `.0`.
+If you are already on a beta version, use `npm version prerelease --workspaces` to increment the `.0`.
 
 
 
