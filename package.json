@@ -1,32 +1,13 @@
 {
-    "name": "@supalosa/chronodivide-bot",
-    "version": "0.6.7",
-    "description": "Example bot for Chrono Divide",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/Supalosa/supalosa-chronodivide-bot.git"
-    },
-    "main": "dist/exampleBot.js",
-    "type": "module",
-    "scripts": {
-        "build": "tsc -p .",
-        "watch": "tsc -p . -w",
-        "start": "node . --es-module-specifier-resolution=node",
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "license": "UNLICENSED",
-    "devDependencies": {
-        "@chronodivide/game-api": "^0.73.0",
-        "@types/node": "^14.17.32",
-        "prettier": "3.0.3",
-        "typescript": "^4.3.5"
-    },
-    "peerDependencies": {
-        "@chronodivide/game-api": "^0.73.0"
-    },
-    "dependencies": {
-        "@datastructures-js/priority-queue": "^6.3.0",
-        "@timohausmann/quadtree-ts": "2.2.2",
-        "dotenv": "^16.3.1"
-    }
+  "name": "chronodivide-bot-project",
+  "version": "0.6.8-beta.0",
+  "private": true,
+  "workspaces": [
+    "packages/chronodivide-bot",
+    "packages/chronodivide-bot-driver"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "watch": "tsc --build --watch"
+  }
 }

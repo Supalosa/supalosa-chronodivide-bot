@@ -1,8 +1,7 @@
 import "dotenv/config";
 import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
-import { SupalosaBot } from "./bot/bot.js";
-import { DummyBot } from "./dummyBot/dummyBot.js";
-import { Countries } from "./bot/logic/common/utils.js";
+import { SupalosaBot } from "@supalosa/chronodivide-bot/dist/bot/bot.js";
+import { Countries } from "@supalosa/chronodivide-bot/dist/bot/logic/common/utils.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
 const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours
@@ -114,7 +113,7 @@ async function main() {
         ],
     };
 
-    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings4v4);
+    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings1v1);
 
     console.profile(`cpuprofile-${timestamp}`);
 

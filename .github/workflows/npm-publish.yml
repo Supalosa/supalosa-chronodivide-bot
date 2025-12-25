@@ -25,3 +25,4 @@ jobs:
         with:
           package-json: ./package.json
       - run: npm publish --tag ${{ steps.latest_tag.outputs.latest-tag }}
+        working-directory: ./packages/chronodivide-bot
