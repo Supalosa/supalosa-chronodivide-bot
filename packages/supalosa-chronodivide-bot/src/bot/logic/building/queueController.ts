@@ -7,14 +7,14 @@ import {
     QueueType,
     TechnoRules,
 } from "@chronodivide/game-api";
-import { GlobalThreat } from "../threat/threat";
+import { GlobalThreat } from "../threat/threat.js";
 import {
     TechnoRulesWithPriority,
     BUILDING_NAME_TO_RULES,
     DEFAULT_BUILDING_PRIORITY,
     getDefaultPlacementLocation,
 } from "./buildingRules.js";
-import { DebugLogger } from "../common/utils";
+import { DebugLogger } from "../common/utils.js";
 
 export const QUEUES = [
     QueueType.Structures,

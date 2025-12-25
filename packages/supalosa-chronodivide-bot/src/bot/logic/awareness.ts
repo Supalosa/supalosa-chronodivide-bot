@@ -1,6 +1,6 @@
 import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
-import { SectorCache } from "./map/sector";
-import { GlobalThreat } from "./threat/threat";
+import { SectorCache } from "./map/sector.js";
+import { GlobalThreat } from "./threat/threat.js";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
 import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "./map/map.js";
 import { Circle, Quadtree } from "@timohausmann/quadtree-ts";
