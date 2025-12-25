@@ -6,7 +6,7 @@
         "type": "git",
         "url": "git+https://github.com/Supalosa/supalosa-chronodivide-bot.git"
     },
-    "main": "dist/exampleBot.js",
+    "main": "dist/main.js",
     "type": "module",
     "scripts": {
         "build": "tsc -p .",

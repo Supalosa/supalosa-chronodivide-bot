@@ -1,0 +1,12 @@
+{
+  "name": "@supalosa/chronodivide-bot-driver",
+  "version": "0.0.1",
+  "description": "Driver for Chronodivide game agents. Allows visualising game state while running in headless mode. ",
+  "license": "UNLICENSED",
+  "author": "Supalosa",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
