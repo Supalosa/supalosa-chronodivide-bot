@@ -1,6 +1,7 @@
 .vs/
 .vscode/
 .idea/
+.github/
 dist/
 node_modules/
 replays/
@@ -12,3 +13,5 @@ replays/
 *.ini
 .prettierrc
 *.md
+.env.template
+tsconfig.json
