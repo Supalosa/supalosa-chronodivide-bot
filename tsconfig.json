@@ -1,0 +1,11 @@
+{
+    "files": [],
+    "references": [
+        {
+            "path": "./packages/chronodivide-bot-driver"
+        },
+        {
+            "path": "./packages/supalosa-chronodivide-bot"
+        }
+    ]
+}

@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "workspaces": [
-    "packages/*"
-  ]
+    "packages/supalosa-chronodivide-bot",
+    "packages/chronodivide-bot-driver"
+  ],
+  "scripts": {
+    "build": "tsc --build"
+  }
 }

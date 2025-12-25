@@ -5,8 +5,20 @@
   "license": "UNLICENSED",
   "author": "Supalosa",
   "type": "module",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -p . -w",
+    "start": "node . --es-module-specifier-resolution=node",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "peerDependencies": {
+    "@chronodivide/game-api": "^0.73.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.3.5"
+  },
+  "dependencies": {
+    "@supalosa/chronodivide-bot": "^0.6.7"
   }
 }
