@@ -135,6 +135,8 @@ npm version prerelease --workspaces --include-workspace-root
 Once the version is set, do the following (unfortunately with npm workspaces we don't get this for free with `npm version`):
 
 ```npm
+npm install
+git add package{,-lock}.json packages/**/*.json
 VERSION=$(npm pkg get version)
 git commit --message ${VERSION}
 git tag ${VERSION}
