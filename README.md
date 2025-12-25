@@ -133,7 +133,7 @@ Once the version is set, do the following (unfortunately with npm workspaces we 
 ```npm
 npm install
 git add package{,-lock}.json packages/**/*.json
-VERSION=$(npm pkg get version)
+VERSION=$(npm pkg get version | tr -d '"')
 git commit --message ${VERSION}
 git tag ${VERSION}
 git push origin tag ${VERSION}
