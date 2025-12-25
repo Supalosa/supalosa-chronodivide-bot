@@ -111,21 +111,35 @@ To publish a new version of the bot, from the **root** directory (IMPORTANT), do
 
 ```
 # usually will be `patch`, can be `minor`/`major` for bigger releases
-npm version patch --workspaces
-# ... will create a tag, like v0.6.8 ...
-git push origin tag v0.6.8
+npm version patch --workspaces --include-workspace-root
 ```
 
-To publish a beta version, do one of the following:
+To set the version to a beta version, do one of the following:
 
 ```
-npm version prepatch --preid=beta --workspaces # 0.6.0 -> 0.6.1-beta.0
-npm version preminor --preid=beta --workspaces # 0.6.0 -> 0.7.0-beta.0
-npm version premajor --preid=beta --workspaces # 0.6.0 -> 1.0.0-beta.0
+# 0.6.0 -> 0.6.1-beta.0
+npm version prepatch --preid=beta --workspaces  --include-workspace-root
+
+# 0.6.0 -> 0.7.0-beta.0
+npm version preminor --preid=beta --workspaces --include-workspace-root
+
+# 0.6.0 -> 1.0.0-beta.0
+npm version premajor --preid=beta --workspaces --include-workspace-root
 ```
 
-If you are already on a beta version, use `npm version prerelease --workspaces` to increment the `.0`.
+If you are already on a beta version, use the following to increment the `.0`:
+```
+npm version prerelease --workspaces --include-workspace-root
+```
 
+Once the version is set, do the following (unfortunately with npm workspaces we don't get this for free with `npm version`):
+
+```npm
+VERSION=$(npm pkg get version)
+git commit --message ${VERSION}
+git tag ${VERSION}
+git push origin tag ${VERSION}
+```
 
 
 ## Contributors
