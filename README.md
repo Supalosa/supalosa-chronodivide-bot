@@ -11,26 +11,39 @@ This repository is one such implementation of a bot. The original template for t
 
 ## Development State and Future plans
 
-The developer of Chrono Divide has expressed interest in integrating this bot into the game directly. As a consequence, I am aiming to implement missing features to create a satisfactory AI opponent for humans.
-Directionally, this means I am not looking to make this AI a perfect opponent with perfect compositions or micro, and instead hope that it can be a fun challenge for newer players.
+The developer of Chrono Divide has integrated the bot into the game. Therefore, its intention is to be a stable, performant implementation for newer players to play against, rather than a complex and competitive opponent.
 
 See `TODO.md` for a granular list of structural changes and feature improvements that are planned for the bot.
 
 Feel free to contribute to the repository, or even fork the repo and build your own version.
 
-## Install instructions
+## Repository structure
+
+* `packages/supalosa-chronodivide-bot`: The actual bot logic. This is also published to `@supalosa/chronodivide-bot` and used by the live Chrono Divide game.
+* `packages/chronodivide-bot-driver`: A project that runs the bot and will soon provide debug visualisation capability (since the bot will normally run in headless mode).
+
+## Quick start instructions
 
 Node 20 is required by the Chrono Divide API. However, publishing is done on Node 24 or above.
 
+From the **root** directory:
 ```sh
 npm install
-npm run build
-npx cross-env MIX_DIR="C:\path_to_ra2_install_dir" npm start
+npm run watch # will monitor and recompile upon any changes to the bot or driver
+```
+
+Then, in another terminal, from the **`packages/chronodivide-bot-driver`** directory:
+```
+# for example
+export GAMEPATH="C:\Origin\Command and Conquer Red Alert II"
+
+npx cross-env MIX_DIR="${GAMEPATH}" npm start
 ```
 
 This will create a replay (`.rpl`) file that can be [imported into the live game](https://game.chronodivide.com/).
 
-You can modify `exampleBot.ts` to configure the match. You will most likely want to look at the line with `const mapName = "..."` to change the map, or the `const offlineSettings1v1` to change the bot countries.
+You can modify `index.ts` to configure the match. You will most likely want to look at the line with `const mapName = "..."` to change the map, or the `const offlineSettings1v1` to change the bot countries.
+
 
 ## Playing against the bot
 
@@ -66,7 +79,7 @@ Press ENTER to create the game now...
 ```
 
 Navigate to the link, **log in using the human credentials first**, then hit ENTER in the terminal so the bot can create the game.
-Do not hit ENTER too early, as there is a very narrow window for the human connect to the match.
+Do not hit ENTER too early, as there is a very narrow window for the human to connect to the match.
 
 ## Debugging
 
@@ -100,6 +113,18 @@ To publish a new version of the bot:
 npm version v0.6.0 # major.minor.patch
 git push origin tag v0.6.0
 ```
+
+To publish a beta version, do one of the following:
+
+```
+npm version prepatch --preid=beta # 0.6.0 -> 0.6.1-beta.0
+npm version preminor --preid=beta # 0.6.0 -> 0.7.0-beta.0
+npm version premajor --preid=beta # 0.6.0 -> 1.0.0-beta.0
+```
+
+If you are already on a beta version, use `npm version prerelease` to increment the `.0`.
+
+
 
 ## Contributors
 

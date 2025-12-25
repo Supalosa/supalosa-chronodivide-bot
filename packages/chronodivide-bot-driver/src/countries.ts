@@ -1,4 +1,3 @@
-
 export enum Countries {
     USA = "Americans",
     KOREA = "Alliance",

@@ -8,9 +8,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc -p .",
-    "watch": "tsc -p . -w",
-    "start": "node . --es-module-specifier-resolution=node",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node . --es-module-specifier-resolution=node"
   },
   "peerDependencies": {
     "@chronodivide/game-api": "^0.73.0"
