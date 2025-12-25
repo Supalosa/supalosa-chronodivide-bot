@@ -42,7 +42,7 @@ npx cross-env MIX_DIR="${GAMEPATH}" npm start
 
 This will create a replay (`.rpl`) file that can be [imported into the live game](https://game.chronodivide.com/).
 
-You can modify `index.ts` to configure the match. You will most likely want to look at the line with `const mapName = "..."` to change the map, or the `const offlineSettings1v1` to change the bot countries.
+You can modify `index.ts` to configure the match. You will most likely want to look at the line with `const mapName = "..."` to change the map, or the `const offlineSettingsXXX` to change the bot countries.
 
 
 ## Playing against the bot

@@ -1,4 +1,4 @@
-import { GameObjectData, TechnoRules, UnitData } from "@chronodivide/game-api";
+import { GameObjectData, UnitData } from "@chronodivide/game-api";
 
 export enum Countries {
     USA = "Americans",
