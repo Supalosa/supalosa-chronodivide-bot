@@ -112,8 +112,8 @@ To publish a new version of the bot, from the **root** directory (IMPORTANT), do
 ```
 # usually will be `patch`, can be `minor`/`major` for bigger releases
 npm version patch --workspaces
-# ... 
-git push origin tag <tag that was just created>
+# ... will create a tag, like v0.6.8 ...
+git push origin tag v0.6.8
 ```
 
 To publish a beta version, do one of the following:
