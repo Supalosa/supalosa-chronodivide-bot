@@ -1,6 +1,6 @@
 {
   "name": "chronodivide-bot-project",
-  "version": "0.6.8-0",
+  "version": "0.6.7",
   "private": true,
   "workspaces": [
     "packages/chronodivide-bot",
