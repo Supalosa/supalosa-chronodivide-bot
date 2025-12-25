@@ -135,8 +135,8 @@ npm install
 git add package{,-lock}.json packages/**/*.json
 VERSION=$(npm pkg get version | tr -d '"')
 git commit --message ${VERSION}
-git tag ${VERSION}
-git push origin tag ${VERSION}
+git tag v${VERSION}
+git push origin tag v${VERSION}
 ```
 
 
