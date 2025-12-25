@@ -6,7 +6,7 @@
     },
     "references": [
         {
-            "path": "../supalosa-chronodivide-bot"
+            "path": "../chronodivide-bot"
         }
     ],
     "include": ["src/**/*"]

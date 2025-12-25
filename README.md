@@ -19,7 +19,7 @@ Feel free to contribute to the repository, or even fork the repo and build your 
 
 ## Repository structure
 
-* `packages/supalosa-chronodivide-bot`: The actual bot logic. This is also published to `@supalosa/chronodivide-bot` and used by the live Chrono Divide game.
+* `packages/chronodivide-bot`: The actual bot logic. This is also published to `@supalosa/chronodivide-bot` and used by the live Chrono Divide game.
 * `packages/chronodivide-bot-driver`: A project that runs the bot and will soon provide debug visualisation capability (since the bot will normally run in headless mode).
 
 ## Quick start instructions
