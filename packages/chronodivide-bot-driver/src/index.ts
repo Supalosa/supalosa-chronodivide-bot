@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
 import { SupalosaBot } from "@supalosa/chronodivide-bot/dist/bot/bot.js";
 import { Countries } from "@supalosa/chronodivide-bot/dist/bot/logic/common/utils.js";
+import { VisualisedBot } from "./visualisation/visualisedBot.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
 const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours
@@ -34,7 +35,8 @@ async function main() {
     heckcorners_b_golden.map,hecklvl.map,heckrvr.map,hecktvt.map,isleland.map,jungleofvietnam.map,2_malibu_cliffs_le.map,mojosprt.map,4_montana_dmz_le.map,6_near_ore_far.map,8_near_ore_far.map,
     offensedefense.map,ore2_startfixed.map,rekoool_fast_6players.mpr,rekoool_fast_8players.mpr,riverram.map,tourofegypt.map,unrepent.map,sinkswim_yr_port.map
     */
-    const mapName = "rekoool_fast_8players.mpr";
+    //const mapName = "rekoool_fast_8players.mpr";
+    const mapName = "heckcorners_b.map";
     // Bot names must be unique in online mode
     const timestamp = String(Date.now()).substr(-6);
     const botName1 = `Joe${timestamp}`;
@@ -76,7 +78,9 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(botName1, Countries.FRANCE, [], true).setDebugMode(true),
+            new VisualisedBot({
+                outFolder: "debug/", tickInterval: 15 * 30
+            }, botName1, Countries.FRANCE, [], true).setDebugMode(true),
             new SupalosaBot(botName2, Countries.FRANCE, [], false),
         ],
     };
