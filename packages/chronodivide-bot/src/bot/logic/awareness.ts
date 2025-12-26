@@ -1,10 +1,11 @@
-import { GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { GameApi, GameObjectData, PlayerData, Size, Vector2 } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector.js";
 import { GlobalThreat } from "./threat/threat.js";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
-import { determineMapBounds, getDistanceBetweenPoints, getPointTowardsOtherPoint } from "./map/map.js";
+import { getPointTowardsOtherPoint } from "./map/map.js";
 import { Circle, Quadtree } from "@timohausmann/quadtree-ts";
 import { ScoutingManager } from "./common/scout.js";
+import { IncrementalGridCache } from "./map/incrementalGridCache.js";
 
 export type UnitPositionQuery = { x: number; y: number; unitId: number };
 
@@ -80,12 +81,13 @@ export class MatchAwarenessImpl implements MatchAwareness {
     private scoutingManager: ScoutingManager;
 
     constructor(
+        private bounds: Size,
         private threatCache: GlobalThreat | null,
         private sectorCache: SectorCache,
         private mainRallyPoint: Vector2,
         private logger: (message: string, sayInGame?: boolean) => void,
     ) {
-        const { width, height } = sectorCache.getMapBounds();
+        const { width, height } = bounds;
         this.hostileQuadTree = new Quadtree({ width, height });
         this.scoutingManager = new ScoutingManager(logger);
     }
@@ -138,7 +140,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
     onAiUpdate(game: GameApi, playerData: PlayerData): void {
         const sectorCache = this.sectorCache;
 
-        sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE, game.mapApi, playerData);
+        sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE);
 
         this.scoutingManager.onAiUpdate(game, playerData, sectorCache);
 

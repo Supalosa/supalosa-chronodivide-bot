@@ -6,6 +6,7 @@ import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { Countries, formatTimeDuration } from "./logic/common/utils.js";
+import { IncrementalGridCache } from "./logic/map/incrementalGridCache.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -21,10 +22,13 @@ export class SupalosaBot extends Bot {
     private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
 
+    private sectorCache: SectorCache | null = null;
     private matchAwareness: MatchAwareness | null = null;
 
     // Messages to display in visualisation mode only.
-    public debugMessages: string[] = [];
+    public _debugMessages: string[] = [];
+    public _globalDebugText: string = "";
+    public _debugGridCaches: {grid: IncrementalGridCache<any>, tag: string}[] = [];
 
     constructor(
         name: string,
@@ -45,10 +49,13 @@ export class SupalosaBot extends Bot {
 
         this.knownMapBounds = determineMapBounds(game.mapApi);
         const myPlayer = game.getPlayerData(this.name);
+        this.sectorCache = new SectorCache(game.mapApi, this.knownMapBounds, myPlayer);
+        this._debugGridCaches = [{grid: this.sectorCache, tag: "sector-cache"}];
 
         this.matchAwareness = new MatchAwarenessImpl(
+            this.knownMapBounds,
             null,
-            new SectorCache(game.mapApi, this.knownMapBounds),
+            this.sectorCache,
             myPlayer.startLocation,
             (message, sayInGame) => this.logBotStatus(message, sayInGame),
         );
@@ -130,8 +137,6 @@ export class SupalosaBot extends Bot {
         this.pushDebugMessage(`${timestamp}: ${message}`);
     }
 
-    public _globalDebugText: string = "";
-
     private updateDebugState(game: GameApi) {
         if (!this.getDebugMode()) {
             return;
@@ -171,9 +176,9 @@ export class SupalosaBot extends Bot {
     }
 
     protected pushDebugMessage(message: string) {
-        if (this.debugMessages.length + 1 > DEBUG_MESSAGES_BUFFER_LENGTH) {
-            this.debugMessages.shift();
+        if (this._debugMessages.length + 1 > DEBUG_MESSAGES_BUFFER_LENGTH) {
+            this._debugMessages.shift();
         }
-        this.debugMessages.push(message);
+        this._debugMessages.push(message);
     }
 }

@@ -1,5 +1,5 @@
-import { GameApi, GameMath, PlayerData, Vector2 } from "@chronodivide/game-api";
-import { Sector, SectorCache } from "../map/sector";
+import { GameApi, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { SectorCache } from "../map/sector";
 import { DebugLogger } from "./utils";
 import { PriorityQueue } from "@datastructures-js/priority-queue";
 
@@ -15,50 +15,28 @@ export const getUnseenStartingLocations = (gameApi: GameApi, playerData: PlayerD
 };
 
 export class PrioritisedScoutTarget {
-    private _targetPoint?: Vector2;
-    private _targetSector?: Sector;
-    private _priority: number;
-
     constructor(
-        priority: number,
-        target: Vector2 | Sector,
-        private permanent: boolean = false,
-    ) {
-        if (target.hasOwnProperty("x") && target.hasOwnProperty("y")) {
-            this._targetPoint = target as Vector2;
-        } else if (target.hasOwnProperty("sectorStartPoint")) {
-            this._targetSector = target as Sector;
-        } else {
-            throw new TypeError(`invalid object passed as target: ${target}`);
-        }
-        this._priority = priority;
-    }
+        public priority: number,
+        public target: Vector2,
+        public permanent: boolean = false,
+    ) {}
 
-    get priority() {
-        return this._priority;
-    }
-
-    asVector2() {
-        return this._targetPoint ?? this._targetSector?.sectorStartPoint ?? null;
-    }
-
-    get targetSector() {
-        return this._targetSector;
-    }
-
-    get isPermanent() {
-        return this.permanent;
+    toString() {
+        const vector2 = this.target;
+        return `${vector2?.x},${vector2?.y}`;
     }
 }
 
-const ENEMY_SPAWN_POINT_PRIORITY = 100;
+const ENEMY_SPAWN_POINT_PRIORITY = 800;
 
-// Amount of sectors around the starting sector to try to scout.
-const NEARBY_SECTOR_STARTING_RADIUS = 2;
-const NEARBY_SECTOR_BASE_PRIORITY = 1000;
+// Distance around the starting area (in tiles) to scout first.
+const NEARBY_SECTOR_STARTING_RADIUS = 16;
+const NEARBY_SECTOR_BASE_PRIORITY = 900;
 
 // Amount of ticks per 'radius' to expand for scouting.
-const SCOUTING_RADIUS_EXPANSION_TICKS = 9000; // 10 minutes
+const SCOUTING_RADIUS_EXPANSION_TICKS = 120;
+// Don't queue scouting for sectors with enough visibility.
+const SCOUTING_MAX_VISIBILITY_RATIO = 0.8;
 
 export class ScoutingManager {
     private scoutingQueue: PriorityQueue<PrioritisedScoutTarget>;
@@ -80,39 +58,29 @@ export class ScoutingManager {
         startingPriority: number,
     ) {
         const { x: startX, y: startY } = centerPoint;
-        const { width: sectorsX, height: sectorsY } = sectorCache.getSectorBounds();
-        const startingSector = sectorCache.getSectorCoordinatesForWorldPosition(startX, startY);
-
-        if (!startingSector) {
-            return;
-        }
-
-        for (
-            let x: number = Math.max(0, startingSector.sectorX - radius);
-            x < Math.min(sectorsX, startingSector.sectorX + radius);
-            ++x
-        ) {
-            for (
-                let y: number = Math.max(0, startingSector.sectorY - radius);
-                y < Math.min(sectorsY, startingSector.sectorY + radius);
-                ++y
-            ) {
-                if (x === startingSector?.sectorX && y === startingSector?.sectorY) {
-                    continue;
+        sectorCache.forEachInRadius(startX,
+            startY, radius,
+            (x, y, sector, distance) => {
+                if (!sector) {
+                    return;
                 }
                 // Make it scout closer sectors first.
-                const distanceFactor =
-                    GameMath.pow(x - startingSector.sectorX, 2) + GameMath.pow(y - startingSector.sectorY, 2);
-                const sector = sectorCache.getSector(x, y);
-                if (sector) {
-                    const maybeTarget = new PrioritisedScoutTarget(startingPriority - distanceFactor, sector);
-                    const maybePoint = maybeTarget.asVector2();
-                    if (maybePoint && gameApi.mapApi.getTile(maybePoint.x, maybePoint.y)) {
-                        this.scoutingQueue.enqueue(maybeTarget);
+                if (gameApi.mapApi.getTile(x, y)) {
+                    // Sector with high visility ratios are deprioritised.
+                    const ratio = sector.value.sectorVisibilityRatio ?? 0;
+                    // Do not scout sectors that are visible enough.
+                    if (ratio >= SCOUTING_MAX_VISIBILITY_RATIO) {
+                        return;
+                    }
+
+                    // Sectors closer to the starting sector are prioritised.
+                    const priority = (startingPriority - distance) * (1 - ratio);
+                    if (priority > 0) {
+                        this.scoutingQueue.enqueue(new PrioritisedScoutTarget(priority, new Vector2(x, y)));
                     }
                 }
             }
-        }
+        );
     }
 
     onGameStart(gameApi: GameApi, playerData: PlayerData, sectorCache: SectorCache) {
@@ -128,7 +96,7 @@ export class ScoutingManager {
             })
             .map((tile) => new PrioritisedScoutTarget(ENEMY_SPAWN_POINT_PRIORITY, tile, true))
             .forEach((target) => {
-                this.logger(`Adding ${target.asVector2()?.x},${target.asVector2()?.y} to initial scouting queue`);
+                this.logger(`Adding ${target} to initial scouting queue`);
                 this.scoutingQueue.enqueue(target);
             });
 
@@ -147,12 +115,12 @@ export class ScoutingManager {
         if (!currentHead) {
             return;
         }
-        const head = currentHead.asVector2();
-        if (!head) {
+        const headTarget = currentHead.target;
+        if (!headTarget) {
             this.scoutingQueue.dequeue();
             return;
         }
-        const { x, y } = head;
+        const { x, y } = headTarget;
         const tile = gameApi.mapApi.getTile(x, y);
         if (tile && gameApi.mapApi.isVisibleTile(tile, playerData.name)) {
             this.logger(`head point is visible, dequeueing`);
