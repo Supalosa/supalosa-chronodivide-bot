@@ -34,7 +34,7 @@ const NEARBY_SECTOR_STARTING_RADIUS = 16;
 const NEARBY_SECTOR_BASE_PRIORITY = 900;
 
 // Amount of ticks per 'radius' to expand for scouting.
-const SCOUTING_RADIUS_EXPANSION_TICKS = 15 * 120;
+const SCOUTING_RADIUS_EXPANSION_TICKS = 120;
 // Don't queue scouting for sectors with enough visibility.
 const SCOUTING_MAX_VISIBILITY_RATIO = 0.8;
 

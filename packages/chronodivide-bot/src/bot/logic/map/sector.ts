@@ -106,7 +106,7 @@ export class SectorCache implements IncrementalGridCache<Sector> {
             return;
         }
         this.gridCache.forEachInRadius(startingSector.sectorX,
-            startingSector.sectorY, radius / SECTOR_SIZE, (x, y, cell, distance) => {
+            startingSector.sectorY, Math.ceil(radius / SECTOR_SIZE), (x, y, cell, distance) => {
                 fn(
                     Math.floor(x * SECTOR_SIZE + SECTOR_SIZE / 2),
                     Math.floor(y * SECTOR_SIZE + SECTOR_SIZE / 2),
