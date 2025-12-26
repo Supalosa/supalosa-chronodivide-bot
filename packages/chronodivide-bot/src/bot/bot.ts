@@ -1,7 +1,6 @@
 import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, Size } from "@chronodivide/game-api";
 
 import { determineMapBounds } from "./logic/map/map.js";
-import { SectorCache } from "./logic/map/sector.js";
 import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
@@ -22,7 +21,6 @@ export class SupalosaBot extends Bot {
     private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
 
-    private sectorCache: SectorCache | null = null;
     private matchAwareness: MatchAwareness | null = null;
 
     // Messages to display in visualisation mode only.
@@ -49,16 +47,19 @@ export class SupalosaBot extends Bot {
 
         this.knownMapBounds = determineMapBounds(game.mapApi);
         const myPlayer = game.getPlayerData(this.name);
-        this.sectorCache = new SectorCache(game.mapApi, this.knownMapBounds, myPlayer);
-        this._debugGridCaches = [{grid: this.sectorCache, tag: "sector-cache"}];
+        
 
         this.matchAwareness = new MatchAwarenessImpl(
+            game,
+            myPlayer,
             this.knownMapBounds,
             null,
-            this.sectorCache,
             myPlayer.startLocation,
             (message, sayInGame) => this.logBotStatus(message, sayInGame),
         );
+
+        this._debugGridCaches = [{grid: this.matchAwareness.getSectorCache(), tag: "sector-cache"}];
+
         this.matchAwareness.onGameStart(game, myPlayer);
 
         this.logBotStatus(`Map bounds: ${this.knownMapBounds.width}, ${this.knownMapBounds.height}`);

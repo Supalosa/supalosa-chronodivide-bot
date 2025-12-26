@@ -1,11 +1,12 @@
-import { GameApi, GameObjectData, PlayerData, Size, Vector2 } from "@chronodivide/game-api";
+import { GameApi, GameObjectData, MapApi, PlayerData, Size, Vector2 } from "@chronodivide/game-api";
 import { SectorCache } from "./map/sector.js";
 import { GlobalThreat } from "./threat/threat.js";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
-import { getPointTowardsOtherPoint } from "./map/map.js";
+import { calculateAreaVisibility, getPointTowardsOtherPoint } from "./map/map.js";
 import { Circle, Quadtree } from "@timohausmann/quadtree-ts";
 import { ScoutingManager } from "./common/scout.js";
 import { IncrementalGridCache } from "./map/incrementalGridCache.js";
+import { calculateDiffuseSectorThreat, calculateSectorThreat } from "./threat/sectorThreat.js";
 
 export type UnitPositionQuery = { x: number; y: number; unitId: number };
 
@@ -79,17 +80,42 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
     private hostileQuadTree: Quadtree<QTUnit>;
     private scoutingManager: ScoutingManager;
+    private sectorCache: SectorCache;
 
     constructor(
-        private bounds: Size,
+        gameApi: GameApi,
+        playerData: PlayerData,
+        bounds: Size,
         private threatCache: GlobalThreat | null,
-        private sectorCache: SectorCache,
         private mainRallyPoint: Vector2,
         private logger: (message: string, sayInGame?: boolean) => void,
     ) {
         const { width, height } = bounds;
         this.hostileQuadTree = new Quadtree({ width, height });
         this.scoutingManager = new ScoutingManager(logger);
+        this.sectorCache = new SectorCache(bounds, 
+            () => {
+                return {
+                    sectorVisibilityRatio: null,
+                    threatLevel: null,
+                    diffuseThreatLevel: null,
+                };
+            },
+            (startX, startY, size, currentValue, neighbours) => {
+                const sp = new Vector2(startX, startY);
+                const ep = new Vector2(sp.x + size, sp.y + size);
+                const visibility = calculateAreaVisibility(gameApi.mapApi, playerData, sp, ep);
+                const threatLevel = calculateSectorThreat(startX, startY, size, gameApi, playerData);
+                const diffuseThreatLevel = calculateDiffuseSectorThreat(threatLevel, currentValue.diffuseThreatLevel ?? 0, neighbours);
+                return {
+                    sectorVisibilityRatio: visibility.validTiles > 0 ?
+                        visibility.visibleTiles / visibility.validTiles :
+                        null, 
+                    threatLevel,
+                    diffuseThreatLevel,
+                }
+            }
+        );
     }
 
     getHostilesNearPoint2d(point: Vector2, radius: number): UnitPositionQuery[] {

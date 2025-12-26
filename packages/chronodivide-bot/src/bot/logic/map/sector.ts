@@ -1,7 +1,6 @@
 // A sector is a uniform-sized segment of the map.
 
-import { MapApi, PlayerData, Size, Tile, Vector2 } from "@chronodivide/game-api";
-import { calculateAreaVisibility } from "./map.js";
+import { Size } from "@chronodivide/game-api";
 import { BasicIncrementalGridCache, IncrementalGridCache, IncrementalGridCell, SequentialScanStrategy, toHeatmapColor, toRGBNum } from "./incrementalGridCache.js";
 
 export const SECTOR_SIZE = 8;
@@ -10,7 +9,18 @@ export const SECTOR_SIZE = 8;
  * A Sector is an 8x8 area of the map, grouped together for scouting purposes.
  */
 export type Sector = {
+    /**
+     * Null means there are no valid tiles in the sector.
+     */
     sectorVisibilityRatio: number | null;
+    /**
+     * Raw threat level in the sector (based on actual observation)
+     */
+    threatLevel: number | null;
+    /**
+     * Derived threat level in the sector (based on diffusing the threat to neighbouring sectors)
+     */
+    diffuseThreatLevel: number | null;
 };
 
 /**
@@ -19,29 +29,32 @@ export type Sector = {
 export class SectorCache implements IncrementalGridCache<Sector> {
     private gridCache: BasicIncrementalGridCache<Sector>;
 
-    constructor(mapApi: MapApi, private mapBounds: Size, playerData: PlayerData) {
+    constructor(private mapBounds: Size,
+        initFn: (startX: number, startY: number) => Sector,
+        updateFn: (startX: number, startY: number, size: number, currentValue: Sector, neighbors: Sector[]) => Sector) {
         const sectorsX = Math.ceil(mapBounds.width / SECTOR_SIZE);
         const sectorsY = Math.ceil(mapBounds.height / SECTOR_SIZE);
+
+        let maxThreatColored = 1;
         this.gridCache = new BasicIncrementalGridCache<Sector>(
             sectorsX,
             sectorsY,
-            (x: number, y: number) => {
-                return {
-                    sectorVisibilityRatio: null,
-                };
-            },
-            (x: number, y: number) => {
-                let sp = new Vector2(x * SECTOR_SIZE, y * SECTOR_SIZE);
-                let ep = new Vector2(sp.x + SECTOR_SIZE, sp.y + SECTOR_SIZE);
-                let visibility = calculateAreaVisibility(mapApi, playerData, sp, ep);
-                return {
-                    sectorVisibilityRatio: visibility.validTiles > 0 ?
-                        visibility.visibleTiles / visibility.validTiles :
-                        null
-                }
+            initFn,
+            (sectorX, sectorY) => {
+                const neighbours: Sector[] = [];
+                // send the neighbours as well, to allow for diffuse sector threat
+                this.gridCache.forEachInRadius(sectorX, sectorY, 1, (nX, nY, s) => {
+                    if (nX !== sectorX || nY !== sectorY) {
+                        neighbours.push(s.value);
+                    }
+                });
+                return updateFn(sectorX * SECTOR_SIZE, sectorY * SECTOR_SIZE, SECTOR_SIZE, this.gridCache.getCell(sectorX, sectorY)!.value, neighbours)
             },
             new SequentialScanStrategy(),
-            (sector) => toHeatmapColor(sector.sectorVisibilityRatio)
+            (sector) => {
+                maxThreatColored = Math.max(sector.diffuseThreatLevel ?? 0, maxThreatColored);
+                return toHeatmapColor(sector.diffuseThreatLevel, 0, maxThreatColored);
+            }
         );
     }
 

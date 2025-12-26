@@ -115,12 +115,12 @@ export class BasicIncrementalGridCache<T> implements IncrementalGridCache<T> {
     public forEachInRadius(startX: number, startY: number, radius: number, fn: (x: number, y: number, cell: IncrementalGridCell<T>, dist: number) => void) {
         for (
             let x: number = Math.max(0, startX - radius);
-            x < Math.min(this.width, startX + radius);
+            x < Math.min(this.width, startX + radius + 1);
             ++x
         ) {
             for (
                 let y: number = Math.max(0, startY - radius);
-                y < Math.min(this.height, startY + radius);
+                y < Math.min(this.height, startY + radius + 1);
                 ++y
             ) {
                 const cell = this.getCell(x, y);

@@ -219,7 +219,7 @@ export class VisualisedBot extends SupalosaBot {
 
         ctx.strokeStyle = "black";
 
-        const allUnits = game.getAllUnits().map((uId) => game.getUnitData(uId)).filter((u): u is UnitData => !!u);
+        const allUnits = game.getAllUnits().map((uId) => game.getGameObjectData(uId)).filter((u): u is UnitData => !!u);
         for (const unit of allUnits) {
             // draw tiles
             ctx.fillStyle = playerToColor.get(unit.owner) || "grey";

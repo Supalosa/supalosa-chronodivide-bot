@@ -27,7 +27,7 @@ export class PrioritisedScoutTarget {
     }
 }
 
-const ENEMY_SPAWN_POINT_PRIORITY = 800;
+const ENEMY_SPAWN_POINT_PRIORITY = 900;
 
 // Distance around the starting area (in tiles) to scout first.
 const NEARBY_SECTOR_STARTING_RADIUS = 16;
@@ -35,6 +35,8 @@ const NEARBY_SECTOR_BASE_PRIORITY = 900;
 
 // Amount of ticks per 'radius' to expand for scouting.
 const SCOUTING_RADIUS_EXPANSION_TICKS = 120;
+// Don't actually queue the scouting until the radius increased by this much
+const MIN_SCOUT_RADIUS_INCREASE = 16;
 // Don't queue scouting for sectors with enough visibility.
 const SCOUTING_MAX_VISIBILITY_RATIO = 0.8;
 
@@ -128,7 +130,7 @@ export class ScoutingManager {
         }
 
         const requiredRadius = Math.floor(gameApi.getCurrentTick() / SCOUTING_RADIUS_EXPANSION_TICKS);
-        if (requiredRadius > this.queuedRadius) {
+        if (requiredRadius > this.queuedRadius + MIN_SCOUT_RADIUS_INCREASE) {
             this.logger(`expanding scouting radius from ${this.queuedRadius} to ${requiredRadius}`);
             this.addRadiusToScout(
                 gameApi,
