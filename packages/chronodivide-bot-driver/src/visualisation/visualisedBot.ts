@@ -141,10 +141,10 @@ export class VisualisedBot extends SupalosaBot {
     private renderQueueInfo(ctx: CanvasRenderingContext2D, game: GameApi) {
         ctx.save();
 
-        ctx.font = "30px monospace";
+        ctx.font = "20px monospace";
         ctx.fillStyle = "white";
         ctx.fillText(`Production Queues:`, 0, 100);
-        let y = 130;
+        let y = 120;
         for (const queueType of QUEUES) {
             const queue = this.productionApi.getQueueData(queueType);
             const status = queue.status === QueueStatus.Active ? "▶" :
@@ -152,7 +152,7 @@ export class VisualisedBot extends SupalosaBot {
                 queue.status === QueueStatus.Idle ? "■" : "✓";
             const head = queue.items[0] ? `: ${queue.items[0].rules.name} x ${queue.items[0].quantity}` : '';
             ctx.fillText(`${queueTypeToName(queueType)} ${status}${head}`, 0, y);                
-            y += 30;
+            y += 20;
         }
 
         ctx.restore();
