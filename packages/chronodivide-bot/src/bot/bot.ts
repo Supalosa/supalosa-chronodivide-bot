@@ -9,6 +9,8 @@ import { Countries, formatTimeDuration } from "./logic/common/utils.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
+const DEBUG_MESSAGES_BUFFER_LENGTH = 20;
+
 // Number of ticks per second at the base speed.
 const NATURAL_TICK_RATE = 15;
 
@@ -20,6 +22,9 @@ export class SupalosaBot extends Bot {
     private tickOfLastAttackOrder: number = 0;
 
     private matchAwareness: MatchAwareness | null = null;
+
+    // Messages to display in visualisation mode only.
+    public debugMessages: string[] = [];
 
     constructor(
         name: string,
@@ -118,11 +123,14 @@ export class SupalosaBot extends Bot {
             return;
         }
         this.logger.info(message);
+        const timestamp = this.getHumanTimestamp(this.gameApi);
         if (sayInGame) {
-            const timestamp = this.getHumanTimestamp(this.gameApi);
             this.actionsApi.sayAll(`${timestamp}: ${message}`);
         }
+        this.pushDebugMessage(`${timestamp}: ${message}`);
     }
+
+    public _globalDebugText: string = "";
 
     private updateDebugState(game: GameApi) {
         if (!this.getDebugMode()) {
@@ -145,6 +153,7 @@ export class SupalosaBot extends Bot {
         });
 
         this.actionsApi.setGlobalDebugText(globalDebugText);
+        this._globalDebugText = globalDebugText;
     }
 
     override onGameEvent(ev: ApiEvent) {
@@ -159,5 +168,12 @@ export class SupalosaBot extends Bot {
             default:
                 break;
         }
+    }
+
+    protected pushDebugMessage(message: string) {
+        if (this.debugMessages.length + 1 > DEBUG_MESSAGES_BUFFER_LENGTH) {
+            this.debugMessages.shift();
+        }
+        this.debugMessages.push(message);
     }
 }

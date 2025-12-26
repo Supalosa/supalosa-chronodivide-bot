@@ -2,9 +2,15 @@ import "dotenv/config";
 import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
 import { SupalosaBot } from "@supalosa/chronodivide-bot/dist/bot/bot.js";
 import { Countries } from "@supalosa/chronodivide-bot/dist/bot/logic/common/utils.js";
+import { VisualisedBot } from "./visualisation/visualisedBot.js";
 
 // The game will automatically end after this time. This is to handle stalemates.
-const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours
+const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours\
+
+const VISUAL_DEBUG_OPTS = {
+    outFolder: "debug/",
+    tickInterval: 15 * 30
+}
 
 async function main() {
     /*
@@ -35,6 +41,7 @@ async function main() {
     offensedefense.map,ore2_startfixed.map,rekoool_fast_6players.mpr,rekoool_fast_8players.mpr,riverram.map,tourofegypt.map,unrepent.map,sinkswim_yr_port.map
     */
     const mapName = "rekoool_fast_8players.mpr";
+    //const mapName = "heckcorners_b.map";
     // Bot names must be unique in online mode
     const timestamp = String(Date.now()).substr(-6);
     const botName1 = `Joe${timestamp}`;
@@ -76,7 +83,7 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(botName1, Countries.FRANCE, [], true).setDebugMode(true),
+            new VisualisedBot(VISUAL_DEBUG_OPTS, botName1, Countries.FRANCE, [], true).setDebugMode(true),
             new SupalosaBot(botName2, Countries.FRANCE, [], false),
         ],
     };
@@ -102,8 +109,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new SupalosaBot(botName1, Countries.FRANCE, team1, false),
-            new SupalosaBot(botName2, Countries.RUSSIA, team1, true).setDebugMode(true),
+            new VisualisedBot(VISUAL_DEBUG_OPTS, botName1, Countries.FRANCE, team1, true).setDebugMode(true),
+            new SupalosaBot(botName2, Countries.RUSSIA, team1, false),
             new SupalosaBot(botName3, Countries.RUSSIA, team1, false),
             new SupalosaBot(botName4, Countries.FRANCE, team1, false),
             new SupalosaBot(botName5, Countries.FRANCE, team2, false),
@@ -113,7 +120,7 @@ async function main() {
         ],
     };
 
-    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings1v1);
+    const game = await cdapi.createGame(process.env.ONLINE_MATCH ? onlineSettings : offlineSettings4v4);
 
     console.profile(`cpuprofile-${timestamp}`);
 
