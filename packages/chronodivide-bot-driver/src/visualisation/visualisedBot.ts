@@ -26,6 +26,7 @@ export class VisualisedBot extends SupalosaBot {
     private baseMapCanvas: Canvas | null = null;
 
     private yDebugMessagesStart: number = -1;
+    private lastSeenMessage: string | null = null;
 
     constructor(private opts: VisualisedBotOpts, ...botArgs: ConstructorParameters<typeof SupalosaBot>) {
         super(...botArgs);
@@ -82,10 +83,15 @@ export class VisualisedBot extends SupalosaBot {
         this.renderUnitInfo(ctx, game);
 
         // draw logger messages
-        ctx.fillStyle = "white";
         ctx.font = "10px monospace";
         let y = this.yDebugMessagesStart;
-        for (const message of this.debugMessages) {
+        const lastSeenMessageIndex = this.lastSeenMessage !== null ? this.debugMessages.indexOf(this.lastSeenMessage) : 0;
+        for (const [idx, message] of this.debugMessages.entries()) {
+            if (idx > lastSeenMessageIndex) {
+                ctx.fillStyle = "white";
+            } else {
+                ctx.fillStyle = "grey";
+            }
             ctx.fillText(message, 0, y);
             y += 10;
         }
@@ -100,6 +106,10 @@ export class VisualisedBot extends SupalosaBot {
         ctx.restore();
 
         fs.writeFileSync(this.opts.outFolder + `tick-${game.getCurrentTick()}.png`, this.canvas.toBuffer("image/png"));
+
+        if (this.debugMessages.length > 0) {
+            this.lastSeenMessage = this.debugMessages[this.debugMessages.length - 1];
+        }
     }
 
     private renderBaseTile(ctx: CanvasRenderingContext2D, tile: Tile) {
@@ -218,7 +228,7 @@ export class VisualisedBot extends SupalosaBot {
                 yRight += 10;
                 y = yRight;
             }
-            ctx.fillText(`${unit.id} ${unit.name} HP: ${unit.hitPoints}/${unit.maxHitPoints}`, x, y);
+            ctx.fillText(`${unit.id} ${unit.name} ${unit.hitPoints}/${unit.maxHitPoints}`, x, y);
         }
         ctx.restore();
 

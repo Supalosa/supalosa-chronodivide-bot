@@ -109,8 +109,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new VisualisedBot(VISUAL_DEBUG_OPTS, botName1, Countries.FRANCE, team1, false),
-            new SupalosaBot(botName2, Countries.RUSSIA, team1, true).setDebugMode(true),
+            new VisualisedBot(VISUAL_DEBUG_OPTS, botName1, Countries.FRANCE, team1, true).setDebugMode(true),
+            new SupalosaBot(botName2, Countries.RUSSIA, team1, false),
             new SupalosaBot(botName3, Countries.RUSSIA, team1, false),
             new SupalosaBot(botName4, Countries.FRANCE, team1, false),
             new SupalosaBot(botName5, Countries.FRANCE, team2, false),

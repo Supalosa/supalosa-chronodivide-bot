@@ -13,3 +13,4 @@ packages/chronodivide-bot-driver/debug/
 *.ini
 *.map
 *.mpr
+*.tsbuildinfo
