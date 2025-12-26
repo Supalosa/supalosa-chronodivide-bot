@@ -269,9 +269,14 @@ export class VisualisedBot extends SupalosaBot {
                 }
                 
                 // between 0.25 (never/not recently updated) and 0.75 (recently updated) alpha for the cell
-                ctx.globalAlpha = debugCell.lastUpdatedTick === null ? 0.25 : Math.min(0.75, 1 - (game.getCurrentTick() - debugCell.lastUpdatedTick) / 600);
-                const [r, g, b] = fromRGBNum(debugCell.color);
-                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                if (debugCell.lastUpdatedTick === null) {
+                    ctx.globalAlpha = 0.25;
+                    ctx.fillStyle = "grey";
+                } else {
+                    ctx.globalAlpha = Math.min(0.75, Math.max(0.25, 1 - (game.getCurrentTick() - debugCell.lastUpdatedTick) / 600));
+                    const [r, g, b] = fromRGBNum(debugCell.color);
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                }
                 ctx.fillRect(x * gridScale * MAP_SCALE, y * gridScale * MAP_SCALE, gridScale * MAP_SCALE, gridScale * MAP_SCALE);
             }
         }

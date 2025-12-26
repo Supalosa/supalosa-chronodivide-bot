@@ -10,7 +10,7 @@ export const SECTOR_SIZE = 8;
  * A Sector is an 8x8 area of the map, grouped together for scouting purposes.
  */
 export type Sector = {
-    sectorVisibilityPct: number | null;
+    sectorVisibilityRatio: number | null;
 };
 
 /**
@@ -27,7 +27,7 @@ export class SectorCache implements IncrementalGridCache<Sector> {
             sectorsY,
             (x: number, y: number) => {
                 return {
-                    sectorVisibilityPct: null,
+                    sectorVisibilityRatio: null,
                 };
             },
             (x: number, y: number) => {
@@ -35,13 +35,13 @@ export class SectorCache implements IncrementalGridCache<Sector> {
                 let ep = new Vector2(sp.x + SECTOR_SIZE, sp.y + SECTOR_SIZE);
                 let visibility = calculateAreaVisibility(mapApi, playerData, sp, ep);
                 return {
-                    sectorVisibilityPct: visibility.validTiles > 0 ?
+                    sectorVisibilityRatio: visibility.validTiles > 0 ?
                         visibility.visibleTiles / visibility.validTiles :
                         null
                 }
             },
             new SequentialScanStrategy(),
-            (sector) => toHeatmapColor(sector.sectorVisibilityPct)
+            (sector) => toHeatmapColor(sector.sectorVisibilityRatio)
         );
     }
 
@@ -88,8 +88,8 @@ export class SectorCache implements IncrementalGridCache<Sector> {
         this.gridCache.forEach((_x, _y, cell) => {
             const sector = cell.value;
             // Undefined visibility.
-            if (sector.sectorVisibilityPct != undefined) {
-                visible += sector.sectorVisibilityPct;
+            if (sector.sectorVisibilityRatio != undefined) {
+                visible += sector.sectorVisibilityRatio;
                 total += 1.0;
             }
         });
@@ -106,7 +106,7 @@ export class SectorCache implements IncrementalGridCache<Sector> {
             return;
         }
         this.gridCache.forEachInRadius(startingSector.sectorX,
-            startingSector.sectorY, radius * SECTOR_SIZE, (x, y, cell, distance) => {
+            startingSector.sectorY, radius / SECTOR_SIZE, (x, y, cell, distance) => {
                 fn(
                     Math.floor(x * SECTOR_SIZE + SECTOR_SIZE / 2),
                     Math.floor(y * SECTOR_SIZE + SECTOR_SIZE / 2),
