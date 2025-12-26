@@ -122,9 +122,9 @@ export class ScoutingMission extends Mission {
     setScoutTarget(target: PrioritisedScoutTarget | null, currentTick: number) {
         this.attemptsOnCurrentTarget = 0;
         this.scoutTargetRefreshedAt = currentTick;
-        this.scoutTarget = target?.asVector2() ?? null;
+        this.scoutTarget = target?.target ?? null;
         this.scoutMinDistance = undefined;
-        this.scoutTargetIsPermanent = target?.isPermanent ?? false;
+        this.scoutTargetIsPermanent = target?.permanent ?? false;
     }
 
     public getGlobalDebugText(): string | undefined {

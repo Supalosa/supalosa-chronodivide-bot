@@ -47,8 +47,9 @@ export class SupalosaBot extends Bot {
         const myPlayer = game.getPlayerData(this.name);
 
         this.matchAwareness = new MatchAwarenessImpl(
+            this.knownMapBounds,
             null,
-            new SectorCache(game.mapApi, this.knownMapBounds),
+            new SectorCache(game.mapApi, this.knownMapBounds, myPlayer),
             myPlayer.startLocation,
             (message, sayInGame) => this.logBotStatus(message, sayInGame),
         );

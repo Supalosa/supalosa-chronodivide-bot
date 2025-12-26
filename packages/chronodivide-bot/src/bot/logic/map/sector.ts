@@ -2,159 +2,106 @@
 
 import { MapApi, PlayerData, Size, Tile, Vector2 } from "@chronodivide/game-api";
 import { calculateAreaVisibility } from "./map.js";
+import { IncrementalGridCache, SequentialScanStrategy } from "./incrementalGridCache.js";
 
 export const SECTOR_SIZE = 8;
 
-export class Sector {
-    // How many times we've attempted to enter the sector.
-    private sectorExploreAttempts: number;
-    private sectorLastExploredAt: number | undefined;
+/**
+ * A Sector is an 8x8 area of the map, grouped together for scouting purposes.
+ */
+export type Sector = {
+    sectorVisibilityPct: number | null;
+};
 
-    constructor(
-        public sectorStartPoint: Vector2,
-        public sectorStartTile: Tile | undefined,
-        public sectorVisibilityPct: number | undefined,
-        public sectorVisibilityLastCheckTick: number | undefined,
-    ) {
-        this.sectorExploreAttempts = 0;
-    }
-
-    public onExploreAttempted(currentTick: number) {
-        this.sectorExploreAttempts++;
-        this.sectorLastExploredAt = currentTick;
-    }
-
-    // Whether we should attempt to explore this sector, given the cooldown and limit of attempts.
-    public shouldAttemptExploration(currentTick: number, cooldown: number, limit: number) {
-        if (limit >= this.sectorExploreAttempts) {
-            return false;
-        }
-
-        if (this.sectorLastExploredAt && currentTick < this.sectorLastExploredAt + cooldown) {
-            return false;
-        }
-
-        return true;
-    }
-}
-
+/**
+ * Wrapper around IncrementalGridCache that handles scaling from tile coordinates to sectors (could probably also be refactored out)
+ */
 export class SectorCache {
-    private sectors: Sector[][] = [];
-    private mapBounds: Size;
-    private sectorsX: number;
-    private sectorsY: number;
-    private lastUpdatedSectorX: number | undefined;
-    private lastUpdatedSectorY: number | undefined;
+    private gridCache: IncrementalGridCache<Sector>;
 
-    constructor(mapApi: MapApi, mapBounds: Size) {
-        this.mapBounds = mapBounds;
-        this.sectorsX = Math.ceil(mapBounds.width / SECTOR_SIZE);
-        this.sectorsY = Math.ceil(mapBounds.height / SECTOR_SIZE);
-        this.sectors = new Array(this.sectorsX);
-        for (let xx = 0; xx < this.sectorsX; ++xx) {
-            this.sectors[xx] = new Array(this.sectorsY);
-            for (let yy = 0; yy < this.sectorsY; ++yy) {
-                const tileX = xx * SECTOR_SIZE;
-                const tileY = yy * SECTOR_SIZE;
-                this.sectors[xx][yy] = new Sector(
-                    new Vector2(tileX, tileY),
-                    mapApi.getTile(tileX, tileY),
-                    undefined,
-                    undefined,
-                );
-            }
-        }
-    }
-
-    public getMapBounds(): Size {
-        return this.mapBounds;
-    }
-
-    public updateSectors(currentGameTick: number, maxSectorsToUpdate: number, mapApi: MapApi, playerData: PlayerData) {
-        let nextSectorX = this.lastUpdatedSectorX ? this.lastUpdatedSectorX + 1 : 0;
-        let nextSectorY = this.lastUpdatedSectorY ? this.lastUpdatedSectorY : 0;
-        let updatedThisCycle = 0;
-
-        while (updatedThisCycle < maxSectorsToUpdate) {
-            if (nextSectorX >= this.sectorsX) {
-                nextSectorX = 0;
-                ++nextSectorY;
-            }
-            if (nextSectorY >= this.sectorsY) {
-                nextSectorY = 0;
-                nextSectorX = 0;
-            }
-            let sector: Sector | undefined = this.getSector(nextSectorX, nextSectorY);
-            if (sector) {
-                sector.sectorVisibilityLastCheckTick = currentGameTick;
-                let sp = sector.sectorStartPoint;
+    constructor(mapApi: MapApi, private mapBounds: Size, playerData: PlayerData) {
+        const sectorsX = Math.ceil(mapBounds.width / SECTOR_SIZE);
+        const sectorsY = Math.ceil(mapBounds.height / SECTOR_SIZE);
+        this.gridCache = new IncrementalGridCache<Sector>(
+            sectorsX,
+            sectorsY,
+            (x: number, y: number) => {
+                return {
+                    sectorVisibilityPct: null,
+                };
+            },
+            (x: number, y: number) => {
+                let sp = new Vector2(x * SECTOR_SIZE, y * SECTOR_SIZE);
                 let ep = new Vector2(sp.x + SECTOR_SIZE, sp.y + SECTOR_SIZE);
                 let visibility = calculateAreaVisibility(mapApi, playerData, sp, ep);
-                if (visibility.validTiles > 0) {
-                    sector.sectorVisibilityPct = visibility.visibleTiles / visibility.validTiles;
-                } else {
-                    sector.sectorVisibilityPct = undefined;
+                return {
+                    sectorVisibilityPct: visibility.validTiles > 0 ?
+                        visibility.visibleTiles / visibility.validTiles :
+                        null
                 }
-            }
-            this.lastUpdatedSectorX = nextSectorX;
-            this.lastUpdatedSectorY = nextSectorY;
-            ++nextSectorX;
-            ++updatedThisCycle;
-        }
+            },
+            new SequentialScanStrategy(),
+        );
     }
 
-    // Return % of sectors that are updated.
+    public updateSectors(currentGameTick: number, maxSectorsToUpdate: number) {
+        this.gridCache.updateCells(maxSectorsToUpdate, currentGameTick);
+    }
+
+    
+    // Return % of sectors that are updated since a certain time
     public getSectorUpdateRatio(sectorsUpdatedSinceGameTick: number): number {
         let updated = 0,
             total = 0;
-        for (let xx = 0; xx < this.sectorsX; ++xx) {
-            for (let yy = 0; yy < this.sectorsY; ++yy) {
-                let sector: Sector = this.sectors[xx][yy];
-                if (
-                    sector &&
-                    sector.sectorVisibilityLastCheckTick &&
-                    sector.sectorVisibilityLastCheckTick >= sectorsUpdatedSinceGameTick
-                ) {
-                    ++updated;
-                }
-                ++total;
+        this.gridCache.forEach((_x, _y, cell) => {
+            if (
+                cell.lastUpdatedTick !== null &&
+                cell.lastUpdatedTick >= sectorsUpdatedSinceGameTick
+            ) {
+                ++updated;
             }
-        }
+            ++total;
+        });
         return updated / total;
     }
-
+    
     /**
-     * Return the ratio (0-1) of tiles that are visible. Returns undefined if we haven't scanned the whole map yet.
+     * Return the ratio (0-1) of tiles that are visible.
      */
     public getOverallVisibility(): number | undefined {
         let visible = 0,
             total = 0;
-        for (let xx = 0; xx < this.sectorsX; ++xx) {
-            for (let yy = 0; yy < this.sectorsY; ++yy) {
-                let sector: Sector = this.sectors[xx][yy];
-
-                // Undefined visibility.
-                if (sector.sectorVisibilityPct != undefined) {
-                    visible += sector.sectorVisibilityPct;
-                    total += 1.0;
-                }
+        this.gridCache.forEach((_x, _y, cell) => {
+            const sector = cell.value;
+            // Undefined visibility.
+            if (sector.sectorVisibilityPct != undefined) {
+                visible += sector.sectorVisibilityPct;
+                total += 1.0;
             }
-        }
+        });
         return visible / total;
     }
 
-    public getSector(sectorX: number, sectorY: number): Sector | undefined {
-        if (sectorX < 0 || sectorX >= this.sectorsX || sectorY < 0 || sectorY >= this.sectorsY) {
-            return undefined;
+    public forEachInRadius(
+        tileX: number,
+        tileY: number,
+        radius: number,
+        fn: (x: number, y: number, sector: Sector, dist: number) => void) {
+        const startingSector = this.getSectorCoordinatesForWorldPosition(tileX, tileY);
+        if (!startingSector) {
+            return;
         }
-        return this.sectors[sectorX][sectorY];
+        this.gridCache.forEachInRadius(startingSector.sectorX,
+            startingSector.sectorY, radius * SECTOR_SIZE, (x, y, cell, distance) => {
+                fn(
+                    Math.floor(x * SECTOR_SIZE + SECTOR_SIZE / 2),
+                    Math.floor(y * SECTOR_SIZE + SECTOR_SIZE / 2),
+                    cell.value,
+                    distance);
+        });
     }
 
-    public getSectorBounds(): Size {
-        return { width: this.sectorsX, height: this.sectorsY };
-    }
-
-    public getSectorCoordinatesForWorldPosition(x: number, y: number) {
+    private getSectorCoordinatesForWorldPosition(x: number, y: number) {
         if (x < 0 || x >= this.mapBounds.width || y < 0 || y >= this.mapBounds.height) {
             return undefined;
         }
@@ -162,13 +109,5 @@ export class SectorCache {
             sectorX: Math.floor(x / SECTOR_SIZE),
             sectorY: Math.floor(y / SECTOR_SIZE),
         };
-    }
-
-    public getSectorForWorldPosition(x: number, y: number): Sector | undefined {
-        const sectorCoordinates = this.getSectorCoordinatesForWorldPosition(x, y);
-        if (!sectorCoordinates) {
-            return undefined;
-        }
-        return this.sectors[Math.floor(x / SECTOR_SIZE)][Math.floor(y / SECTOR_SIZE)];
     }
 }
