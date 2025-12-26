@@ -1,8 +1,38 @@
 import { GameMath, Size } from "@chronodivide/game-api";
 
-type IncrementalGridCell<T> = {
+export type IncrementalGridCell<T> = {
     lastUpdatedTick: number | null;
     value: T;
+}
+
+export function toHeatmapColor(value: number | null | undefined, minScale: number = 0, maxScale: number = 1) {
+    if (value === undefined || value === null) {
+        return 0;
+    }
+    const ratio = 2 * (value - minScale) / (maxScale - minScale)
+    const b = Math.max(0, 255*(1 - ratio))
+    const r = Math.max(0, 255*(ratio - 1))
+    const g = 255 - b - r
+    return toRGBNum(r, g, b)
+}
+
+export function toRGBNum(red: number, green: number, blue: number) {
+    return red << 16 | green << 8 | blue;
+}
+
+export function fromRGBNum(num: number) {
+    return [num >> 16 & 0xFF, num >> 8 & 0xFF, num & 0xFF];
+}
+
+export interface IncrementalGridCache<T> {
+    getSize(): Size;
+    getCell(x: number, y: number): IncrementalGridCell<T> | null;
+    forEach(fn: (x: number, y: number, cell: IncrementalGridCell<T>) => void): void;
+    forEachInRadius(startX: number, startY: number, radius: number, fn: (x: number, y: number, cell: IncrementalGridCell<T>, dist: number) => void): void;
+
+    // For debug purposes, how large each cell is in game tiles.
+    _renderScale(): number;
+    _getCellDebug(x: number, y: number): IncrementalGridCell<T> & { color: number } | null;
 }
 
 /**
@@ -10,7 +40,7 @@ type IncrementalGridCell<T> = {
  * 
  * In game terms, a grid may be a cell for high-resolution information, or multiple cells for low resolution information (e.g. scouting sectors).
  */
-export class IncrementalGridCache<T> {
+export class BasicIncrementalGridCache<T> implements IncrementalGridCache<T> {
     private cells: IncrementalGridCell<T>[][] = [];
 
     constructor(
@@ -18,7 +48,8 @@ export class IncrementalGridCache<T> {
         private height: number,
         initCellFn: (x: number, y: number) => T,
         private updateCellFn: (x: number, y: number) => T,
-        private scanStrategy: IncrementalGridCacheUpdateStrategy) {
+        private scanStrategy: IncrementalGridCacheUpdateStrategy,
+        private valueToDebugColor: (value: T) => number) {
         for (let x = 0; x < width; ++x) {
             this.cells[x] = new Array(height);
             for (let y = 0; y < height; ++y) {
@@ -39,6 +70,17 @@ export class IncrementalGridCache<T> {
             return null;
         }
         return this.cells[x][y];
+    }
+
+    public _getCellDebug(x: number, y: number): IncrementalGridCell<T> & { color: number } | null {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+            return null;
+        }
+        const cell = this.cells[x][y];
+        return {
+            ...cell,
+            color: this.valueToDebugColor(cell.value)
+        };
     }
 
     /**
@@ -90,6 +132,10 @@ export class IncrementalGridCache<T> {
             }
         }
     }
+
+    public _renderScale() {
+        return 1;
+    }
 }
 
 export interface IncrementalGridCacheUpdateStrategy {
@@ -119,6 +165,8 @@ export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrateg
             return { x: 0, y: this.lastUpdatedSectorY };
         }
 
+        this.lastUpdatedSectorX = undefined;
+        this.lastUpdatedSectorY = undefined;
         return null;
     }
 }

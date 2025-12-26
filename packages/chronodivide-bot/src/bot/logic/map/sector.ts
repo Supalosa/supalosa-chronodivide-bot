@@ -2,7 +2,7 @@
 
 import { MapApi, PlayerData, Size, Tile, Vector2 } from "@chronodivide/game-api";
 import { calculateAreaVisibility } from "./map.js";
-import { IncrementalGridCache, SequentialScanStrategy } from "./incrementalGridCache.js";
+import { BasicIncrementalGridCache, IncrementalGridCache, IncrementalGridCell, SequentialScanStrategy, toHeatmapColor, toRGBNum } from "./incrementalGridCache.js";
 
 export const SECTOR_SIZE = 8;
 
@@ -16,13 +16,13 @@ export type Sector = {
 /**
  * Wrapper around IncrementalGridCache that handles scaling from tile coordinates to sectors (could probably also be refactored out)
  */
-export class SectorCache {
-    private gridCache: IncrementalGridCache<Sector>;
+export class SectorCache implements IncrementalGridCache<Sector> {
+    private gridCache: BasicIncrementalGridCache<Sector>;
 
     constructor(mapApi: MapApi, private mapBounds: Size, playerData: PlayerData) {
         const sectorsX = Math.ceil(mapBounds.width / SECTOR_SIZE);
         const sectorsY = Math.ceil(mapBounds.height / SECTOR_SIZE);
-        this.gridCache = new IncrementalGridCache<Sector>(
+        this.gridCache = new BasicIncrementalGridCache<Sector>(
             sectorsX,
             sectorsY,
             (x: number, y: number) => {
@@ -41,7 +41,21 @@ export class SectorCache {
                 }
             },
             new SequentialScanStrategy(),
+            (sector) => toHeatmapColor(sector.sectorVisibilityPct)
         );
+    }
+
+    getSize() {
+        return this.gridCache.getSize();
+    }
+    
+    // n.b. this is not passing on the scaling correctly
+    getCell(x: number, y: number) {
+        return this.gridCache.getCell(x, y);
+    }
+
+    forEach(fn: (x: number, y: number, cell: IncrementalGridCell<Sector>) => void): void {
+        throw new Error("Method not implemented.");
     }
 
     public updateSectors(currentGameTick: number, maxSectorsToUpdate: number) {
@@ -86,7 +100,7 @@ export class SectorCache {
         tileX: number,
         tileY: number,
         radius: number,
-        fn: (x: number, y: number, sector: Sector, dist: number) => void) {
+        fn: (x: number, y: number, sector: IncrementalGridCell<Sector>, dist: number) => void) {
         const startingSector = this.getSectorCoordinatesForWorldPosition(tileX, tileY);
         if (!startingSector) {
             return;
@@ -96,7 +110,7 @@ export class SectorCache {
                 fn(
                     Math.floor(x * SECTOR_SIZE + SECTOR_SIZE / 2),
                     Math.floor(y * SECTOR_SIZE + SECTOR_SIZE / 2),
-                    cell.value,
+                    cell,
                     distance);
         });
     }
@@ -109,5 +123,14 @@ export class SectorCache {
             sectorX: Math.floor(x / SECTOR_SIZE),
             sectorY: Math.floor(y / SECTOR_SIZE),
         };
+    }
+
+    public _renderScale() {
+        return SECTOR_SIZE;
+    }
+
+    // n.b. this is not passing on the scaling correctly
+    public _getCellDebug(x: number, y: number): (IncrementalGridCell<Sector> & { color: number; }) | null {
+        return this.gridCache._getCellDebug(x, y);
     }
 }

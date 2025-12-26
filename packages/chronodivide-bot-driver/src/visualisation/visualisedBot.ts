@@ -5,6 +5,7 @@ import { GameApi, LandType, QueueStatus, Tile, UnitData } from "@chronodivide/ga
 import { SupalosaBot } from "@supalosa/chronodivide-bot/dist/bot/bot.js";
 import { formatTimeDuration } from "@supalosa/chronodivide-bot/dist/bot/logic/common/utils.js";
 import { queueTypeToName, QUEUES } from "@supalosa/chronodivide-bot/dist/bot/logic/building/queueController.js";
+import { fromRGBNum, IncrementalGridCache } from "@supalosa/chronodivide-bot/dist/bot/logic/map/incrementalGridCache.js";
 
 const MAP_SCALE = 8;
 
@@ -85,8 +86,8 @@ export class VisualisedBot extends SupalosaBot {
         // draw logger messages
         ctx.font = "10px monospace";
         let y = this.yDebugMessagesStart;
-        const lastSeenMessageIndex = this.lastSeenMessage !== null ? this.debugMessages.indexOf(this.lastSeenMessage) : 0;
-        for (const [idx, message] of this.debugMessages.entries()) {
+        const lastSeenMessageIndex = this.lastSeenMessage !== null ? this._debugMessages.indexOf(this.lastSeenMessage) : 0;
+        for (const [idx, message] of this._debugMessages.entries()) {
             if (idx > lastSeenMessageIndex) {
                 ctx.fillStyle = "white";
             } else {
@@ -107,8 +108,22 @@ export class VisualisedBot extends SupalosaBot {
 
         fs.writeFileSync(this.opts.outFolder + `tick-${game.getCurrentTick()}.png`, this.canvas.toBuffer("image/png"));
 
-        if (this.debugMessages.length > 0) {
-            this.lastSeenMessage = this.debugMessages[this.debugMessages.length - 1];
+        // repeat for any grid caches
+        for (const { grid, tag }  of this._debugGridCaches) {
+            const gridCanvas = createCanvas(this.canvas.width, this.canvas.height);
+            const gridCtx = gridCanvas.getContext('2d');
+            gridCtx.drawImage(this.canvas, 0, 0);
+            
+            ctx.font = "30px monospace";
+            ctx.fillStyle = "white";
+            ctx.fillText(tag, 300, 30);
+
+            this.renderGridCache(gridCtx, game, grid);
+            fs.writeFileSync(this.opts.outFolder + `${tag}-tick-${game.getCurrentTick()}.png`, gridCanvas.toBuffer("image/png"));
+        }
+
+        if (this._debugMessages.length > 0) {
+            this.lastSeenMessage = this._debugMessages[this._debugMessages.length - 1];
         }
     }
 
@@ -237,6 +252,29 @@ export class VisualisedBot extends SupalosaBot {
             ctx.strokeText(`${unit.id}\n${unit.name}`, unit.tile.rx * MAP_SCALE, unit.tile.ry * MAP_SCALE + MAP_SCALE); // +MAP_SCALE
         }
 
+
+        ctx.restore();
+    }
+
+    private renderGridCache(ctx: CanvasRenderingContext2D, game: GameApi, gridCache: IncrementalGridCache<any>) {
+        ctx.save();
+
+        const gridScale = gridCache._renderScale();
+
+        for (let x = 0; x < gridCache.getSize().width; ++x) {
+            for (let y = 0; y < gridCache.getSize().height; ++y) {
+                const debugCell = gridCache._getCellDebug(x, y);
+                if (!debugCell) {
+                    continue;
+                }
+                
+                // between 0.25 (never/not recently updated) and 0.75 (recently updated) alpha for the cell
+                ctx.globalAlpha = debugCell.lastUpdatedTick === null ? 0.25 : Math.min(0.75, 1 - (game.getCurrentTick() - debugCell.lastUpdatedTick) / 600);
+                const [r, g, b] = fromRGBNum(debugCell.color);
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.fillRect(x * gridScale * MAP_SCALE, y * gridScale * MAP_SCALE, gridScale * MAP_SCALE, gridScale * MAP_SCALE);
+            }
+        }
 
         ctx.restore();
     }
