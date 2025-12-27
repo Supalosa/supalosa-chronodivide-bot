@@ -74,7 +74,7 @@ const THREAT_UPDATE_INTERVAL_TICKS = 30;
 const EXPANSION_UPDATE_INTERVAL_TICKS = 240;
 
 const EXPANSION_MIN_MONEY = 4000;
-const EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY = 20;
+const EXPANSION_MIN_DISTANCE_TO_BUILDABLE = 20;
 const EXPANSION_MIN_CLEAR_SPACE_TILES = 9; // minimum "clear space" required to expand somewhere (should be large enough to fit conyard and refinery)
 
 type QTUnit = Circle<number>;
@@ -268,30 +268,31 @@ export class MatchAwarenessImpl implements MatchAwareness {
             // Find the sector with the least threat, decent money (enough to recoup refinery cost) and far enough away from existing refinery
             let minThreat = Number.MAX_SAFE_INTEGER;
             let bestCandidate: Vector2 | null = null;
-            const refineryVectors = game
-                .getVisibleUnits(playerData.name, "self", (r) => r.refinery)
+            // don't expand somewhere near where we can already build
+            const ownBuildingVectors = game
+                .getVisibleUnits(playerData.name, "self", (r) => r.baseNormal)
                 .map((id) => game.getGameObjectData(id)).filter((o): o is GameObjectData => !!o)
                 .map((r) => new Vector2(r.tile.rx, r.tile.ry));
             const candidates = this.buildSpaceCache.findSpace(EXPANSION_MIN_CLEAR_SPACE_TILES);
             for (const candidate of candidates) {
                 const cell = this.sectorCache.getCell(candidate.x, candidate.y);
                 if (!cell) {
-                    break;
+                    continue;
                 }
-                 if (cell.value.clearSpaceTiles! < EXPANSION_MIN_CLEAR_SPACE_TILES) {
-                    break;
+                if (cell.value.clearSpaceTiles! < EXPANSION_MIN_CLEAR_SPACE_TILES) {
+                    continue;
                 }
                 if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
-                    break;
+                    continue;
                 }
-                if (refineryVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
-                    break;
+                if (ownBuildingVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_BUILDABLE)) {
+                    continue;
                 }
-                if (refineryVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
-                    break;
+                if (ownBuildingVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_BUILDABLE)) {
+                    continue;
                 }
                 if (!cell.value.diffuseThreatLevel || cell.value.diffuseThreatLevel > minThreat) {
-                    break;
+                    continue;
                 }
                 minThreat = cell.value.diffuseThreatLevel;
                 bestCandidate = candidate;

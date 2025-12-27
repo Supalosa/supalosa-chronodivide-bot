@@ -7,13 +7,21 @@ export function calculateSectorThreat(startX: number, startY: number, sectorSize
     let threat = 0;
     for (const unitId of unitsInArea) {
         const unit = gameApi.getGameObjectData(unitId);
-        if (!unit) {
+        if (!unit || !unit.owner) {
             continue;
         }
-        // note: allied players are threats currently
-        if (unit.owner !== playerData.name) {
-            threat += unit.maxHitPoints ?? 1;
+        if (unit.owner === playerData.name) {
+            threat -= unit.maxHitPoints ?? 1;
+            continue;
         }
+        if (gameApi.areAlliedPlayers(playerData.name, unit.owner)) {
+            continue;
+        }
+        const owner = gameApi.getPlayerData(unit.owner);
+        if (!owner.isCombatant) {
+            continue;
+        }
+        threat += unit.maxHitPoints ?? 1;
     }
     return threat;
 }
@@ -22,7 +30,8 @@ export function calculateDiffuseSectorThreat(currentThreat: number, currentDiffu
     const totalNeighbourThreat = currentThreat + neighbours.reduce((acc, cV) => acc + (cV.threatLevel ?? 0), 0);
     const totalNeighbourDiffuseThreat = currentDiffuseThreat + neighbours.reduce((acc, cV) => acc + (cV.diffuseThreatLevel ?? 0), 0);
     // somewhere between the current (actual) threat and the neighbouring threat, but never less than the actual threat in neghbouring cells
-    return Math.max(totalNeighbourThreat, totalNeighbourThreat + totalNeighbourDiffuseThreat * (1/8) * 0.99);
+    const numNeighbours = neighbours.length;
+    return Math.max(totalNeighbourThreat, totalNeighbourThreat + totalNeighbourDiffuseThreat * (1/numNeighbours) * 0.99);
 }
 
 export function calculateMoney(startX: number, startY: number, size: number, mapApi: MapApi) {

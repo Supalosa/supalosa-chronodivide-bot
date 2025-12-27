@@ -43,8 +43,8 @@ async function main() {
     offensedefense.map,ore2_startfixed.map,rekoool_fast_6players.mpr,rekoool_fast_8players.mpr,riverram.map,tourofegypt.map,unrepent.map,sinkswim_yr_port.map
     */
     //const mapName = "rekoool_fast_8players.mpr";
-    //const mapName = "mp22s8.map"; <- large flat 8 player map
-    const mapName = "mp01t4.map";
+    const mapName = "mp22s8.map"; // <- large flat 8 player map
+    //const mapName = "mp01t4.map";
     // Bot names must be unique in online mode
     const timestamp = String(Date.now()).substr(-6);
     const botName1 = `Joe${timestamp}`;
@@ -86,8 +86,8 @@ async function main() {
         ...baseSettings,
         online: false,
         agents: [
-            new VisualisedBot(VISUAL_DEBUG_OPTS, botName1, Countries.FRANCE, [], true).setDebugMode(true),
-            new SupalosaBot(botName2, Countries.FRANCE, [], false),
+            new VisualisedBot(VISUAL_DEBUG_OPTS, botName1, Countries.FRANCE, [botName2], true).setDebugMode(true),
+            new SupalosaBot(botName2, Countries.FRANCE, [botName1], false),
         ],
     };
 

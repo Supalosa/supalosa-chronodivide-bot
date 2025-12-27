@@ -4,7 +4,7 @@ import { BasicBuilding } from "./basicBuilding.js";
 import { getDefaultPlacementLocation } from "./buildingRules.js";
 import { getCachedTechnoRules } from "../common/rulesCache.js";
 
-const NO_REFINERY_DISTANCE = 20;
+const NO_REFINERY_DISTANCE = 10;
 
 export class ResourceCollectionBuilding extends BasicBuilding {
     constructor(basePriority: number, maxNeeded: number, onlyBuildWhenFloatingCreditsAmount?: number) {
