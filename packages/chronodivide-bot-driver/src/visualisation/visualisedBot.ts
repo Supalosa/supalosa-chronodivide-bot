@@ -12,6 +12,8 @@ const MAP_SCALE = 8;
 export type VisualisedBotOpts = {
     outFolder: string;
     tickInterval: number;
+    includeBaseMap: boolean;
+    includeHeatmaps: boolean;
 }
 
 /**
@@ -106,20 +108,24 @@ export class VisualisedBot extends SupalosaBot {
 
         ctx.restore();
 
-        fs.writeFileSync(this.opts.outFolder + `tick-${game.getCurrentTick()}.png`, this.canvas.toBuffer("image/png"));
+        if (this.opts.includeBaseMap) {
+            fs.writeFileSync(this.opts.outFolder + `tick-${game.getCurrentTick()}.png`, this.canvas.toBuffer("image/png"));
+        }
 
         // repeat for any grid caches
-        for (const { grid, tag }  of this._debugGridCaches) {
-            const gridCanvas = createCanvas(this.canvas.width, this.canvas.height);
-            const gridCtx = gridCanvas.getContext('2d');
-            gridCtx.drawImage(this.canvas, 0, 0);
-            
-            ctx.font = "30px monospace";
-            ctx.fillStyle = "white";
-            ctx.fillText(tag, 300, 30);
+        if (this.opts.includeHeatmaps) {
+            for (const { grid, tag }  of this._debugGridCaches) {
+                const gridCanvas = createCanvas(this.canvas.width, this.canvas.height);
+                const gridCtx = gridCanvas.getContext('2d');
+                gridCtx.drawImage(this.canvas, 0, 0);
+                
+                gridCtx.font = "30px monospace";
+                gridCtx.fillStyle = "white";
+                gridCtx.fillText(tag, 300, 30);
 
-            this.renderGridCache(gridCtx, game, grid);
-            fs.writeFileSync(this.opts.outFolder + `${tag}-tick-${game.getCurrentTick()}.png`, gridCanvas.toBuffer("image/png"));
+                this.renderGridCache(gridCtx, game, grid);
+                fs.writeFileSync(this.opts.outFolder + `${tag}-tick-${game.getCurrentTick()}.png`, gridCanvas.toBuffer("image/png"));
+            }
         }
 
         if (this._debugMessages.length > 0) {

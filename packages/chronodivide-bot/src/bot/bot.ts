@@ -1,6 +1,5 @@
 import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, Size } from "@chronodivide/game-api";
 
-import { determineMapBounds } from "./logic/map/map.js";
 import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
@@ -16,7 +15,6 @@ const NATURAL_TICK_RATE = 15;
 
 export class SupalosaBot extends Bot {
     private tickRatio?: number;
-    private knownMapBounds: Size | undefined;
     private missionController: MissionController;
     private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
@@ -45,24 +43,23 @@ export class SupalosaBot extends Bot {
         const botRate = botApm / 60;
         this.tickRatio = Math.ceil(gameRate / botRate);
 
-        this.knownMapBounds = determineMapBounds(game.mapApi);
         const myPlayer = game.getPlayerData(this.name);
         
 
         this.matchAwareness = new MatchAwarenessImpl(
             game,
             myPlayer,
-            this.knownMapBounds,
             null,
             myPlayer.startLocation,
             (message, sayInGame) => this.logBotStatus(message, sayInGame),
         );
 
-        this._debugGridCaches = [{grid: this.matchAwareness.getSectorCache(), tag: "sector-cache"}];
+        this._debugGridCaches = [
+            {grid: this.matchAwareness.getSectorCache(), tag: "sector-cache"},
+            {grid: this.matchAwareness.getBuildSpaceCache()._cache, tag: "build-cache"}
+        ];
 
         this.matchAwareness.onGameStart(game, myPlayer);
-
-        this.logBotStatus(`Map bounds: ${this.knownMapBounds.width}, ${this.knownMapBounds.height}`);
 
         this.tryAllyWith
             .filter((playerName) => playerName !== this.name)

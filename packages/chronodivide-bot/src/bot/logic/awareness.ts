@@ -5,8 +5,9 @@ import { calculateGlobalThreat } from "./threat/threatCalculator.js";
 import { calculateAreaVisibility, getPointTowardsOtherPoint } from "./map/map.js";
 import { Circle, Quadtree } from "@timohausmann/quadtree-ts";
 import { ScoutingManager } from "./common/scout.js";
-import { IncrementalGridCache } from "./map/incrementalGridCache.js";
-import { calculateDiffuseSectorThreat, calculateSectorThreat } from "./threat/sectorThreat.js";
+import { getDiagonalMapBounds, IncrementalGridCache } from "./map/incrementalGridCache.js";
+import { calculateDiffuseSectorThreat, calculateMoney, calculateSectorThreat } from "./threat/sectorThreat.js";
+import { BuildSpaceCache } from "./map/buildSpaceCache.js";
 
 export type UnitPositionQuery = { x: number; y: number; unitId: number };
 
@@ -23,6 +24,8 @@ export interface MatchAwareness {
      * Returns the sector visibility cache.
      */
     getSectorCache(): SectorCache;
+
+    getBuildSpaceCache(): BuildSpaceCache;
 
     /**
      * Returns the enemy unit IDs in a certain radius of a point.
@@ -57,14 +60,22 @@ export interface MatchAwareness {
 
     getScoutingManager(): ScoutingManager;
 
+    getNextExpansionPoint(): Vector2 | null;
+
     getGlobalDebugText(): string | undefined;
 }
 
-const SECTORS_TO_UPDATE_PER_CYCLE = 8;
+const SECTORS_TO_UPDATE_PER_CYCLE = 12;
 
 const RALLY_POINT_UPDATE_INTERVAL_TICKS = 90;
 
 const THREAT_UPDATE_INTERVAL_TICKS = 30;
+
+const EXPANSION_UPDATE_INTERVAL_TICKS = 240;
+
+const EXPANSION_MIN_MONEY = 4000;
+const EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY = 20;
+const EXPANSION_MIN_CLEAR_SPACE_TILES = 48; // Sectors are 8x8 (64 tiles)
 
 type QTUnit = Circle<number>;
 
@@ -81,41 +92,50 @@ export class MatchAwarenessImpl implements MatchAwareness {
     private hostileQuadTree: Quadtree<QTUnit>;
     private scoutingManager: ScoutingManager;
     private sectorCache: SectorCache;
+    private buildSpaceCache: BuildSpaceCache;
+
+    private expansionPoint: Vector2 | null = null;
 
     constructor(
         gameApi: GameApi,
         playerData: PlayerData,
-        bounds: Size,
         private threatCache: GlobalThreat | null,
         private mainRallyPoint: Vector2,
         private logger: (message: string, sayInGame?: boolean) => void,
     ) {
-        const { width, height } = bounds;
-        this.hostileQuadTree = new Quadtree({ width, height });
+        const mapSize = gameApi.mapApi.getRealMapSize();
+        const diagonalBounds = getDiagonalMapBounds(gameApi.mapApi);
+        this.hostileQuadTree = new Quadtree(mapSize);
         this.scoutingManager = new ScoutingManager(logger);
-        this.sectorCache = new SectorCache(bounds, 
-            () => {
-                return {
-                    sectorVisibilityRatio: null,
-                    threatLevel: null,
-                    diffuseThreatLevel: null,
-                };
-            },
+        this.sectorCache = new SectorCache(
+            mapSize, 
+            diagonalBounds,
+            () => ({
+                sectorVisibilityRatio: null,
+                threatLevel: null,
+                diffuseThreatLevel: null,
+                totalMoney: null,
+                clearSpaceTiles: 0,
+            }),
             (startX, startY, size, currentValue, neighbours) => {
                 const sp = new Vector2(startX, startY);
                 const ep = new Vector2(sp.x + size, sp.y + size);
                 const visibility = calculateAreaVisibility(gameApi.mapApi, playerData, sp, ep);
                 const threatLevel = calculateSectorThreat(startX, startY, size, gameApi, playerData);
                 const diffuseThreatLevel = calculateDiffuseSectorThreat(threatLevel, currentValue.diffuseThreatLevel ?? 0, neighbours);
+                const totalMoney = calculateMoney(startX, startY, size, gameApi.mapApi)
                 return {
                     sectorVisibilityRatio: visibility.validTiles > 0 ?
                         visibility.visibleTiles / visibility.validTiles :
                         null, 
                     threatLevel,
                     diffuseThreatLevel,
+                    totalMoney,
+                    clearSpaceTiles: visibility.clearTiles,
                 }
             }
         );
+        this.buildSpaceCache = new BuildSpaceCache(mapSize, gameApi, diagonalBounds);
     }
 
     getHostilesNearPoint2d(point: Vector2, radius: number): UnitPositionQuery[] {
@@ -142,6 +162,12 @@ export class MatchAwarenessImpl implements MatchAwareness {
     getScoutingManager(): ScoutingManager {
         return this.scoutingManager;
     }
+    getNextExpansionPoint(): Vector2 | null {
+        return this.expansionPoint
+    }
+    getBuildSpaceCache(): BuildSpaceCache {
+        return this.buildSpaceCache;
+    }
 
     shouldAttack(): boolean {
         return this._shouldAttack;
@@ -167,6 +193,9 @@ export class MatchAwarenessImpl implements MatchAwareness {
         const sectorCache = this.sectorCache;
 
         sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE);
+        if (!this.buildSpaceCache.isFinished()) {
+            this.buildSpaceCache.update(game.getCurrentTick());
+        }
 
         this.scoutingManager.onAiUpdate(game, playerData, sectorCache);
 
@@ -232,6 +261,74 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 10,
                 0,
             );
+        }
+
+        // Decide to expand or not
+        if (this.buildSpaceCache.isFinished() && game.getCurrentTick() % EXPANSION_UPDATE_INTERVAL_TICKS === 0) {
+            // Find the sector with the least threat, decent money (enough to recoup refinery cost) and far enough away from existing refinery
+            let minThreat = Number.MAX_SAFE_INTEGER;
+            let bestCandidate: Vector2 | null = null;
+            const refineryVectors = game
+                .getVisibleUnits(playerData.name, "self", (r) => r.refinery)
+                .map((id) => game.getGameObjectData(id)).filter((o): o is GameObjectData => !!o)
+                .map((r) => new Vector2(r.tile.rx, r.tile.ry));
+                /*
+            this.sectorCache.forEach((x, y, cell) => {
+                if (cell.value.sectorVisibilityRatio! < 0.5) {
+                    return;
+                }
+                if (cell.value.clearSpaceTiles! < EXPANSION_MIN_CLEAR_SPACE_TILES) {
+                    return;
+                }
+                if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
+                    return;
+                }
+                const vec = new Vector2(x, y);
+                if (refineryVectors.some((ref) => ref.distanceTo(vec) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
+                    return;
+                }
+                if (!cell.value.diffuseThreatLevel || cell.value.diffuseThreatLevel > minThreat) {
+                    return;
+                }
+                if (!game.mapApi.getTile(x, y)) {
+                    // TODO: find another tile in the sector.
+                    return;
+                }
+
+                minThreat = cell.value.diffuseThreatLevel;
+                bestCandidate = vec;
+            });*/
+            // That doesn't work very well until we figure out a way to find continguous blocks of flat land. Let's just check start locations then.
+            for (const startLocation of game.mapApi.getStartingLocations()) {
+                // leaky...
+                const cell = this.sectorCache.getCell(Math.floor(startLocation.x / this.sectorCache._renderScale()), Math.floor(startLocation.y / this.sectorCache._renderScale()));
+                if (!cell) {
+                    break;
+                }
+                 if (cell.value.clearSpaceTiles! < EXPANSION_MIN_CLEAR_SPACE_TILES) {
+                    break;
+                }
+                if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
+                    break;
+                }
+                if (refineryVectors.some((ref) => ref.distanceTo(startLocation) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
+                    break;
+                }
+                if (refineryVectors.some((ref) => ref.distanceTo(startLocation) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
+                    break;
+                }
+                if (!cell.value.diffuseThreatLevel || cell.value.diffuseThreatLevel > minThreat) {
+                    break;
+                }
+                if (!game.mapApi.getTile(startLocation.x, startLocation.y)) {
+                    // TODO: find another tile in the sector.
+                    break;
+                }
+                minThreat = cell.value.diffuseThreatLevel;
+                bestCandidate = startLocation;
+            }
+
+            this.expansionPoint = bestCandidate;
         }
     }
 

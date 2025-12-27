@@ -1,8 +1,10 @@
-import { GameApi, GameMath, PlayerData, TechnoRules, Tile } from "@chronodivide/game-api";
+import { Box2, GameApi, GameMath, PlayerData, TechnoRules, Tile, Vector2 } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
 import { BasicBuilding } from "./basicBuilding.js";
 import { getDefaultPlacementLocation } from "./buildingRules.js";
-import { Vector2 } from "three";
+import { getCachedTechnoRules } from "../common/rulesCache.js";
+
+const NO_REFINERY_DISTANCE = 20;
 
 export class ResourceCollectionBuilding extends BasicBuilding {
     constructor(basePriority: number, maxNeeded: number, onlyBuildWhenFloatingCreditsAmount?: number) {
@@ -15,21 +17,33 @@ export class ResourceCollectionBuilding extends BasicBuilding {
         technoRules: TechnoRules,
     ): { rx: number; ry: number } | undefined {
         // Prefer spawning close to ore.
-        let selectedLocation = playerData.startLocation;
+        const conyardVectors = game
+            .getVisibleUnits(playerData.name, "self", (r) => r.constructionYard)
+            .map((r) => game.getGameObjectData(r)?.tile)
+            .filter((t): t is Tile => !!t)
+            .map((t) => new Vector2(t.rx, t.ry));
+
+        if (conyardVectors.length === 0) {
+            return undefined;
+        }
 
         var closeOre: Tile | undefined;
         var closeOreDist: number | undefined;
-        let allTileResourceData = game.mapApi.getAllTilesResourceData();
-        for (let i = 0; i < allTileResourceData.length; ++i) {
-            let tileResourceData = allTileResourceData[i];
-            if (tileResourceData.spawnsOre) {
-                let dist = GameMath.sqrt(
-                    (selectedLocation.x - tileResourceData.tile.rx) ** 2 +
-                        (selectedLocation.y - tileResourceData.tile.ry) ** 2,
-                );
-                if (closeOreDist == undefined || dist < closeOreDist) {
-                    closeOreDist = dist;
-                    closeOre = tileResourceData.tile;
+        let selectedLocation: Vector2 = conyardVectors[0];
+        
+        for (const conyard of conyardVectors) {
+            let allTileResourceData = game.mapApi.getAllTilesResourceData();
+            for (let i = 0; i < allTileResourceData.length; ++i) {
+                let tileResourceData = allTileResourceData[i];
+                if (tileResourceData.spawnsOre) {
+                    let dist = GameMath.sqrt(
+                        (conyard.x - tileResourceData.tile.rx) ** 2 +
+                            (conyard.y - tileResourceData.tile.ry) ** 2,
+                    );
+                    if (closeOreDist == undefined || dist < closeOreDist) {
+                        closeOreDist = dist;
+                        closeOre = tileResourceData.tile;
+                    }
                 }
             }
         }
@@ -47,6 +61,17 @@ export class ResourceCollectionBuilding extends BasicBuilding {
         threatCache: GlobalThreat | null,
     ): number | null {
         const harvesters = game.getVisibleUnits(playerData.name, "self", (r) => r.harvester).length;
-        return Math.max(1, harvesters * 2);
+        // if there is no refinery within distance of a conyard, that conyard wants an expansion
+        const conyardBoxes = game.getVisibleUnits(playerData.name, "self", (r) => r.constructionYard)
+            .map((r) => game.getGameObjectData(r)?.tile)
+            .filter((t): t is Tile => !!t)
+            .map((t) => new Vector2(t.rx, t.ry))
+            .map(v => new Box2(v.clone().subScalar(NO_REFINERY_DISTANCE), v.clone().addScalar(NO_REFINERY_DISTANCE)));
+        const conyardsWithRefineries = conyardBoxes
+            .map((b) => game.getUnitsInArea(b))
+            .filter((unitIds) => unitIds.some((unitId) => getCachedTechnoRules(game, unitId)?.refinery));
+        const conyardsWithoutRefineries = conyardBoxes.length - conyardsWithRefineries.length;
+
+        return Math.max(1, harvesters * 2 * (conyardsWithoutRefineries + 1));
     }
 }
