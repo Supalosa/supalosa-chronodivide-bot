@@ -1,4 +1,4 @@
-import { GameApi, Size, TerrainType, Tile } from "@chronodivide/game-api";
+import { GameApi, Size, TerrainType, Tile, Vector2 } from "@chronodivide/game-api";
 import { BasicIncrementalGridCache, DiagonalMapBounds, getDiagonalMapBounds, IncrementalGridCache, SequentialScanStrategy, StagedScanStrategy, toHeatmapColor } from "./incrementalGridCache.js";
 
 
@@ -25,14 +25,14 @@ function tileIsBuildable(tile: Tile) {
 export class BuildSpaceCache {
     private scanStrategy: StagedScanStrategy;
     private distanceTransformCache: BasicIncrementalGridCache<number, number>;
-    
+
     constructor(mapSize: Size, gameApi: GameApi, diagonalMapBounds: DiagonalMapBounds) {
         // The DT algorithm runs in 3 passes. The last pass needs to run in reverse.
         this.scanStrategy = new StagedScanStrategy(
             [new SequentialScanStrategy(1, diagonalMapBounds),
             new SequentialScanStrategy(1, diagonalMapBounds),
             new SequentialScanStrategy(1, diagonalMapBounds).setReverse(),
-        ]);
+            ]);
         this.distanceTransformCache = new BasicIncrementalGridCache<number, number>(
             mapSize.width,
             mapSize.height,
@@ -47,7 +47,7 @@ export class BuildSpaceCache {
                     return tileIsBuildable(tile) ? Number.MAX_VALUE : 0;
                 }
                 const { value: prevValue } = this.distanceTransformCache.getCell(x, y)!;
-                
+
                 if (stageIndex === 1) {
                     // Second pass: all cells (except edges) update from top left
                     if (x === 0 || y === 0) {
@@ -80,11 +80,41 @@ export class BuildSpaceCache {
         this.distanceTransformCache.updateCells(256, gameTick);
     }
 
+    // visible for debugging
     public get _cache(): IncrementalGridCache<number> {
         return this.distanceTransformCache;
     }
 
     public isFinished() {
         return this.scanStrategy.isFinished();
+    }
+
+    public findSpace(tiles: number): Vector2[] {
+        if (!this.isFinished()) {
+            return [];
+        }
+        type Candidate = {
+            pos: Vector2;
+            value: number;
+        }
+        const candidates: Candidate[] = [];
+        this.distanceTransformCache.forEach((x, y, cell) => {
+            if (cell.lastUpdatedTick === null) {
+                return;
+            }
+            if (cell.value >= tiles) {
+                // if there's a candidate within `tiles` distance, use the higher of the two
+                const vec = new Vector2(x, y);
+                const otherCandidateIdx = candidates.findIndex((c) => c.pos.distanceTo(vec) < tiles);
+                if (otherCandidateIdx >= 0) {
+                    if (candidates[otherCandidateIdx].value < cell.value) {
+                        candidates[otherCandidateIdx] = { pos: vec, value: cell.value };
+                    }
+                } else {
+                    candidates.push({ pos: vec, value: cell.value });
+                }
+            }
+        });
+        return candidates.map(({ pos }) => pos);
     }
 }

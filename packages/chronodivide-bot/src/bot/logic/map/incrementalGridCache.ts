@@ -109,11 +109,15 @@ export class BasicIncrementalGridCache<T, V> implements IncrementalGridCache<T> 
         }
     }
 
+    /**
+     * Using a clone of the ScanStrategy, iterates over all cells in the grid and calls the provided callback function on each one.
+     */
     public forEach(fn: (x: number, y: number, cell: IncrementalGridCell<T>) => void) {
-        for (let x = 0; x < this.width; ++x) {
-            for (let y = 0; y < this.height; ++y) {
-                fn(x, y, this.cells[x][y]);
-            }
+        const scanStrategy = this.scanStrategy.clone();
+        let next: {x: number, y: number} | null = null;
+        while ((next = scanStrategy.getNextCellToUpdate(this.width, this.height)) !== null) {
+            const { x, y } = next;
+            fn(x, y, this.cells[x][y]);
         }
     }
     
@@ -146,6 +150,7 @@ export class BasicIncrementalGridCache<T, V> implements IncrementalGridCache<T> 
 
 export interface IncrementalGridCacheUpdateStrategy<V> {
     getNextCellToUpdate(width: number, height: number): { x: number; y: number, arg: V } | null;
+    clone(): IncrementalGridCacheUpdateStrategy<V>;
 }
 
 export type DiagonalMapBounds = {
@@ -280,12 +285,18 @@ export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrateg
         }
         return null;
     }
+
+    clone() {
+        return new SequentialScanStrategy(this.maxPasses, this.diagonalMapBounds);
+    }
 }
 
 export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<number> {
     private stageIndex: number;
+    private originalStages: IncrementalGridCacheUpdateStrategy<number>[];
 
     constructor(private stages: IncrementalGridCacheUpdateStrategy<number>[]) {
+        this.originalStages = [...stages];
         this.stageIndex = 0;
     }
 
@@ -321,5 +332,9 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
 
     isFinished() {
         return this.stages.length === 0;
+    }
+
+    clone() {
+        return new StagedScanStrategy(this.originalStages.map((s) => s.clone()));
     }
 }

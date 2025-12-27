@@ -267,26 +267,19 @@ export class VisualisedBot extends SupalosaBot {
 
         const gridScale = gridCache._renderScale();
 
-        for (let x = 0; x < gridCache.getSize().width; ++x) {
-            for (let y = 0; y < gridCache.getSize().height; ++y) {
-                const debugCell = gridCache._getCellDebug(x, y);
-                if (!debugCell) {
-                    continue;
-                }
-                
-                // between 0.25 (never/not recently updated) and 0.75 (recently updated) alpha for the cell
-                if (debugCell.lastUpdatedTick === null) {
-                    ctx.globalAlpha = 0.25;
-                    ctx.fillStyle = "grey";
-                } else {
-                    ctx.globalAlpha = Math.min(0.75, Math.max(0.25, 1 - (game.getCurrentTick() - debugCell.lastUpdatedTick) / 600));
-                    const [r, g, b] = fromRGBNum(debugCell.color);
-                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                }
-                ctx.fillRect(x * gridScale * MAP_SCALE, y * gridScale * MAP_SCALE, gridScale * MAP_SCALE, gridScale * MAP_SCALE);
+        gridCache.forEach((x, y, cell) => {
+            // between 0.25 (never/not recently updated) and 0.75 (recently updated) alpha for the cell
+            if (cell.lastUpdatedTick === null) {
+                ctx.globalAlpha = 0.25;
+                ctx.fillStyle = "grey";
+            } else {
+                const debugCell = gridCache._getCellDebug(x, y)!;
+                ctx.globalAlpha = Math.min(0.75, Math.max(0.25, 1 - (game.getCurrentTick() - cell.lastUpdatedTick) / 600));
+                const [r, g, b] = fromRGBNum(debugCell.color);
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
             }
-        }
-
+            ctx.fillRect(x * MAP_SCALE, y * MAP_SCALE, gridScale * MAP_SCALE, gridScale * MAP_SCALE);
+        });
         ctx.restore();
     }
 }

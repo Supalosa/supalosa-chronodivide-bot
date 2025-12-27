@@ -75,7 +75,7 @@ const EXPANSION_UPDATE_INTERVAL_TICKS = 240;
 
 const EXPANSION_MIN_MONEY = 4000;
 const EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY = 20;
-const EXPANSION_MIN_CLEAR_SPACE_TILES = 48; // Sectors are 8x8 (64 tiles)
+const EXPANSION_MIN_CLEAR_SPACE_TILES = 9; // minimum "clear space" required to expand somewhere (should be large enough to fit conyard and refinery)
 
 type QTUnit = Circle<number>;
 
@@ -272,36 +272,9 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 .getVisibleUnits(playerData.name, "self", (r) => r.refinery)
                 .map((id) => game.getGameObjectData(id)).filter((o): o is GameObjectData => !!o)
                 .map((r) => new Vector2(r.tile.rx, r.tile.ry));
-                /*
-            this.sectorCache.forEach((x, y, cell) => {
-                if (cell.value.sectorVisibilityRatio! < 0.5) {
-                    return;
-                }
-                if (cell.value.clearSpaceTiles! < EXPANSION_MIN_CLEAR_SPACE_TILES) {
-                    return;
-                }
-                if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
-                    return;
-                }
-                const vec = new Vector2(x, y);
-                if (refineryVectors.some((ref) => ref.distanceTo(vec) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
-                    return;
-                }
-                if (!cell.value.diffuseThreatLevel || cell.value.diffuseThreatLevel > minThreat) {
-                    return;
-                }
-                if (!game.mapApi.getTile(x, y)) {
-                    // TODO: find another tile in the sector.
-                    return;
-                }
-
-                minThreat = cell.value.diffuseThreatLevel;
-                bestCandidate = vec;
-            });*/
-            // That doesn't work very well until we figure out a way to find continguous blocks of flat land. Let's just check start locations then.
-            for (const startLocation of game.mapApi.getStartingLocations()) {
-                // leaky...
-                const cell = this.sectorCache.getCell(Math.floor(startLocation.x / this.sectorCache._renderScale()), Math.floor(startLocation.y / this.sectorCache._renderScale()));
+            const candidates = this.buildSpaceCache.findSpace(EXPANSION_MIN_CLEAR_SPACE_TILES);
+            for (const candidate of candidates) {
+                const cell = this.sectorCache.getCell(candidate.x, candidate.y);
                 if (!cell) {
                     break;
                 }
@@ -311,21 +284,17 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
                     break;
                 }
-                if (refineryVectors.some((ref) => ref.distanceTo(startLocation) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
+                if (refineryVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
                     break;
                 }
-                if (refineryVectors.some((ref) => ref.distanceTo(startLocation) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
+                if (refineryVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_OTHER_REFINERY)) {
                     break;
                 }
                 if (!cell.value.diffuseThreatLevel || cell.value.diffuseThreatLevel > minThreat) {
                     break;
                 }
-                if (!game.mapApi.getTile(startLocation.x, startLocation.y)) {
-                    // TODO: find another tile in the sector.
-                    break;
-                }
                 minThreat = cell.value.diffuseThreatLevel;
-                bestCandidate = startLocation;
+                bestCandidate = candidate;
             }
 
             this.expansionPoint = bestCandidate;

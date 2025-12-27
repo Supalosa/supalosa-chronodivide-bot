@@ -102,10 +102,9 @@ export class SectorCache implements IncrementalGridCache<Sector> {
     getSize() {
         return this.gridCache.getSize();
     }
-
-    // n.b. this is not passing on the scaling correctly
-    getCell(x: number, y: number) {
-        return this.gridCache.getCell(x, y);
+    
+    getCell(tileX: number, tileY: number) {
+        return this.gridCache.getCell(Math.floor(tileX / SECTOR_SIZE), Math.floor(tileY / SECTOR_SIZE));
     }
 
     forEach(fn: (tileX: number, tileY: number, cell: IncrementalGridCell<Sector>) => void): void {
@@ -185,8 +184,7 @@ export class SectorCache implements IncrementalGridCache<Sector> {
         return SECTOR_SIZE;
     }
 
-    // n.b. this is not passing on the scaling correctly
-    public _getCellDebug(x: number, y: number): (IncrementalGridCell<Sector> & { color: number; }) | null {
-        return this.gridCache._getCellDebug(x, y);
+    public _getCellDebug(tileX: number, tileY: number): (IncrementalGridCell<Sector> & { color: number; }) | null {
+        return this.gridCache._getCellDebug(Math.floor(tileX / SECTOR_SIZE), Math.floor(tileY / SECTOR_SIZE));
     }
 }
