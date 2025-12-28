@@ -6,9 +6,8 @@ import { MissionController } from "../missionController.js";
 import { DebugLogger } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getCachedTechnoRules } from "../../common/rulesCache.js";
-import { match } from "assert";
 
-const ORDER_COOLDOWN_TICKS = 30;
+const ORDER_COOLDOWN_TICKS = 60;
 
 const mcvTypes = ["AMCV", "SMCV"];
 
@@ -73,13 +72,20 @@ export class ExpansionMission extends Mission {
             return noop();
         }
         if (isClose) {
-            // alternate between deploy and scatter
-            actionsApi.orderUnits(
-                mcvs.map((mcv) => mcv.id),
-                !this.lastOrderDeploy ? OrderType.DeploySelected : OrderType.Scatter
-            );
-            this.lastOrderDeploy = !this.lastOrderDeploy;
-            // Add a cooldown to deploy attempts.
+            if (!this.lastOrderDeploy) {
+                actionsApi.orderUnits(
+                    mcvs.map((mcv) => mcv.id),
+                    OrderType.DeploySelected
+                );
+                this.lastOrderDeploy = true;
+            } else {
+                // try to move to a clearer location
+                actionsApi.orderUnits(
+                    mcvs.map((mcv) => mcv.id),
+                    OrderType.Scatter
+                );
+                this.lastOrderDeploy = false;
+            }
             this.lastOrderAt = gameApi.getCurrentTick();
         } else if (!isClose) {
             const rx = this.destination.x + gameApi.generateRandomInt(-5, 5);

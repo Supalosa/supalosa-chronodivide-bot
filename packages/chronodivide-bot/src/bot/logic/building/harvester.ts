@@ -5,6 +5,9 @@ import { BasicGroundUnit } from "./basicGroundUnit.js";
 const IDEAL_HARVESTERS_PER_REFINERY = 2;
 const MAX_HARVESTERS_PER_REFINERY = 4;
 
+// because refineries also scales based on harvesters, we need a cap
+const MAX_HARVESTERS_TOTAL = 10;
+
 export class Harvester extends BasicGroundUnit {
     constructor(
         basePriority: number,
@@ -27,5 +30,9 @@ export class Harvester extends BasicGroundUnit {
         const boost = harvesters < this.minNeeded ? 3 : harvesters > refineries * MAX_HARVESTERS_PER_REFINERY ? 0 : 1;
 
         return this.basePriority * (refineries / Math.max(harvesters / IDEAL_HARVESTERS_PER_REFINERY, 1)) * boost;
+    }
+
+    getMaxCount(game: GameApi, playerData: PlayerData, technoRules: TechnoRules, threatCache: GlobalThreat | null): number | null {
+        return MAX_HARVESTERS_TOTAL;
     }
 }

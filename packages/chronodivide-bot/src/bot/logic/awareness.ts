@@ -193,9 +193,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
         const sectorCache = this.sectorCache;
 
         sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE);
-        if (!this.buildSpaceCache.isFinished()) {
-            this.buildSpaceCache.update(game.getCurrentTick());
-        }
+        this.buildSpaceCache.update(game.getCurrentTick());
 
         this.scoutingManager.onAiUpdate(game, playerData, sectorCache);
 

@@ -151,6 +151,14 @@ export class BasicIncrementalGridCache<T, V> implements IncrementalGridCache<T> 
 export interface IncrementalGridCacheUpdateStrategy<V> {
     getNextCellToUpdate(width: number, height: number): { x: number; y: number, arg: V } | null;
     clone(): IncrementalGridCacheUpdateStrategy<V>;
+    /**
+     * True if this strategy keeps running over and over.
+     */
+    isRepeatable(): boolean;
+    /**
+     * True if consumers can trust all the relevant cells have been populated at least once.
+     */
+    isFinished(): boolean;
 }
 
 export type DiagonalMapBounds = {
@@ -289,8 +297,19 @@ export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrateg
     clone() {
         return new SequentialScanStrategy(this.maxPasses, this.diagonalMapBounds);
     }
+
+    isRepeatable(): boolean {
+        return this.maxPasses === null;
+    }
+
+    isFinished(): boolean {
+        return this.passCount > 0 && this.maxPasses === null;
+    }
 }
 
+/**
+ * Scan that composes other scan strategies in stages.
+ */
 export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<number> {
     private stageIndex: number;
     private originalStages: IncrementalGridCacheUpdateStrategy<number>[];
@@ -313,6 +332,10 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
                 arg: this.stageIndex
             }
         }
+        if (head.isRepeatable()) {
+            // come back to it next time
+            return null;
+        }
         // head returned null, move to next and try again
         const next = this.stages.shift();
         ++this.stageIndex;
@@ -330,8 +353,12 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
         }
     }
 
+    isRepeatable(): boolean {
+        return this.originalStages.some((s) => s.isRepeatable());
+    }
+
     isFinished() {
-        return this.stages.length === 0;
+        return this.stages.length === 0 || this.stages[0].isFinished();
     }
 
     clone() {
