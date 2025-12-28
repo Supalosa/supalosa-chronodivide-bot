@@ -193,7 +193,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Allied
     ["GAPOWR", new PowerPlant()],
     ["GAREFN", new ResourceCollectionBuilding(10, 3)], // Refinery
-    ["GAWEAP", new BasicBuilding(15, 1)], // War Factory
+    ["GAWEAP", new BasicBuilding(15, 3)], // War Factory
     ["GAPILE", new BasicBuilding(12, 1)], // Barracks
     ["CMIN", new Harvester(15, 4, 2)], // Chrono Miner
     ["GADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
@@ -203,9 +203,9 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     ["GATECH", new BasicBuilding(20, 1, 4000)], // Allied Battle Lab
     ["GAYARD", new BasicBuilding(0, 0, 0)], // Naval Yard, disabled
 
-    ["GAPILL", new AntiGroundStaticDefence(2, 1, 5, 5)], // Pillbox
+    ["GAPILL", new AntiGroundStaticDefence(2, 1, 7.5, 5)], // Pillbox
     ["ATESLA", new AntiGroundStaticDefence(2, 1, 10, 3)], // Prism Cannon
-    ["NASAM", new AntiAirStaticDefence(2, 1, 5)], // Patriot Missile
+    ["NASAM", new AntiAirStaticDefence(1, 1, 7.5)], // Patriot Missile
     ["GAWALL", new AntiGroundStaticDefence(0, 0, 0, 0)], // Walls
 
     ["E1", new BasicGroundUnit(2, 2, 0.2, 0)], // GI
@@ -222,7 +222,7 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
     // Soviet
     ["NAPOWR", new PowerPlant()],
     ["NAREFN", new ResourceCollectionBuilding(10, 3)], // Refinery
-    ["NAWEAP", new BasicBuilding(15, 1)], // War Factory
+    ["NAWEAP", new BasicBuilding(15, 3)], // War Factory
     ["NAHAND", new BasicBuilding(12, 1)], // Barracks
     ["HARV", new Harvester(15, 4, 2)], // War Miner
     ["NADEPT", new BasicBuilding(1, 1, 10000)], // Repair Depot
@@ -232,8 +232,8 @@ export const BUILDING_NAME_TO_RULES = new Map<string, AiBuildingRules>([
 
     ["NATECH", new BasicBuilding(20, 1, 4000)], // Soviet Battle Lab
 
-    ["NALASR", new AntiGroundStaticDefence(2, 1, 5, 5)], // Sentry Gun
-    ["NAFLAK", new AntiAirStaticDefence(2, 1, 5)], // Flak Cannon
+    ["NALASR", new AntiGroundStaticDefence(2, 1, 7.5, 5)], // Sentry Gun
+    ["NAFLAK", new AntiAirStaticDefence(1, 1, 7.5)], // Flak Cannon
     ["TESLA", new AntiGroundStaticDefence(2, 1, 10, 3)], // Tesla Coil
     ["NAWALL", new AntiGroundStaticDefence(0, 0, 0, 0)], // Walls
 

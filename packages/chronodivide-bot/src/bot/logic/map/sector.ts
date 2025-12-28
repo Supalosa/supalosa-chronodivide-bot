@@ -1,8 +1,7 @@
 // A sector is a uniform-sized segment of the map.
 
-import { MapApi, PlayerData, Size, Tile, Vector2 } from "@chronodivide/game-api";
-import { calculateAreaVisibility } from "./map.js";
-import { BasicIncrementalGridCache, IncrementalGridCache, IncrementalGridCell, SequentialScanStrategy, toHeatmapColor, toRGBNum } from "./incrementalGridCache.js";
+import { Size } from "@chronodivide/game-api";
+import { BasicIncrementalGridCache, DiagonalMapBounds, IncrementalGridCache, IncrementalGridCell, SequentialScanStrategy, toHeatmapColor, toRGBNum } from "./incrementalGridCache.js";
 
 export const SECTOR_SIZE = 8;
 
@@ -10,38 +9,93 @@ export const SECTOR_SIZE = 8;
  * A Sector is an 8x8 area of the map, grouped together for scouting purposes.
  */
 export type Sector = {
+    /**
+     * Null means there are no valid tiles in the sector.
+     */
     sectorVisibilityRatio: number | null;
+    /**
+     * Raw threat level in the sector (based on actual observation)
+     */
+    threatLevel: number | null;
+    /**
+     * Derived threat level in the sector (based on diffusing the threat to neighbouring sectors)
+     */
+    diffuseThreatLevel: number | null;
+
+    totalMoney: number | null;
+
+    clearSpaceTiles: number; // number of clear, flat tiles (for base expansion)
 };
 
 /**
  * Wrapper around IncrementalGridCache that handles scaling from tile coordinates to sectors (could probably also be refactored out)
  */
 export class SectorCache implements IncrementalGridCache<Sector> {
-    private gridCache: BasicIncrementalGridCache<Sector>;
+    private gridCache: BasicIncrementalGridCache<Sector, number>;
 
-    constructor(mapApi: MapApi, private mapBounds: Size, playerData: PlayerData) {
+    constructor(private mapBounds: Size,
+        diagonalMapBounds: DiagonalMapBounds,
+        initFn: (startX: number, startY: number) => Sector,
+        updateFn: (startX: number, startY: number, size: number, currentValue: Sector, neighbors: Sector[]) => Sector) {
         const sectorsX = Math.ceil(mapBounds.width / SECTOR_SIZE);
         const sectorsY = Math.ceil(mapBounds.height / SECTOR_SIZE);
-        this.gridCache = new BasicIncrementalGridCache<Sector>(
+
+        // diagonal map bounds is in terms of tiles, so needs to be scaled too. In this case we take the floor of the starts and ceil of the ends
+        // so we "overscan"
+        function scaleBoundsArray(bounds: number[], isStart: boolean) {
+            let result: number[] = [];
+            function handleBatch(values: number[]) {
+                if (isStart) {
+                    // minimum, and floor
+                    return values.map((v) => Math.floor(v / SECTOR_SIZE)).reduce((pV, v) => v < pV ? v : pV, sectorsX);
+                }
+                // maximum, and ceil
+                return values.map((v) => Math.ceil(v / SECTOR_SIZE)).reduce((pV, v) => v > pV ? v : pV, 0);
+            }
+            let n = 0;
+            for (; n < bounds.length; n += SECTOR_SIZE) {
+                const values = bounds.slice(n, n + SECTOR_SIZE);
+                result.push(handleBatch(values));
+            }
+            if (n < bounds.length) {
+                const values = bounds.slice(n, n + SECTOR_SIZE);
+                result.push(handleBatch(values));
+            }
+            return result;
+        }
+
+        const scaledDiagonalMapBounds: DiagonalMapBounds = {
+            yStart: Math.floor(diagonalMapBounds.yStart / SECTOR_SIZE),
+            yEnd: Math.ceil(diagonalMapBounds.yEnd / SECTOR_SIZE),
+            xStarts: scaleBoundsArray(diagonalMapBounds.xStarts, true),
+            xEnds: scaleBoundsArray(diagonalMapBounds.xEnds, false),
+        };
+
+        let maxThreatColored = 1;
+        this.gridCache = new BasicIncrementalGridCache<Sector, number>(
             sectorsX,
             sectorsY,
-            (x: number, y: number) => {
-                return {
-                    sectorVisibilityRatio: null,
-                };
+            initFn,
+            (sectorX, sectorY, currentValue) => {
+                const neighbours: Sector[] = [];
+                // send the neighbours as well, to allow for diffuse sector threat
+                this.gridCache.forEachInRadius(sectorX, sectorY, 1, (nX, nY, s) => {
+                    if (nX !== sectorX || nY !== sectorY) {
+                        neighbours.push(s.value);
+                    }
+                });
+                maxThreatColored = Math.max(currentValue.diffuseThreatLevel ?? 0, maxThreatColored);
+                return updateFn(sectorX * SECTOR_SIZE, sectorY * SECTOR_SIZE, SECTOR_SIZE, currentValue, neighbours)
             },
-            (x: number, y: number) => {
-                let sp = new Vector2(x * SECTOR_SIZE, y * SECTOR_SIZE);
-                let ep = new Vector2(sp.x + SECTOR_SIZE, sp.y + SECTOR_SIZE);
-                let visibility = calculateAreaVisibility(mapApi, playerData, sp, ep);
-                return {
-                    sectorVisibilityRatio: visibility.validTiles > 0 ?
-                        visibility.visibleTiles / visibility.validTiles :
-                        null
-                }
-            },
-            new SequentialScanStrategy(),
-            (sector) => toHeatmapColor(sector.sectorVisibilityRatio)
+            new SequentialScanStrategy(null, scaledDiagonalMapBounds),
+            // Function to determine what colour should be rendered in the debug grid for this heatmap.
+            (sector) => {
+                // debug diffuse threat level:
+                return toHeatmapColor(sector.diffuseThreatLevel, 0, maxThreatColored);
+                // debug scouting:
+                //return toHeatmapColor(sector.sectorVisibilityRatio);
+                //return toHeatmapColor(sector.clearSpaceTiles, 0, 64);
+            }
         );
     }
 
@@ -49,20 +103,21 @@ export class SectorCache implements IncrementalGridCache<Sector> {
         return this.gridCache.getSize();
     }
     
-    // n.b. this is not passing on the scaling correctly
-    getCell(x: number, y: number) {
-        return this.gridCache.getCell(x, y);
+    getCell(tileX: number, tileY: number) {
+        return this.gridCache.getCell(Math.floor(tileX / SECTOR_SIZE), Math.floor(tileY / SECTOR_SIZE));
     }
 
-    forEach(fn: (x: number, y: number, cell: IncrementalGridCell<Sector>) => void): void {
-        throw new Error("Method not implemented.");
+    forEach(fn: (tileX: number, tileY: number, cell: IncrementalGridCell<Sector>) => void): void {
+        this.gridCache.forEach((x, y, cell) => {
+            fn(Math.floor(x * SECTOR_SIZE + SECTOR_SIZE / 2), Math.floor(y * SECTOR_SIZE + SECTOR_SIZE / 2), cell);
+        });
     }
 
     public updateSectors(currentGameTick: number, maxSectorsToUpdate: number) {
         this.gridCache.updateCells(maxSectorsToUpdate, currentGameTick);
     }
 
-    
+
     // Return % of sectors that are updated since a certain time
     public getSectorUpdateRatio(sectorsUpdatedSinceGameTick: number): number {
         let updated = 0,
@@ -78,7 +133,7 @@ export class SectorCache implements IncrementalGridCache<Sector> {
         });
         return updated / total;
     }
-    
+
     /**
      * Return the ratio (0-1) of tiles that are visible.
      */
@@ -112,7 +167,7 @@ export class SectorCache implements IncrementalGridCache<Sector> {
                     Math.floor(y * SECTOR_SIZE + SECTOR_SIZE / 2),
                     cell,
                     distance);
-        });
+            });
     }
 
     private getSectorCoordinatesForWorldPosition(x: number, y: number) {
@@ -129,8 +184,7 @@ export class SectorCache implements IncrementalGridCache<Sector> {
         return SECTOR_SIZE;
     }
 
-    // n.b. this is not passing on the scaling correctly
-    public _getCellDebug(x: number, y: number): (IncrementalGridCell<Sector> & { color: number; }) | null {
-        return this.gridCache._getCellDebug(x, y);
+    public _getCellDebug(tileX: number, tileY: number): (IncrementalGridCell<Sector> & { color: number; }) | null {
+        return this.gridCache._getCellDebug(Math.floor(tileX / SECTOR_SIZE), Math.floor(tileY / SECTOR_SIZE));
     }
 }

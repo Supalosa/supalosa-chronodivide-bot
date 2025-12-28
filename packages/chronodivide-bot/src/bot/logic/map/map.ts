@@ -1,18 +1,14 @@
 import { GameApi, GameMath, MapApi, PlayerData, Size, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
-import { maxBy } from "../common/utils.js";
-
-export function determineMapBounds(mapApi: MapApi): Size {
-    return mapApi.getRealMapSize();
-}
 
 export function calculateAreaVisibility(
     mapApi: MapApi,
     playerData: PlayerData,
     startPoint: Vector2,
     endPoint: Vector2,
-): { visibleTiles: number; validTiles: number } {
+): { visibleTiles: number; validTiles: number, clearTiles: number} {
     let validTiles: number = 0,
-        visibleTiles: number = 0;
+        visibleTiles: number = 0,
+        clearTiles: number = 0;
     for (let xx = startPoint.x; xx < endPoint.x; ++xx) {
         for (let yy = startPoint.y; yy < endPoint.y; ++yy) {
             let tile = mapApi.getTile(xx, yy);
@@ -21,11 +17,13 @@ export function calculateAreaVisibility(
                 if (mapApi.isVisibleTile(tile, playerData.name)) {
                     ++visibleTiles;
                 }
+                if (tile.rampType === 0) {
+                    ++clearTiles;
+                }
             }
         }
     }
-    let result = { visibleTiles, validTiles };
-    return result;
+    return { visibleTiles, validTiles, clearTiles };
 }
 
 export function getPointTowardsOtherPoint(

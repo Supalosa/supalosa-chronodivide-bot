@@ -1,4 +1,4 @@
-import { GameMath, Size } from "@chronodivide/game-api";
+import { GameMath, MapApi, Size } from "@chronodivide/game-api";
 
 export type IncrementalGridCell<T> = {
     lastUpdatedTick: number | null;
@@ -38,17 +38,23 @@ export interface IncrementalGridCache<T> {
 /**
  * A class that allows spatial information to be updated lazily as needed, meaning some (or many) grid locations may be stale.
  * 
+ * Because the game maps are rotated by 45 degrees, we only scan for valid tiles.
+ * 
  * In game terms, a grid may be a cell for high-resolution information, or multiple cells for low resolution information (e.g. scouting sectors).
+ * 
+ * @param T value type of each cell
+ * @param V argument type passed from the scan strategy to the updater (e.g. the number of passes done so far)
  */
-export class BasicIncrementalGridCache<T> implements IncrementalGridCache<T> {
+export class BasicIncrementalGridCache<T, V> implements IncrementalGridCache<T> {
+    // cells, stored in column-major order
     private cells: IncrementalGridCell<T>[][] = [];
 
     constructor(
         private width: number,
         private height: number,
         initCellFn: (x: number, y: number) => T,
-        private updateCellFn: (x: number, y: number) => T,
-        private scanStrategy: IncrementalGridCacheUpdateStrategy,
+        private updateCellFn: (x: number, y: number, currentValue: T, scanStrategyArg: V) => T,
+        private scanStrategy: IncrementalGridCacheUpdateStrategy<V>,
         private valueToDebugColor: (value: T) => number) {
         for (let x = 0; x < width; ++x) {
             this.cells[x] = new Array(height);
@@ -94,8 +100,8 @@ export class BasicIncrementalGridCache<T> implements IncrementalGridCache<T> {
             if (!nextCell) {
                 break;
             }
-            const { x, y } = nextCell;
-            const newValue = this.updateCellFn(x, y);
+            const { x, y, arg } = nextCell;
+            const newValue = this.updateCellFn(x, y, this.cells[x][y].value, arg);
             this.cells[x][y] = {
                 lastUpdatedTick: gameTick,
                 value: newValue,
@@ -103,11 +109,15 @@ export class BasicIncrementalGridCache<T> implements IncrementalGridCache<T> {
         }
     }
 
+    /**
+     * Using a clone of the ScanStrategy, iterates over all cells in the grid and calls the provided callback function on each one.
+     */
     public forEach(fn: (x: number, y: number, cell: IncrementalGridCell<T>) => void) {
-        for (let x = 0; x < this.width; ++x) {
-            for (let y = 0; y < this.height; ++y) {
-                fn(x, y, this.cells[x][y]);
-            }
+        const scanStrategy = this.scanStrategy.clone();
+        let next: {x: number, y: number} | null = null;
+        while ((next = scanStrategy.getNextCellToUpdate(this.width, this.height)) !== null) {
+            const { x, y } = next;
+            fn(x, y, this.cells[x][y]);
         }
     }
     
@@ -115,12 +125,12 @@ export class BasicIncrementalGridCache<T> implements IncrementalGridCache<T> {
     public forEachInRadius(startX: number, startY: number, radius: number, fn: (x: number, y: number, cell: IncrementalGridCell<T>, dist: number) => void) {
         for (
             let x: number = Math.max(0, startX - radius);
-            x < Math.min(this.width, startX + radius);
+            x < Math.min(this.width, startX + radius + 1);
             ++x
         ) {
             for (
                 let y: number = Math.max(0, startY - radius);
-                y < Math.min(this.height, startY + radius);
+                y < Math.min(this.height, startY + radius + 1);
                 ++y
             ) {
                 const cell = this.getCell(x, y);
@@ -138,35 +148,220 @@ export class BasicIncrementalGridCache<T> implements IncrementalGridCache<T> {
     }
 }
 
-export interface IncrementalGridCacheUpdateStrategy {
-    getNextCellToUpdate(width: number, height: number): { x: number; y: number } | null;
+export interface IncrementalGridCacheUpdateStrategy<V> {
+    getNextCellToUpdate(width: number, height: number): { x: number; y: number, arg: V } | null;
+    clone(): IncrementalGridCacheUpdateStrategy<V>;
+    /**
+     * True if this strategy keeps running over and over.
+     */
+    isRepeatable(): boolean;
+    /**
+     * True if consumers can trust all the relevant cells have been populated at least once.
+     */
+    isFinished(): boolean;
 }
 
-// Dumb scan strategy: top-left to bottom-right.
-export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrategy {
+export type DiagonalMapBounds = {
+    xStarts: number[];
+    xEnds: number[];
+    yStart: number;
+    yEnd: number;
+}
+
+export function getDiagonalMapBounds(mapApi: MapApi): DiagonalMapBounds {
+    const { width, height } = mapApi.getRealMapSize();
+    const xStarts = new Array<number>(height).fill(width);
+    const xEnds = new Array<number>(height).fill(0);
+    const allTiles = mapApi.getTilesInRect({ x: 0, y: 0, width, height });
+    let yStart = height;
+    let yEnd = 0;
+    for (const tile of allTiles) {
+        if (tile.rx < xStarts[tile.ry]) {
+            xStarts[tile.ry] = tile.rx;
+        }
+        if (tile.rx >= xEnds[tile.ry]) {
+            xEnds[tile.ry] = tile.rx + 1;
+        }
+        if (tile.ry < yStart) {
+            yStart = tile.ry;
+        }
+        if (tile.ry >= yEnd) {
+            yEnd = tile.ry + 1;
+        }
+    }
+    return { xStarts, xEnds, yStart, yEnd };
+}
+
+// Dumb scan strategy: top-left to bottom-right (or reverse).
+export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrategy<number> {
     private lastUpdatedSectorX: number | undefined;
     private lastUpdatedSectorY: number | undefined;
 
+    private passCount: number;
+    private reverse: boolean = false;
+
+    /**
+     * 
+     * @param maxPasses null if infinite, otherwise step through a certain number of times
+     * @param diagonalMapBounds optional diagonal bounds to prevent scanning over blank tiles
+     * You should provide this, otherwise, when scanning from 0,0 to width,height, you end up scanning about 50% of unnecessary tiles.
+     */
+    constructor(private maxPasses: number | null = null, private diagonalMapBounds: DiagonalMapBounds | null = null) {
+        this.passCount = 0;
+    };
+
+    public setReverse(): this {
+        this.reverse = true;
+        return this;
+    }
+
+    private getStartY(height: number) {
+        if (this.reverse) {
+            return (this.diagonalMapBounds?.yEnd ?? height) - 1;
+        }
+        return this.diagonalMapBounds?.yStart ?? 0;
+    }
+
+    private getEndY(height: number) {
+        if (this.reverse) {
+            return (this.diagonalMapBounds?.yStart ?? 0) - 1;
+        }
+        return this.diagonalMapBounds?.yEnd ?? height;
+    }
+
+    private getStartX(y: number, width: number) {
+        if (this.reverse) {
+            if (this.diagonalMapBounds) {
+                return this.diagonalMapBounds.xEnds[y] - 1;
+            }
+            return width - 1;
+        }
+        if (this.diagonalMapBounds) {
+            return this.diagonalMapBounds.xStarts[y];
+        }
+        return 0;
+    }
+
+    private getEndX(y: number, width: number) {
+        if (this.reverse) {
+            if (this.diagonalMapBounds) {
+                return this.diagonalMapBounds.xStarts[y] - 1;
+            }
+            return width - 1;
+        }
+        if (this.diagonalMapBounds) {
+            return this.diagonalMapBounds.xEnds[y];
+        }
+        return width;
+    }
+
     getNextCellToUpdate(width: number, height: number) {
+        // First scan, or the last scan reached the end
         if (this.lastUpdatedSectorX === undefined || this.lastUpdatedSectorY === undefined) {
-            this.lastUpdatedSectorX = 0;
-            this.lastUpdatedSectorY = 0;
-            return { x: 0, y: 0 };
+        this.lastUpdatedSectorY = this.getStartY(height);
+        this.lastUpdatedSectorX = this.getStartX(this.lastUpdatedSectorY, width);
+        return { x: this.lastUpdatedSectorX, y: this.lastUpdatedSectorY, arg: this.passCount };
         }
 
-        if (this.lastUpdatedSectorX < width - 1) {
-            this.lastUpdatedSectorX++;
-            return { x: this.lastUpdatedSectorX, y: this.lastUpdatedSectorY };
+        const endX = this.getEndX(this.lastUpdatedSectorY, width);
+        const endY = this.getEndY(height);
+
+        if (this.reverse) {
+            if (this.lastUpdatedSectorX - 1 > endX) {
+                return { x: --this.lastUpdatedSectorX, y: this.lastUpdatedSectorY, arg: this.passCount };
+            }
+
+            if (this.lastUpdatedSectorY - 1 > endY) {
+                this.lastUpdatedSectorX = this.getStartX(this.lastUpdatedSectorY - 1, width);
+                return { x: this.lastUpdatedSectorX, y: --this.lastUpdatedSectorY, arg: this.passCount };
+            }
+        } else {
+            if (this.lastUpdatedSectorX + 1 < endX) {
+                return { x: ++this.lastUpdatedSectorX, y: this.lastUpdatedSectorY, arg: this.passCount };
+            }
+
+            if (this.lastUpdatedSectorY + 1 < endY) {
+                this.lastUpdatedSectorX = this.getStartX(this.lastUpdatedSectorY + 1, width);
+                return { x: this.lastUpdatedSectorX, y: ++this.lastUpdatedSectorY, arg: this.passCount };
+            }
         }
 
-        if (this.lastUpdatedSectorY < height - 1) {
-            this.lastUpdatedSectorX = 0;
-            this.lastUpdatedSectorY++;
-            return { x: 0, y: this.lastUpdatedSectorY };
+        ++this.passCount;
+        if (this.maxPasses === null || this.passCount < this.maxPasses) {
+            this.lastUpdatedSectorX = undefined;
+            this.lastUpdatedSectorY = undefined;
         }
-
-        this.lastUpdatedSectorX = undefined;
-        this.lastUpdatedSectorY = undefined;
         return null;
+    }
+
+    clone() {
+        return new SequentialScanStrategy(this.maxPasses, this.diagonalMapBounds);
+    }
+
+    isRepeatable(): boolean {
+        return this.maxPasses === null;
+    }
+
+    isFinished(): boolean {
+        return this.passCount > 0 && this.maxPasses === null;
+    }
+}
+
+/**
+ * Scan that composes other scan strategies in stages.
+ */
+export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<number> {
+    private stageIndex: number;
+    private originalStages: IncrementalGridCacheUpdateStrategy<number>[];
+
+    constructor(private stages: IncrementalGridCacheUpdateStrategy<number>[]) {
+        this.originalStages = [...stages];
+        this.stageIndex = 0;
+    }
+
+    getNextCellToUpdate(width: number, height: number) {
+        if (this.stages.length === 0) {
+            return null;
+        }
+        const head = this.stages[0];
+        const headValue = head.getNextCellToUpdate(width, height);
+        if (headValue !== null) {
+            return {
+                ...headValue,
+                // override arg with our own stage index
+                arg: this.stageIndex
+            }
+        }
+        if (head.isRepeatable()) {
+            // come back to it next time
+            return null;
+        }
+        // head returned null, move to next and try again
+        const next = this.stages.shift();
+        ++this.stageIndex;
+        if (!next) {
+            return null;
+        }
+        const nextValue = next.getNextCellToUpdate(width, height);
+        if (!nextValue) {
+            return null;
+        }
+        return {
+            ...nextValue,
+            // override arg with our own stage index
+            arg: this.stageIndex
+        }
+    }
+
+    isRepeatable(): boolean {
+        return this.originalStages.some((s) => s.isRepeatable());
+    }
+
+    isFinished() {
+        return this.stages.length === 0 || this.stages[0].isFinished();
+    }
+
+    clone() {
+        return new StagedScanStrategy(this.originalStages.map((s) => s.clone()));
     }
 }
