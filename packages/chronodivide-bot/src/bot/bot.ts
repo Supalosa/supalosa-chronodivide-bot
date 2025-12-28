@@ -43,8 +43,7 @@ export class SupalosaBot extends Bot {
         const botRate = botApm / 60;
         this.tickRatio = Math.ceil(gameRate / botRate);
 
-        const myPlayer = game.getPlayerData(this.name);
-        
+        const myPlayer = game.getPlayerData(this.name);        
 
         this.matchAwareness = new MatchAwarenessImpl(
             game,

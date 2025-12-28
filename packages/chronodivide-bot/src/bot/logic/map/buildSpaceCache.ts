@@ -82,13 +82,15 @@ export class BuildSpaceCache {
                     }
                     const left = this.distanceTransformCache.getCell(x - 1, y)!;
                     const top = this.distanceTransformCache.getCell(x, y - 1)!;
+                    const nextValue = Math.min(
+                        currentValue.rawValue,
+                        Math.min(left.value.rawValue + 1, top.value.rawValue + 1)
+                    );
                     return {
-                        ...currentValue,
-                        rawValue: Math.min(
-                            currentValue.rawValue,
-                            Math.min(left.value.rawValue + 1, top.value.rawValue + 1)
-                        ),
-                    }
+                        rawValue: nextValue,
+                        // not necessary to set, but liveValue is the value visualised during debug
+                        liveValue: nextValue
+                    };
                 }
                 // Last DT pass: all cells update from bottom right
                 if (stageIndex === 2) {
@@ -102,7 +104,7 @@ export class BuildSpaceCache {
                             Math.min(right.value.rawValue + 1, bottom.value.rawValue + 1));
                     return {
                         rawValue,
-                        // future passes will adjust this
+                        // not necessary to set, but liveValue is the value visualised during debug
                         liveValue: rawValue
                     };
                 }
