@@ -23,8 +23,6 @@ export type Sector = {
     diffuseThreatLevel: number | null;
 
     totalMoney: number | null;
-
-    clearSpaceTiles: number; // number of clear, flat tiles (for base expansion)
 };
 
 export type SectorAndDist = {
@@ -105,7 +103,6 @@ export class SectorCache implements IncrementalGridCache<Sector> {
                 return toHeatmapColor(sector.diffuseThreatLevel, minThreatColored, maxThreatColored);
                 // debug scouting:
                 //return toHeatmapColor(sector.sectorVisibilityRatio);
-                //return toHeatmapColor(sector.clearSpaceTiles, 0, 64);
             }
         );
     }

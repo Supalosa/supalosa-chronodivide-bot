@@ -115,7 +115,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 threatLevel: null,
                 diffuseThreatLevel: null,
                 totalMoney: null,
-                clearSpaceTiles: 0,
             }),
             (startX, startY, size, currentValue, neighbours) => {
                 const sp = new Vector2(startX, startY);
@@ -131,7 +130,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
                     threatLevel,
                     diffuseThreatLevel,
                     totalMoney,
-                    clearSpaceTiles: visibility.clearTiles,
                 }
             }
         );
@@ -275,9 +273,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
             for (const candidate of candidates) {
                 const cell = this.sectorCache.getCell(candidate.x, candidate.y);
                 if (!cell) {
-                    continue;
-                }
-                if (cell.value.clearSpaceTiles! < EXPANSION_MIN_CLEAR_SPACE_TILES) {
                     continue;
                 }
                 if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
