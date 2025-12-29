@@ -51,8 +51,10 @@ Currently, playing against this bot **is only possible for developers**, because
 
 ### Initial set up steps (one time only)
 
-1. Create a Chronodivide account for your bot using the official client at [https://game.chronodivide.com].
-2. If you don't already have one, create a Chronodivide account for yourself using the same link,
+From the `packages/chronodivide-bot-driver` directory:
+
+1. Create a Chronodivide account for your **bot** using the official client at [https://game.chronodivide.com].
+2. If you don't already have a Chronodivide account, also create one for **you** as the player.
 3. Copy `.env.template` to `.env`. The `.env` file is not checked into the repo.
 4. Set the value of `ONLINE_BOT_NAME` to the username of the bot from step 1.
 5. Set the value of `ONLINE_BOT_PASSWORD` to the password from step 1.
