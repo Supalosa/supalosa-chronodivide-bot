@@ -10,8 +10,8 @@ export function toHeatmapColor(value: number | null | undefined, minScale: numbe
         return 0;
     }
     const ratio = 2 * (value - minScale) / (maxScale - minScale)
-    const b = Math.max(0, 255*(1 - ratio))
-    const r = Math.max(0, 255*(ratio - 1))
+    const b = Math.max(0, 255 * (1 - ratio))
+    const r = Math.max(0, 255 * (ratio - 1))
     const g = 255 - b - r
     return toRGBNum(r, g, b)
 }
@@ -114,33 +114,16 @@ export class BasicIncrementalGridCache<T, V> implements IncrementalGridCache<T> 
      */
     public forEach(fn: (x: number, y: number, cell: IncrementalGridCell<T>) => void) {
         const scanStrategy = this.scanStrategy.clone();
-        let next: {x: number, y: number} | null = null;
+        let next: { x: number, y: number } | null = null;
         while ((next = scanStrategy.getNextCellToUpdate(this.width, this.height)) !== null) {
             const { x, y } = next;
             fn(x, y, this.cells[x][y]);
         }
     }
-    
-    
-    public forEachInRadius(startX: number, startY: number, radius: number, fn: (x: number, y: number, cell: IncrementalGridCell<T>, dist: number) => void) {
-        for (
-            let x: number = Math.max(0, startX - radius);
-            x < Math.min(this.width, startX + radius + 1);
-            ++x
-        ) {
-            for (
-                let y: number = Math.max(0, startY - radius);
-                y < Math.min(this.height, startY + radius + 1);
-                ++y
-            ) {
-                const cell = this.getCell(x, y);
-                if (!cell) {
-                    continue;
-                }
-                const distance = GameMath.sqrt(GameMath.pow(x - startX, 2) + GameMath.pow(y - startY, 2));
-                fn(x, y, cell, distance);
-            }
-        }
+
+
+    public forEachInRadius(startX: number, startY: number, dist: number, fn: (x: number, y: number, cell: IncrementalGridCell<T>, dist: number) => void) {
+        this.scanStrategy.getNeighbours(startX, startY, this.width, this.height, dist).forEach(({ x, y, dist }) => fn(x, y, this.getCell(x, y)!, dist));
     }
 
     public _renderScale() {
@@ -150,6 +133,8 @@ export class BasicIncrementalGridCache<T, V> implements IncrementalGridCache<T> 
 
 export interface IncrementalGridCacheUpdateStrategy<V> {
     getNextCellToUpdate(width: number, height: number): { x: number; y: number, arg: V } | null;
+    getNeighbours(x: number, y: number, width: number, height: number, dist: number): { x: number, y: number, dist: number }[];
+
     clone(): IncrementalGridCacheUpdateStrategy<V>;
     /**
      * True if this strategy keeps running over and over.
@@ -162,6 +147,7 @@ export interface IncrementalGridCacheUpdateStrategy<V> {
 }
 
 export type DiagonalMapBounds = {
+    // All starts are inclusive. All ends are exclusive.
     xStarts: number[];
     xEnds: number[];
     yStart: number;
@@ -198,7 +184,6 @@ export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrateg
     private lastUpdatedSectorY: number | undefined;
 
     private passCount: number;
-    private reverse: boolean = false;
 
     /**
      * 
@@ -206,7 +191,7 @@ export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrateg
      * @param diagonalMapBounds optional diagonal bounds to prevent scanning over blank tiles
      * You should provide this, otherwise, when scanning from 0,0 to width,height, you end up scanning about 50% of unnecessary tiles.
      */
-    constructor(private maxPasses: number | null = null, private diagonalMapBounds: DiagonalMapBounds | null = null) {
+    constructor(private maxPasses: number | null = null, private diagonalMapBounds: DiagonalMapBounds | null = null, private reverse: boolean = false) {
         this.passCount = 0;
     };
 
@@ -258,9 +243,9 @@ export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrateg
     getNextCellToUpdate(width: number, height: number) {
         // First scan, or the last scan reached the end
         if (this.lastUpdatedSectorX === undefined || this.lastUpdatedSectorY === undefined) {
-        this.lastUpdatedSectorY = this.getStartY(height);
-        this.lastUpdatedSectorX = this.getStartX(this.lastUpdatedSectorY, width);
-        return { x: this.lastUpdatedSectorX, y: this.lastUpdatedSectorY, arg: this.passCount };
+            this.lastUpdatedSectorY = this.getStartY(height);
+            this.lastUpdatedSectorX = this.getStartX(this.lastUpdatedSectorY, width);
+            return { x: this.lastUpdatedSectorX, y: this.lastUpdatedSectorY, arg: this.passCount };
         }
 
         const endX = this.getEndX(this.lastUpdatedSectorY, width);
@@ -294,8 +279,50 @@ export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrateg
         return null;
     }
 
+    getNeighbours(baseX: number, baseY: number, width: number, height: number, dist: number) {
+        const neighbours: { x: number, y: number, dist: number }[] = [];
+        const startY = this.getStartY(height);
+        const endY = this.getEndY(height);
+        if (this.reverse) {
+            for (
+                let y = Math.min(startY, baseY + dist);
+                y > Math.max(endY, baseY - dist - 1);
+                --y
+            ) {
+                const startX = this.getStartX(y, width);
+                const endX = this.getEndX(y, width);
+                for (
+                    let x: number = Math.min(startX, baseX + dist);
+                    x > Math.max(endX, baseX - dist - 1);
+                    --x
+                ) {
+                    const dist = GameMath.sqrt(GameMath.pow(x - baseX, 2) + GameMath.pow(y - baseY, 2));
+                    neighbours.push({x, y, dist});
+                }
+            }
+        } else {
+            for (
+                let y = Math.max(startY, baseY - dist);
+                y < Math.min(endY, baseY + dist + 1);
+                ++y
+            ) {
+                const startX = this.getStartX(y, width);
+                const endX = this.getEndX(y, width);
+                for (
+                    let x: number = Math.max(startX, baseX - dist);
+                    x < Math.min(endX, baseX + dist + 1);
+                    ++x
+                ) {
+                    const dist = GameMath.sqrt(GameMath.pow(x - baseX, 2) + GameMath.pow(y - baseY, 2));
+                    neighbours.push({x, y, dist});
+                }
+            }
+        }
+        return neighbours;
+    }
+
     clone() {
-        return new SequentialScanStrategy(this.maxPasses, this.diagonalMapBounds);
+        return new SequentialScanStrategy(this.maxPasses, this.diagonalMapBounds, this.reverse);
     }
 
     isRepeatable(): boolean {
@@ -314,9 +341,14 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
     private stageIndex: number;
     private originalStages: IncrementalGridCacheUpdateStrategy<number>[];
 
-    constructor(private stages: IncrementalGridCacheUpdateStrategy<number>[]) {
+    constructor(private stages: IncrementalGridCacheUpdateStrategy<number>[], private isRepeating = false) {
         this.originalStages = [...stages];
         this.stageIndex = 0;
+    }
+
+    public setRepeating() {
+        this.isRepeating = true;
+        return this;
     }
 
     getNextCellToUpdate(width: number, height: number) {
@@ -337,9 +369,13 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
             return null;
         }
         // head returned null, move to next and try again
-        const next = this.stages.shift();
+        this.stages.shift();
+        const next = this.stages[0];
         ++this.stageIndex;
         if (!next) {
+            if (this.isRepeating) {
+                this.reset();
+            }
             return null;
         }
         const nextValue = next.getNextCellToUpdate(width, height);
@@ -353,8 +389,20 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
         }
     }
 
+    private reset() {
+        this.stageIndex = 0;
+        this.stages = [...this.originalStages.map((s) => s.clone())];
+    }
+
+    getNeighbours(x: number, y: number, width: number, height: number, dist: number) {
+        if (this.stages.length === 0) {
+            return [];
+        }
+        return this.stages[0].getNeighbours(x, y, width, height, dist);
+    }
+
     isRepeatable(): boolean {
-        return this.originalStages.some((s) => s.isRepeatable());
+        return this.isRepeating || this.originalStages.some((s) => s.isRepeatable());
     }
 
     isFinished() {
@@ -362,6 +410,6 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
     }
 
     clone() {
-        return new StagedScanStrategy(this.originalStages.map((s) => s.clone()));
+        return new StagedScanStrategy(this.originalStages.map((s) => s.clone()), this.isRepeating);
     }
 }
