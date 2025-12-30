@@ -1,5 +1,5 @@
 import { GameApi, GameObjectData, MapApi, PlayerData, Size, Vector2 } from "@chronodivide/game-api";
-import { SectorCache } from "./map/sector.js";
+import { calculateConnectedSectorIds, SectorCache } from "./map/sector.js";
 import { GlobalThreat } from "./threat/threat.js";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
 import { calculateAreaVisibility, getPointTowardsOtherPoint } from "./map/map.js";
@@ -8,6 +8,7 @@ import { ScoutingManager } from "./common/scout.js";
 import { getDiagonalMapBounds, IncrementalGridCache } from "./map/incrementalGridCache.js";
 import { calculateDiffuseSectorThreat, calculateMoney, calculateSectorThreat } from "./threat/sectorThreat.js";
 import { BuildSpaceCache } from "./map/buildSpaceCache.js";
+import { getSectorId } from "./map/sectorUtils.js";
 
 export type UnitPositionQuery = { x: number; y: number; unitId: number };
 
@@ -110,26 +111,33 @@ export class MatchAwarenessImpl implements MatchAwareness {
         this.sectorCache = new SectorCache(
             mapSize, 
             diagonalBounds,
-            () => ({
+            (x: number, y: number) => ({
+                id: getSectorId(x, y),
                 sectorVisibilityRatio: null,
                 threatLevel: null,
                 diffuseThreatLevel: null,
                 totalMoney: null,
+                connectedSectorsDirty: true,
+                connectedSectorIds: [],
             }),
             (startX, startY, size, currentValue, neighbours) => {
                 const sp = new Vector2(startX, startY);
                 const ep = new Vector2(sp.x + size, sp.y + size);
                 const visibility = calculateAreaVisibility(gameApi.mapApi, playerData, sp, ep);
                 const threatLevel = calculateSectorThreat(startX, startY, size, gameApi, playerData);
-                const diffuseThreatLevel = calculateDiffuseSectorThreat(threatLevel, currentValue.diffuseThreatLevel ?? 0, neighbours);
-                const totalMoney = calculateMoney(startX, startY, size, gameApi.mapApi)
+                const diffuseThreatLevel = calculateDiffuseSectorThreat(currentValue, neighbours);
+                const totalMoney = calculateMoney(startX, startY, size, gameApi.mapApi);
+                const connectedSectorIds = currentValue.connectedSectorsDirty ? calculateConnectedSectorIds(gameApi.mapApi, startX, startY, neighbours) : currentValue.connectedSectorIds;
                 return {
+                    ...currentValue,
                     sectorVisibilityRatio: visibility.validTiles > 0 ?
                         visibility.visibleTiles / visibility.validTiles :
                         null, 
                     threatLevel,
                     diffuseThreatLevel,
                     totalMoney,
+                    connectedSectorsDirty: false,
+                    connectedSectorIds
                 }
             }
         );

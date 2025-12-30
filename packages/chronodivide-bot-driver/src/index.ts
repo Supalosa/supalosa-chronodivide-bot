@@ -9,7 +9,7 @@ const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours\
 
 const VISUAL_DEBUG_OPTS: VisualisedBotOpts = {
     outFolder: "debug/",
-    tickInterval: 15 * 5,
+    tickInterval: 15 * 30,
     includeHeatmaps: true,
     includeBaseMap: false,
     composeHeatmapsOnBaseMap: false,
