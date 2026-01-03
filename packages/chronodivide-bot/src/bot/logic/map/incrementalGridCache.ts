@@ -340,6 +340,7 @@ export class SequentialScanStrategy implements IncrementalGridCacheUpdateStrateg
 export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<number> {
     private stageIndex: number;
     private originalStages: IncrementalGridCacheUpdateStrategy<number>[];
+    private hasFinishedAtLeastOnce: boolean = false;
 
     constructor(private stages: IncrementalGridCacheUpdateStrategy<number>[], private isRepeating = false) {
         this.originalStages = [...stages];
@@ -374,6 +375,7 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
         ++this.stageIndex;
         if (!next) {
             if (this.isRepeating) {
+                this.hasFinishedAtLeastOnce = true;
                 this.reset();
             }
             return null;
@@ -406,7 +408,7 @@ export class StagedScanStrategy implements IncrementalGridCacheUpdateStrategy<nu
     }
 
     isFinished() {
-        return this.stages.length === 0 || this.stages[0].isFinished();
+        return this.hasFinishedAtLeastOnce;
     }
 
     clone() {

@@ -1,4 +1,4 @@
-import { GameObjectData, PathNode, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
+import { GameApi, GameObjectData, MapApi, PathNode, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
 
 export enum Countries {
     USA = "Americans",

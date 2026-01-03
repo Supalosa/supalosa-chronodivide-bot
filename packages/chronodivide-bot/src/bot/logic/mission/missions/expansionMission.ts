@@ -1,4 +1,4 @@
-import { ActionsApi, Box2, GameApi, GameMath, ObjectType, OrderType, PlayerData, Tile, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, Box2, GameApi, GameMath, ObjectType, OrderType, PlayerData, Rectangle, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, noop, requestSpecificUnits, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
@@ -6,13 +6,16 @@ import { MissionController } from "../missionController.js";
 import { DebugLogger, maxBy, minBy, toPathNode, toVector2 } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getCachedTechnoRules } from "../../common/rulesCache.js";
+import { canBuildOnTile } from "../../common/tileUtils.js";
 
 const ORDER_COOLDOWN_TICKS = 60;
 
 const mcvTypes = ["AMCV", "SMCV"];
 
-const CONYARD_SCAN_DISTANCE = 15;
+const CONYARD_SCAN_DISTANCE = 15; // distance to check a conyard is already in place
+const CONYARD_DEPLOY_SCAN_DISTANCE = 10; // distance to check for a deployable location
 const CONYARD_DEPLOY_DISTANCE = 5;
+
 /**
  * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.
  */
@@ -57,82 +60,97 @@ export class ExpansionMission extends Mission {
             return requestUnits(mcvTypes, this.priority);
         }
         // use the highest-hp MCV
-        
+
         const selectedMcvUnit = maxBy(mcvs, (mcv) => mcv.hitPoints)!;
         this.selectedMcvId = selectedMcvUnit.id ?? null;
 
         if (this.destination) {
-            return this.updateExpand(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+            return this.moveMcvToDestination(
+                gameApi,
+                actionsApi,
+                playerData,
+                matchAwareness,
+                actionBatcher,
+                selectedMcvUnit,
+            );
         } else {
             const reachabilityMap = gameApi.map.getReachabilityMap(selectedMcvUnit.rules.speedType!, false);
             const reachableCandidates = this.candidates
                 .map((candidate) => gameApi.mapApi.getTile(candidate.x, candidate.y))
                 .filter((t): t is Tile => !!t)
-                .filter((t) => reachabilityMap.isReachable(toPathNode(selectedMcvUnit.tile, false), toPathNode(t, false)));
-            this.destination = toVector2(minBy(reachableCandidates, (candidate) => {
-                return toVector2(selectedMcvUnit.tile).distanceTo(toVector2(candidate));
-            })!);
+                .filter((t) =>
+                    reachabilityMap.isReachable(toPathNode(selectedMcvUnit.tile, false), toPathNode(t, false)),
+                );
+            this.destination = toVector2(
+                minBy(reachableCandidates, (candidate) => {
+                    return toVector2(selectedMcvUnit.tile).distanceTo(toVector2(candidate));
+                })!,
+            );
             return noop();
         }
     }
 
-    public updateExpand(gameApi: GameApi,
+    public moveMcvToDestination(
+        gameApi: GameApi,
         actionsApi: ActionsApi,
         playerData: PlayerData,
         matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher
+        actionBatcher: ActionBatcher,
+        mcv: UnitData,
     ) {
         if (!this.destination) {
             return noop();
         }
-        const mcvs = this.getUnitsOfTypes(gameApi, ...mcvTypes);
         // if there's a conyard near the destination, we're done.
         const conYards = gameApi
-            .getUnitsInArea(new Box2(this.destination.clone().subScalar(CONYARD_SCAN_DISTANCE), this.destination.clone().addScalar(CONYARD_SCAN_DISTANCE)))
+            .getUnitsInArea(
+                new Box2(
+                    this.destination.clone().subScalar(CONYARD_SCAN_DISTANCE),
+                    this.destination.clone().addScalar(CONYARD_SCAN_DISTANCE),
+                ),
+            )
             .map((id) => getCachedTechnoRules(gameApi, id))
             .filter((r) => r?.constructionYard);
         if (conYards.length > 0) {
             return disbandMission();
         }
-        const isClose = mcvs.some((mcvId) => {
-            const tile = mcvId.tile;
-            if (!tile) {
-                return false;
-            }
-            const vec = new Vector2(tile.rx, tile.ry);
-            return vec.distanceTo(this.destination!) < CONYARD_DEPLOY_DISTANCE;
-        });
+        const isClose = toVector2(mcv.tile).distanceTo(this.destination) <= CONYARD_DEPLOY_DISTANCE;
         const canOrder = !this.lastOrderAt || gameApi.getCurrentTick() > this.lastOrderAt + ORDER_COOLDOWN_TICKS;
         if (!canOrder) {
             return noop();
         }
         if (isClose) {
             if (!this.lastOrderDeploy) {
-                actionsApi.orderUnits(
-                    mcvs.map((mcv) => mcv.id),
-                    OrderType.DeploySelected
-                );
+                actionsApi.orderUnits([mcv.id], OrderType.DeploySelected);
                 this.lastOrderDeploy = true;
             } else {
-                // try to move to a clearer location
-                actionsApi.orderUnits(
-                    mcvs.map((mcv) => mcv.id),
-                    OrderType.Scatter
+                // find a 4x4 area near the mcv that is clear
+                const deployableLocations = findDeployableLocations(
+                    playerData.name,
+                    gameApi,
+                    {
+                        x: mcv.tile.rx - CONYARD_DEPLOY_SCAN_DISTANCE,
+                        y: mcv.tile.ry - CONYARD_DEPLOY_SCAN_DISTANCE,
+                        width: CONYARD_DEPLOY_SCAN_DISTANCE * 2,
+                        height: CONYARD_DEPLOY_SCAN_DISTANCE * 2,
+                    },
+                    mcv.rules.deploysInto,
                 );
+                const bestLocation = minBy(deployableLocations, (d) => toVector2(mcv.tile).distanceToSquared(d));
+
+                if (bestLocation) {
+                    actionsApi.orderUnits([mcv.id], OrderType.Move, bestLocation.x, bestLocation.y);
+                } else {
+                    actionsApi.orderUnits([mcv.id], OrderType.Scatter);
+                }
                 this.lastOrderDeploy = false;
             }
             this.lastOrderAt = gameApi.getCurrentTick();
         } else if (!isClose) {
-            const rx = this.destination.x + gameApi.generateRandomInt(-5, 5);
-            const ry = this.destination.y + gameApi.generateRandomInt(-5, 5);
-            if (gameApi.mapApi.getTile(rx, ry)) {
-                actionsApi.orderUnits(
-                    mcvs.map((mcv) => mcv.id),
-                    OrderType.Move,
-                    rx,
-                    ry,
-                );
-            }
+            // find a 4x4 area near the destination that is clear.
+            const rx = this.destination.x;
+            const ry = this.destination.y;
+            actionsApi.orderUnits([mcv.id], OrderType.Move, rx, ry);
             this.lastOrderAt = gameApi.getCurrentTick();
         }
         return noop();
@@ -145,6 +163,50 @@ export class ExpansionMission extends Mission {
     public getPriority() {
         return this.priority;
     }
+}
+
+function findDeployableLocations(playerName: string, gameApi: GameApi, rectangle: Rectangle, rules: string) {
+    const tiles = gameApi.map.getTilesInRect(rectangle);
+    const { foundation, foundationCenter } = gameApi.getBuildingPlacementData(rules);
+
+    if (foundation.width !== foundation.height) {
+        throw new Error("only implemented for square foundations");
+    }
+
+    const grid: number[][] = new Array(rectangle.width).fill(() => 0).map(() => new Array(rectangle.height).fill(0));
+
+    // fill tiles that are not buildable
+    for (const tile of tiles) {
+        const gridX = tile.rx - rectangle.x;
+        const gridY = tile.ry - rectangle.y;
+        if (canBuildOnTile(tile, gameApi)) {
+            grid[gridX][gridY] = 1;
+        }
+    }
+
+    // we have to start from the bottom-right and calculate backwards
+    for (let x = rectangle.width - 2; x >= 0; --x) {
+        for (let y = rectangle.height - 2; y >= 0; --y) {
+            if (grid[x][y] === 0) {
+                continue;
+            }
+            const right = x < rectangle.width - 1 ? grid[x + 1][y] : 0;
+            const bottom = y < rectangle.height - 1 ? grid[y][y + 1] : 0;
+            grid[x][y] = Math.min(right + 1, bottom + 1);
+        }
+    }
+
+    const locations: Vector2[] = [];
+
+    for (const tile of tiles) {
+        const gridX = tile.rx - rectangle.x;
+        const gridY = tile.ry - rectangle.y;
+        if (grid[gridX][gridY] >= foundation.width && grid[gridX][gridY] >= foundation.height) {
+            locations.push(toVector2(tile).add(foundationCenter));
+        }
+    }
+
+    return locations;
 }
 
 export class PackConyardMission extends Mission {

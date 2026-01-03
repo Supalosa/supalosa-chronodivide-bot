@@ -274,13 +274,6 @@ export class MatchAwarenessImpl implements MatchAwareness {
                 .map((id) => game.getGameObjectData(id)).filter((o): o is GameObjectData => !!o)
                 .map((r) => new Vector2(r.tile.rx, r.tile.ry));
             const rawCandidates = this.buildSpaceCache.findSpace(EXPANSION_MIN_CLEAR_SPACE_TILES);
-            let startTile = null;
-            while (!startTile) {
-                startTile = game.map.getTile(playerData.startLocation.x + game.generateRandomInt(-10, 10), playerData.startLocation.y + game.generateRandomInt(-10, 10));
-            }
-
-            const startPathNode: PathNode = {tile: startTile, onBridge: false};
-
             this.expansionCandidates = rawCandidates.filter((candidate) => {
                 const cell = this.sectorCache.getCell(candidate.x, candidate.y);
                 if (!cell) {
