@@ -1,4 +1,4 @@
-import { GameObjectData, UnitData } from "@chronodivide/game-api";
+import { GameObjectData, PathNode, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
 
 export enum Countries {
     USA = "Americans",
@@ -117,4 +117,12 @@ export function groupBy<K extends string, V>(array: V[], predicate: (arg: V) => 
         },
         {} as Record<K, V[]>,
     );
+}
+
+export function toPathNode(tile: Tile, onBridge: boolean): PathNode {
+    return { tile, onBridge };
+}
+
+export function toVector2(tile: Tile): Vector2 {
+    return new Vector2(tile.rx, tile.ry);
 }

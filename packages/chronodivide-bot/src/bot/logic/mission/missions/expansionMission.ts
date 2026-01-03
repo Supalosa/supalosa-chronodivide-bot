@@ -1,9 +1,9 @@
-import { ActionsApi, Box2, GameApi, GameMath, ObjectType, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, Box2, GameApi, GameMath, ObjectType, OrderType, PlayerData, Tile, Vector2 } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, noop, requestSpecificUnits, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
-import { DebugLogger } from "../../common/utils.js";
+import { DebugLogger, maxBy, minBy, toPathNode, toVector2 } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getCachedTechnoRules } from "../../common/rulesCache.js";
 
@@ -17,6 +17,7 @@ const CONYARD_DEPLOY_DISTANCE = 5;
  * A mission that tries to create an MCV (if it doesn't exist) and deploy it somewhere it can be deployed.
  */
 export class ExpansionMission extends Mission {
+    private destination: Vector2 | null = null;
     private lastOrderAt: number | null = null;
 
     private lastOrderDeploy = false;
@@ -24,11 +25,16 @@ export class ExpansionMission extends Mission {
     constructor(
         uniqueName: string,
         private priority: number,
-        private selectedMcv: number | null,
-        private destination: Vector2,
+        private selectedMcvId: number | null,
+        private candidates: Vector2[],
         logger: DebugLogger,
     ) {
         super(uniqueName, logger);
+        if (candidates.length === 1) {
+            this.destination = candidates[0];
+        } else if (candidates.length === 0) {
+            throw new Error("ExpansionMission requires at least one candidate location");
+        }
     }
 
     public _onAiUpdate(
@@ -45,12 +51,41 @@ export class ExpansionMission extends Mission {
                 return disbandMission();
             }
             // We need an mcv!
-            if (this.selectedMcv) {
-                return requestSpecificUnits([this.selectedMcv], this.priority);
+            if (this.selectedMcvId && !!gameApi.getUnitData(this.selectedMcvId)) {
+                return requestSpecificUnits([this.selectedMcvId], this.priority);
             }
             return requestUnits(mcvTypes, this.priority);
         }
+        // use the highest-hp MCV
+        
+        const selectedMcvUnit = maxBy(mcvs, (mcv) => mcv.hitPoints)!;
+        this.selectedMcvId = selectedMcvUnit.id ?? null;
 
+        if (this.destination) {
+            return this.updateExpand(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+        } else {
+            const reachabilityMap = gameApi.map.getReachabilityMap(selectedMcvUnit.rules.speedType!, false);
+            const reachableCandidates = this.candidates
+                .map((candidate) => gameApi.mapApi.getTile(candidate.x, candidate.y))
+                .filter((t): t is Tile => !!t)
+                .filter((t) => reachabilityMap.isReachable(toPathNode(selectedMcvUnit.tile, false), toPathNode(t, false)));
+            this.destination = toVector2(minBy(reachableCandidates, (candidate) => {
+                return toVector2(selectedMcvUnit.tile).distanceTo(toVector2(candidate));
+            })!);
+            return noop();
+        }
+    }
+
+    public updateExpand(gameApi: GameApi,
+        actionsApi: ActionsApi,
+        playerData: PlayerData,
+        matchAwareness: MatchAwareness,
+        actionBatcher: ActionBatcher
+    ) {
+        if (!this.destination) {
+            return noop();
+        }
+        const mcvs = this.getUnitsOfTypes(gameApi, ...mcvTypes);
         // if there's a conyard near the destination, we're done.
         const conYards = gameApi
             .getUnitsInArea(new Box2(this.destination.clone().subScalar(CONYARD_SCAN_DISTANCE), this.destination.clone().addScalar(CONYARD_SCAN_DISTANCE)))
@@ -65,7 +100,7 @@ export class ExpansionMission extends Mission {
                 return false;
             }
             const vec = new Vector2(tile.rx, tile.ry);
-            return vec.distanceTo(this.destination) < CONYARD_DEPLOY_DISTANCE;
+            return vec.distanceTo(this.destination!) < CONYARD_DEPLOY_DISTANCE;
         });
         const canOrder = !this.lastOrderAt || gameApi.getCurrentTick() > this.lastOrderAt + ORDER_COOLDOWN_TICKS;
         if (!canOrder) {
@@ -102,8 +137,9 @@ export class ExpansionMission extends Mission {
         }
         return noop();
     }
+
     public getGlobalDebugText(): string | undefined {
-        return `Expand with MCV ${this.selectedMcv}`;
+        return `Expand with MCV ${this.selectedMcvId}`;
     }
 
     public getPriority() {
@@ -112,7 +148,7 @@ export class ExpansionMission extends Mission {
 }
 
 export class PackConyardMission extends Mission {
-    constructor(uniqueName: string, private conyardId: number, private destination: Vector2, logger: DebugLogger) {
+    constructor(uniqueName: string, private conyardId: number, logger: DebugLogger) {
         super(uniqueName, logger);
     }
     
@@ -131,8 +167,8 @@ export class PackConyardMission extends Mission {
         actionsApi.orderUnits(
             [this.conyardId],
             OrderType.Move,
-            this.destination.x,
-            this.destination.y,
+            conyardOrMcv.tile.rx,
+            conyardOrMcv.tile.ry,
         );
         return noop();
     }
@@ -167,21 +203,21 @@ export class ExpansionMissionFactory implements MissionFactory {
         const mcvs = gameApi.getVisibleUnits(playerData.name, "self", (r) =>
             gameApi.getGeneralRules().baseUnit.includes(r.name),
         );
-        const expandTo = matchAwareness.getNextExpansionPoint();
+        const expandToCandidates = matchAwareness.getNextExpansionCandidates();
 
         // This is used for deploying the initial MCV.
         if (gameApi.getCurrentTick() < DO_NOT_EXPAND_BEFORE_TICKS) {
             mcvs.forEach((mcv) => {
-                missionController.addMission(new ExpansionMission("initial-deploy-mcv-" + mcv, 100, mcv, playerData.startLocation, logger));
+                missionController.addMission(new ExpansionMission("initial-deploy-mcv-" + mcv, 100, mcv, [playerData.startLocation], logger));
             });
-        } else if (expandTo) {
+        } else if (expandToCandidates.length > 0) {
             mcvs.forEach((mcv) => {
-                missionController.addMission(new ExpansionMission("expansion-mcv-" + mcv, 100, mcv, expandTo, logger));
+                missionController.addMission(new ExpansionMission("expansion-mcv-" + mcv, 100, mcv, expandToCandidates, logger));
             });
         }
 
         const threatCache = matchAwareness.getThreatCache();
-        if (!expandTo || !threatCache) {
+        if (!expandToCandidates[0] || !threatCache) {
             return;
         }
 
@@ -197,7 +233,7 @@ export class ExpansionMissionFactory implements MissionFactory {
             return;
         }
 
-        missionController.addMission(new PackConyardMission("pack-up-" + conYards[0], conYards[0], expandTo, logger));
+        missionController.addMission(new PackConyardMission("pack-up-" + conYards[0], conYards[0], logger));
         logger("Time to pack the conyard and expand", false);
         this.lastConyardPackAt = gameApi.getCurrentTick();
     }

@@ -79,7 +79,7 @@ async function main() {
         agents: [
             new VisualisedBot(VISUAL_DEBUG_OPTS, process.env.ONLINE_BOT_NAME ?? botName1, Countries.USA),
             { name: process.env.PLAYER_NAME ?? botName2, country: Countries.FRANCE },
-        ] as [Bot, ...Agent[]],
+        ],
         botPassword: process.env.ONLINE_BOT_PASSWORD ?? "default",
     };
 

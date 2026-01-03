@@ -1,4 +1,4 @@
-import { GameApi, GameObjectData, MapApi, PlayerData, Size, Vector2 } from "@chronodivide/game-api";
+import { BotContext, GameApi, GameObjectData, MapApi, PathNode, PlayerData, Size, SpeedType, Vector2 } from "@chronodivide/game-api";
 import { calculateConnectedSectorIds, SectorCache } from "./map/sector.js";
 import { GlobalThreat } from "./threat/threat.js";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
@@ -49,10 +49,8 @@ export interface MatchAwareness {
 
     /**
      * Update the internal state of the Ai.
-     * @param gameApi
-     * @param playerData
      */
-    onAiUpdate(gameApi: GameApi, playerData: PlayerData): void;
+    onAiUpdate(context: BotContext): void;
 
     /**
      * True if the AI should initiate an attack.
@@ -61,7 +59,7 @@ export interface MatchAwareness {
 
     getScoutingManager(): ScoutingManager;
 
-    getNextExpansionPoint(): Vector2 | null;
+    getNextExpansionCandidates(): Vector2[];
 
     getGlobalDebugText(): string | undefined;
 }
@@ -95,7 +93,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
     private sectorCache: SectorCache;
     private buildSpaceCache: BuildSpaceCache;
 
-    private expansionPoint: Vector2 | null = null;
+    private expansionCandidates: Vector2[] = [];
 
     constructor(
         gameApi: GameApi,
@@ -168,8 +166,8 @@ export class MatchAwarenessImpl implements MatchAwareness {
     getScoutingManager(): ScoutingManager {
         return this.scoutingManager;
     }
-    getNextExpansionPoint(): Vector2 | null {
-        return this.expansionPoint
+    getNextExpansionCandidates(): Vector2[] {
+        return this.expansionCandidates;
     }
     getBuildSpaceCache(): BuildSpaceCache {
         return this.buildSpaceCache;
@@ -195,8 +193,9 @@ export class MatchAwarenessImpl implements MatchAwareness {
         this.scoutingManager.onGameStart(gameApi, playerData, this.sectorCache);
     }
 
-    onAiUpdate(game: GameApi, playerData: PlayerData): void {
+    onAiUpdate({game, player}: BotContext): void {
         const sectorCache = this.sectorCache;
+        const playerData = player.getPlayerData();
 
         sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE);
         this.buildSpaceCache.update(game.getCurrentTick());
@@ -269,37 +268,39 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
         // Decide to expand or not
         if (this.buildSpaceCache.isFinished() && game.getCurrentTick() % EXPANSION_UPDATE_INTERVAL_TICKS === 0) {
-            // Find the sector with the least threat, decent money (enough to recoup refinery cost) and far enough away from existing refinery
-            let minThreat = Number.MAX_SAFE_INTEGER;
-            let bestCandidate: Vector2 | null = null;
             // don't expand somewhere near where we can already build
             const ownBuildingVectors = game
                 .getVisibleUnits(playerData.name, "self", (r) => r.baseNormal)
                 .map((id) => game.getGameObjectData(id)).filter((o): o is GameObjectData => !!o)
                 .map((r) => new Vector2(r.tile.rx, r.tile.ry));
-            const candidates = this.buildSpaceCache.findSpace(EXPANSION_MIN_CLEAR_SPACE_TILES);
-            for (const candidate of candidates) {
-                const cell = this.sectorCache.getCell(candidate.x, candidate.y);
-                if (!cell) {
-                    continue;
-                }
-                if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
-                    continue;
-                }
-                if (ownBuildingVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_BUILDABLE)) {
-                    continue;
-                }
-                if (ownBuildingVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_BUILDABLE)) {
-                    continue;
-                }
-                if (!cell.value.diffuseThreatLevel || cell.value.diffuseThreatLevel > minThreat) {
-                    continue;
-                }
-                minThreat = cell.value.diffuseThreatLevel;
-                bestCandidate = candidate;
+            const rawCandidates = this.buildSpaceCache.findSpace(EXPANSION_MIN_CLEAR_SPACE_TILES);
+            let startTile = null;
+            while (!startTile) {
+                startTile = game.map.getTile(playerData.startLocation.x + game.generateRandomInt(-10, 10), playerData.startLocation.y + game.generateRandomInt(-10, 10));
             }
 
-            this.expansionPoint = bestCandidate;
+            const startPathNode: PathNode = {tile: startTile, onBridge: false};
+
+            this.expansionCandidates = rawCandidates.filter((candidate) => {
+                const cell = this.sectorCache.getCell(candidate.x, candidate.y);
+                if (!cell) {
+                    return false;
+                }
+                if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
+                    return false;
+                }
+                if (ownBuildingVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_BUILDABLE)) {
+                    return false;
+                }
+                if (ownBuildingVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_BUILDABLE)) {
+                    return false;
+                }
+                const tile = game.map.getTile(candidate.x, candidate.y);
+                if (!tile) {
+                    return false;
+                }
+                return true;
+            });
         }
     }
 
