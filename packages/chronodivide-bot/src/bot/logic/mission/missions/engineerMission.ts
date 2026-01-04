@@ -1,5 +1,7 @@
 import {
     ActionsApi,
+    Bot,
+    BotContext,
     GameApi,
     GameObjectData,
     OrderType,
@@ -51,12 +53,13 @@ export class EngineerMission extends Mission {
     }
 
     public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
+        const gameApi = context.game;
+        const actionsApi = context.player.actions;
+        const playerData = gameApi.getPlayerData(context.player.name);
         const engineers = this.getUnitsOfTypes(gameApi, ...["SENGINEER", "ENGINEER"]);
 
         const target = gameApi.getGameObjectData(this.captureTargetId);
@@ -144,12 +147,14 @@ export class EngineerMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
+        const gameApi = context.game;
+        const actionsApi = context.player.actions;
+        const playerData = gameApi.getPlayerData(context.player.name);
         if (!(gameApi.getCurrentTick() > this.lastCheckAt + TECH_CHECK_INTERVAL_TICKS)) {
             return;
         }
@@ -172,8 +177,7 @@ export class EngineerMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         failedMission: Mission<any>,
         failureReason: any,

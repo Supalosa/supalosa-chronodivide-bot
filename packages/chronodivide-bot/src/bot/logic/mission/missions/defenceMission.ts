@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { Mission, MissionAction, grabCombatants, noop, releaseUnits, requestUnits } from "../mission.js";
@@ -29,12 +29,12 @@ export class DefenceMission extends Mission<CombatSquad> {
     }
 
     _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
+        const gameApi = context.game;
+        const playerData = gameApi.getPlayerData(context.player.name);
         // Dispatch missions.
         const foundTargets = matchAwareness
             .getHostilesNearPoint2d(this.defenceArea, this.radius)
@@ -42,10 +42,8 @@ export class DefenceMission extends Mission<CombatSquad> {
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
         const update = this.squad.onAiUpdate(
-            gameApi,
-            actionsApi,
+            context,
             actionBatcher,
-            playerData,
             this,
             matchAwareness,
             this.logger,
@@ -103,12 +101,13 @@ export class DefenceMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
+        const gameApi = context.game;
+        const playerData = gameApi.getPlayerData(context.player.name);
         if (gameApi.getCurrentTick() < this.lastDefenceCheckAt + DEFENCE_CHECK_TICKS) {
             return;
         }
@@ -141,8 +140,7 @@ export class DefenceMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         failedMission: Mission<any>,
         failureReason: undefined,

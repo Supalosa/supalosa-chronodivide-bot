@@ -1,5 +1,5 @@
 import { DebugLogger } from "../../common/utils.js";
-import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, requestSpecificUnits } from "../mission.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { MatchAwareness } from "../../awareness.js";
@@ -17,12 +17,12 @@ export class RetreatMission extends Mission {
     }
 
     public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
+        const gameApi = context.game;
+        const actionsApi = context.player.actions;
         if (!this.createdAt) {
             this.createdAt = gameApi.getCurrentTick();
         }

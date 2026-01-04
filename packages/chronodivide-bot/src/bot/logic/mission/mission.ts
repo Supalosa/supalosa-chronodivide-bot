@@ -1,5 +1,6 @@
 import {
     ActionsApi,
+    BotContext,
     GameApi,
     GameObjectData,
     PlayerData,
@@ -70,21 +71,17 @@ export abstract class Mission<FailureReasons = undefined> {
     }
 
     public onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
-        this.updateCenterOfMass(gameApi);
-        return this._onAiUpdate(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+        this.updateCenterOfMass(context.game);
+        return this._onAiUpdate(context, matchAwareness, actionBatcher);
     }
 
     // TODO: fix this weird indirection
     abstract _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction;

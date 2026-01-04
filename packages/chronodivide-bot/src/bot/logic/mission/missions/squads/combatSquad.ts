@@ -1,6 +1,7 @@
 import {
     ActionsApi,
     AttackState,
+    BotContext,
     GameApi,
     GameMath,
     MovementZone,
@@ -62,14 +63,14 @@ export class CombatSquad implements Squad {
     }
 
     public onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
+        context: BotContext,
         actionBatcher: ActionBatcher,
-        playerData: PlayerData,
         mission: Mission<any>,
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
     ): MissionAction {
+        const gameApi = context.game;
+        const playerData = gameApi.getPlayerData(context.player.name);
         if (
             mission.getUnitIds().length > 0 &&
             (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
@@ -150,8 +151,8 @@ export class CombatSquad implements Squad {
     }
 
     /**
-     * Sends an action to the acitonBatcher if and only if the action is different from the last action we submitted to it.
-     * Prevents spamming redundant orders, which affects performance and can also ccause the unit to sit around doing nothing.
+     * Sends an action to the actionBatcher if and only if the action is different from the last action we submitted to it.
+     * Prevents spamming redundant orders, which affects performance and can also cause the unit to sit around doing nothing.
      */
     private submitActionIfNew(actionBatcher: ActionBatcher, action: BatchableAction) {
         const lastAction = this.lastOrderGiven[action.unitId];

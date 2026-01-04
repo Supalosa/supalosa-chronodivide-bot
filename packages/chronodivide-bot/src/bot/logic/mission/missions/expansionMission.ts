@@ -1,5 +1,6 @@
 import {
     ActionsApi,
+    BotContext,
     Box2,
     GameApi,
     GameMath,
@@ -54,12 +55,13 @@ export class ExpansionMission extends Mission {
     }
 
     public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
+        const gameApi = context.game;
+        const actionsApi = context.player.actions;
+        const playerData = context.game.getPlayerData(context.player.name);
         const mcvs = this.getUnitsOfTypes(gameApi, ...mcvTypes);
         if (mcvs.length === 0) {
             // Perhaps we deployed already (or the unit was destroyed), end the mission.
@@ -236,12 +238,12 @@ export class PackConyardMission extends Mission {
     }
 
     public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
+        const gameApi = context.game;
+        const actionsApi = context.player.actions;
         const conyardOrMcv = gameApi.getGameObjectData(this.conyardId);
         if (!conyardOrMcv) {
             // maybe it died, or unpacked already
@@ -270,13 +272,14 @@ export class ExpansionMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
-        const mcvs = gameApi.getVisibleUnits(playerData.name, "self", (r) =>
+        const { game: gameApi, player } = context;
+        const playerData = gameApi.getPlayerData(player.name);
+        const mcvs = gameApi.getVisibleUnits(player.name, "self", (r) =>
             gameApi.getGeneralRules().baseUnit.includes(r.name),
         );
         const expandToCandidates = matchAwareness.getNextExpansionCandidates();
@@ -310,10 +313,10 @@ export class ExpansionMissionFactory implements MissionFactory {
         // TODO: do not pack up if currently producing something from the conyard
 
         // if we have a war factory and at least 1 refinery, try expand
-        const conYards = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.constructionYard);
-        const warFactories = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.weaponsFactory);
+        const conYards = gameApi.getVisibleUnits(player.name, "self", (r) => r.constructionYard);
+        const warFactories = gameApi.getVisibleUnits(player.name, "self", (r) => r.weaponsFactory);
         const isSafeToExpand = threatCache.totalAvailableAntiGroundFirepower > threatCache.totalOffensiveLandThreat;
-        const refineries = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.refinery);
+        const refineries = gameApi.getVisibleUnits(player.name, "self", (r) => r.refinery);
         if (conYards.length === 0 || warFactories.length === 0 || refineries.length === 0 || !isSafeToExpand) {
             return;
         }
@@ -337,8 +340,7 @@ export class ExpansionMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         failedMission: Mission<any>,
         failureReason: undefined,

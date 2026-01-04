@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, ObjectType, PlayerData, SideType, UnitData, Vector2 } from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
@@ -68,29 +68,26 @@ export class AttackMission extends Mission<AttackFailReason> {
     }
 
     _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
         switch (this.state) {
             case AttackMissionState.Preparing:
-                return this.handlePreparingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+                return this.handlePreparingState(context, matchAwareness, actionBatcher);
             case AttackMissionState.Attacking:
-                return this.handleAttackingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+                return this.handleAttackingState(context, matchAwareness, actionBatcher);
             case AttackMissionState.Retreating:
-                return this.handleRetreatingState(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+                return this.handleRetreatingState(context, matchAwareness, actionBatcher);
         }
     }
 
     private handlePreparingState(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
+        const { game: gameApi } = context;
         const missingUnits = this.getMissingUnits(gameApi, this.composition);
         if (missingUnits.length > 0) {
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
@@ -106,12 +103,12 @@ export class AttackMission extends Mission<AttackFailReason> {
     }
 
     private handleAttackingState(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
+        const { game: gameApi } = context;
+        const playerData = gameApi.getPlayerData(context.player.name);
         if (this.getUnitIds().length === 0) {
             // TODO: disband directly (we no longer retreat when losing)
             this.state = AttackMissionState.Retreating;
@@ -124,10 +121,8 @@ export class AttackMission extends Mission<AttackFailReason> {
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
         const update = this.squad.onAiUpdate(
-            gameApi,
-            actionsApi,
+            context,
             actionBatcher,
-            playerData,
             this,
             matchAwareness,
             this.logger,
@@ -157,12 +152,11 @@ export class AttackMission extends Mission<AttackFailReason> {
     }
 
     private handleRetreatingState(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
+        const { game: gameApi } = context;
         this.getUnits(gameApi).forEach((unitId) => {
             actionBatcher.push(manageMoveMicro(unitId, matchAwareness.getMainRallyPoint()));
         });
@@ -259,12 +253,13 @@ export class AttackMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
+        const gameApi = context.game;
+        const playerData = gameApi.getPlayerData(context.player.name);
         if (gameApi.getCurrentTick() < this.lastAttackAt + VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {
             return;
         }
@@ -321,8 +316,7 @@ export class AttackMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         failedMission: Mission<any>,
         failureReason: any,

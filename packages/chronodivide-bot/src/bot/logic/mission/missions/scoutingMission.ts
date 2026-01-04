@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
@@ -42,12 +42,13 @@ export class ScoutingMission extends Mission {
     }
 
     public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ): MissionAction {
+        const gameApi = context.game;
+        const actionsApi = context.player.actions;
+        const playerData = gameApi.getPlayerData(context.player.name);
         const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
         const scouts = this.getUnitsOfTypes(gameApi, ...scoutNames);
 
@@ -146,12 +147,14 @@ export class ScoutingMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
+        const gameApi = context.game;
+        const actionsApi = context.player.actions;
+        const playerData = gameApi.getPlayerData(context.player.name);
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
             return;
         }
@@ -164,14 +167,16 @@ export class ScoutingMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        gameApi: GameApi,
-        playerData: PlayerData,
+        context: BotContext,
         matchAwareness: MatchAwareness,
         failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
+        const gameApi = context.game;
+        const actionsApi = context.player.actions;
+        const playerData = gameApi.getPlayerData(context.player.name);
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
             return;
         }

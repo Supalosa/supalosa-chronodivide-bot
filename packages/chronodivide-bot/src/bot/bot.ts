@@ -100,7 +100,7 @@ export class SupalosaBot extends Bot {
 
             // Mission logic every 3 ticks
             if (this.gameApi.getCurrentTick() % 3 === 0) {
-                this.missionController.onAiUpdate(game, this.actionsApi, myPlayer, this.matchAwareness);
+                this.missionController.onAiUpdate(this.context, this.matchAwareness);
             }
 
             const unitTypeRequests = this.missionController.getRequestedUnitTypes();
