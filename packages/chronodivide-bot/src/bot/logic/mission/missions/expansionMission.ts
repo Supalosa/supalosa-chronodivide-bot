@@ -1,9 +1,22 @@
-import { ActionsApi, Box2, GameApi, GameMath, ObjectType, OrderType, PlayerData, Rectangle, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    Box2,
+    GameApi,
+    GameMath,
+    GameObjectData,
+    ObjectType,
+    OrderType,
+    PlayerData,
+    Rectangle,
+    Tile,
+    UnitData,
+    Vector2,
+} from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, noop, requestSpecificUnits, requestUnits } from "../mission.js";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
-import { DebugLogger, maxBy, minBy, toPathNode, toVector2 } from "../../common/utils.js";
+import { DebugLogger, isTechnoRulesObject, maxBy, minBy, toPathNode, toVector2 } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getCachedTechnoRules } from "../../common/rulesCache.js";
 import { canBuildOnTile } from "../../common/tileUtils.js";
@@ -210,10 +223,14 @@ function findDeployableLocations(playerName: string, gameApi: GameApi, rectangle
 }
 
 export class PackConyardMission extends Mission {
-    constructor(uniqueName: string, private conyardId: number, logger: DebugLogger) {
+    constructor(
+        uniqueName: string,
+        private conyardId: number,
+        logger: DebugLogger,
+    ) {
         super(uniqueName, logger);
     }
-    
+
     public _onAiUpdate(
         gameApi: GameApi,
         actionsApi: ActionsApi,
@@ -226,15 +243,9 @@ export class PackConyardMission extends Mission {
             // maybe it died, or unpacked already
             return disbandMission();
         }
-        actionsApi.orderUnits(
-            [this.conyardId],
-            OrderType.Move,
-            conyardOrMcv.tile.rx,
-            conyardOrMcv.tile.ry,
-        );
+        actionsApi.orderUnits([this.conyardId], OrderType.Move, conyardOrMcv.tile.rx, conyardOrMcv.tile.ry);
         return noop();
     }
-
 
     public getGlobalDebugText(): string | undefined {
         return `Pack conyard ${this.conyardId}`;
@@ -244,7 +255,6 @@ export class PackConyardMission extends Mission {
         return 10000;
     }
 }
-
 
 const CONYARD_PACK_COOLDOWN = 15 * 60 * 6; // 6 mins
 const DO_NOT_EXPAND_BEFORE_TICKS = 15 * 60 * 6; // 6 minutes
@@ -270,11 +280,15 @@ export class ExpansionMissionFactory implements MissionFactory {
         // This is used for deploying the initial MCV.
         if (gameApi.getCurrentTick() < DO_NOT_EXPAND_BEFORE_TICKS) {
             mcvs.forEach((mcv) => {
-                missionController.addMission(new ExpansionMission("initial-deploy-mcv-" + mcv, 100, mcv, [playerData.startLocation], logger));
+                missionController.addMission(
+                    new ExpansionMission("initial-deploy-mcv-" + mcv, 100, mcv, [playerData.startLocation], logger),
+                );
             });
         } else if (expandToCandidates.length > 0) {
             mcvs.forEach((mcv) => {
-                missionController.addMission(new ExpansionMission("expansion-mcv-" + mcv, 100, mcv, expandToCandidates, logger));
+                missionController.addMission(
+                    new ExpansionMission("expansion-mcv-" + mcv, 100, mcv, expandToCandidates, logger),
+                );
             });
         }
 
@@ -283,21 +297,39 @@ export class ExpansionMissionFactory implements MissionFactory {
             return;
         }
 
-        if (gameApi.getCurrentTick() < DO_NOT_EXPAND_BEFORE_TICKS || gameApi.getCurrentTick() < this.lastConyardPackAt + CONYARD_PACK_COOLDOWN) {
+        if (
+            gameApi.getCurrentTick() < DO_NOT_EXPAND_BEFORE_TICKS ||
+            gameApi.getCurrentTick() < this.lastConyardPackAt + CONYARD_PACK_COOLDOWN
+        ) {
             return;
         }
+        // TODO: do not pack up if currently producing something from the conyard
+
         // if we have a war factory and at least 1 refinery, try expand
-        const conYards = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.constructionYard)
+        const conYards = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.constructionYard);
         const warFactories = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.weaponsFactory);
         const isSafeToExpand = threatCache.totalAvailableAntiGroundFirepower > threatCache.totalOffensiveLandThreat;
         const refineries = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.refinery);
         if (conYards.length === 0 || warFactories.length === 0 || refineries.length === 0 || !isSafeToExpand) {
             return;
         }
-
-        missionController.addMission(new PackConyardMission("pack-up-" + conYards[0], conYards[0], logger));
-        logger("Time to pack the conyard and expand", false);
-        this.lastConyardPackAt = gameApi.getCurrentTick();
+        const selectedConyard = gameApi.getGameObjectData(conYards[0])!;
+        const refineryNearconyard = gameApi
+            .getUnitsInArea(
+                new Box2(toVector2(selectedConyard.tile).subScalar(10), toVector2(selectedConyard.tile).addScalar(14)),
+            )
+            .map((id) => gameApi.getGameObjectData(id))
+            .filter(isTechnoRulesObject)
+            .filter((obj) => obj.rules.refinery);
+        if (refineryNearconyard.length > 0) {
+            missionController.addMission(
+                new PackConyardMission("pack-up-" + selectedConyard.id, selectedConyard.id, logger),
+            );
+            logger("Time to pack the conyard and expand", false);
+            this.lastConyardPackAt = gameApi.getCurrentTick();
+        } else {
+            logger("Not time to pack up, no refinery yet");
+        }
     }
 
     onMissionFailed(

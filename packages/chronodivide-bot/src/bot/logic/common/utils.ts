@@ -1,4 +1,4 @@
-import { GameApi, GameObjectData, MapApi, PathNode, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
+import { GameObjectData, ObjectType, PathNode, TechnoRules, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
 
 export enum Countries {
     USA = "Americans",
@@ -125,4 +125,18 @@ export function toPathNode(tile: Tile, onBridge: boolean): PathNode {
 
 export function toVector2(tile: Tile): Vector2 {
     return new Vector2(tile.rx, tile.ry);
+}
+
+type TechnoRulesGameObject = Omit<GameObjectData, "rules"> & {
+    rules: TechnoRules;
+};
+
+export function isTechnoRulesObject(obj: GameObjectData | undefined): obj is TechnoRulesGameObject {
+    return (
+        !!obj &&
+        (obj.rules.type === ObjectType.Building ||
+            obj.rules.type === ObjectType.Aircraft ||
+            obj.rules.type === ObjectType.Vehicle ||
+            obj.rules.type === ObjectType.Infantry)
+    );
 }
