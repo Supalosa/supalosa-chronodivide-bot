@@ -15,6 +15,7 @@ import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../../common/uti
 import { ActionBatcher, BatchableAction } from "../../actionBatcher.js";
 import { Squad } from "./squad.js";
 import { Mission, MissionAction, grabCombatants, noop } from "../../mission.js";
+import { MissionContext } from "../../../common/context.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 
@@ -62,14 +63,8 @@ export class CombatSquad implements Squad {
         this.targetArea = targetArea;
     }
 
-    public onAiUpdate(
-        context: BotContext,
-        actionBatcher: ActionBatcher,
-        mission: Mission<any>,
-        matchAwareness: MatchAwareness,
-        logger: DebugLogger,
-    ): MissionAction {
-        const { game } = context;
+    public onAiUpdate(context: MissionContext, mission: Mission<any>, logger: DebugLogger): MissionAction {
+        const { game, actionBatcher, matchAwareness } = context;
         const playerData = game.getPlayerData(context.player.name);
         if (
             mission.getUnitIds().length > 0 &&

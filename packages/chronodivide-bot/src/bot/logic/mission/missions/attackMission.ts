@@ -118,7 +118,7 @@ export class AttackMission extends Mission<AttackFailReason> {
             .map((unit) => game.getUnitData(unit.unitId))
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
-        const update = this.squad.onAiUpdate(context, actionBatcher, this, matchAwareness, this.logger);
+        const update = this.squad.onAiUpdate(context, this, this.logger);
 
         if (update.type !== "noop") {
             return update;
