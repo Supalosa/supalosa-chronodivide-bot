@@ -1,4 +1,15 @@
-import { GameApi, GameObjectData, LandType, SpeedType, TerrainType, Tile } from "@chronodivide/game-api";
+import {
+    GameApi,
+    GameObjectData,
+    LandType,
+    Rectangle,
+    Size,
+    SpeedType,
+    TerrainType,
+    Tile,
+    Vector2,
+} from "@chronodivide/game-api";
+import { getAdjacencyTiles } from "../building/buildingRules";
 
 const FLAT_RAMP_TYPE = 0;
 
@@ -34,4 +45,33 @@ function tileIsOccupied(tile: Tile, gameApi: GameApi) {
 
 export function canBuildOnTile(tile: Tile, gameApi: GameApi) {
     return tileIsBuildable(tile) && !tileIsOccupied(tile, gameApi);
+}
+
+/**
+ * Computes a rect 'centered' around a structure of a certain size with an additional radius (`adjacent`).
+ * The radius is optionally expanded by the size of the new building.
+ *
+ * This is essentially the candidate placement around a given structure.
+ *
+ * @param point Top-left location of the inner rect.
+ * @param t Size of the inner rect.
+ * @param adjacent Amount to expand the building's inner rect by (so buildings must be adjacent by this many tiles)
+ * @param newBuildingSize? Size of the new building
+ * @returns
+ */
+export function computeAdjacentRect(point: Vector2, t: Size, adjacent: number, newBuildingSize?: Size): Rectangle {
+    return {
+        x: point.x - adjacent - (newBuildingSize?.width || 0),
+        y: point.y - adjacent - (newBuildingSize?.height || 0),
+        width: t.width + 2 * adjacent + (newBuildingSize?.width || 0),
+        height: t.height + 2 * adjacent + (newBuildingSize?.height || 0),
+    };
+}
+
+export function getAdjacentTiles(game: GameApi, range: Rectangle, onWater: boolean) {
+    // use the bulk API to get all tiles from the baseTile to the (baseTile + range)
+    const adjacentTiles = game.mapApi
+        .getTilesInRect(range)
+        .filter((tile) => !onWater || tile.landType === LandType.Water);
+    return adjacentTiles;
 }
