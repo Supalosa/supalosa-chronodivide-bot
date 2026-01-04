@@ -18,10 +18,10 @@ export class RetreatMission extends Mission {
     }
 
     public _onAiUpdate(context: MissionContext): MissionAction {
-        const gameApi = context.game;
+        const { game } = context;
         const actionsApi = context.player.actions;
         if (!this.createdAt) {
-            this.createdAt = gameApi.getCurrentTick();
+            this.createdAt = game.getCurrentTick();
         }
         if (this.getUnitIds().length > 0) {
             // Only send the order once we have managed to claim some units.
@@ -33,7 +33,7 @@ export class RetreatMission extends Mission {
             );
             return disbandMission();
         }
-        if (this.createdAt && gameApi.getCurrentTick() > this.createdAt + 240) {
+        if (this.createdAt && game.getCurrentTick() > this.createdAt + 240) {
             // Disband automatically after 240 ticks in case we couldn't actually claim any units.
             return disbandMission();
         } else {

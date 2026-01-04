@@ -19,7 +19,6 @@ import { ActionBatcher } from "../actionBatcher.js";
 import { getAdjacencyTiles } from "../../building/buildingRules.js";
 import { computeAdjacentRect, getAdjacentTiles } from "../../common/tileUtils.js";
 import { UnitComposition } from "../../composition/common.js";
-import { fail } from "assert";
 import { MissionContext, SupabotContext } from "../../common/context.js";
 
 const CAPTURE_COOLDOWN_TICKS = 30;
@@ -54,12 +53,12 @@ export class EngineerMission extends Mission {
     }
 
     public _onAiUpdate(context: MissionContext): MissionAction {
-        const gameApi = context.game;
+        const { game } = context;
         const actionsApi = context.player.actions;
-        const playerData = gameApi.getPlayerData(context.player.name);
-        const engineers = this.getUnitsOfTypes(gameApi, ...["SENGINEER", "ENGINEER"]);
+        const playerData = game.getPlayerData(context.player.name);
+        const engineers = this.getUnitsOfTypes(game, ...["SENGINEER", "ENGINEER"]);
 
-        const target = gameApi.getGameObjectData(this.captureTargetId);
+        const target = game.getGameObjectData(this.captureTargetId);
         if (!target || target.owner === playerData.name) {
             // Target gone or already captured, disband.
             return disbandMission();
@@ -84,7 +83,7 @@ export class EngineerMission extends Mission {
                     composition["MTNK"] = Math.max(0, this.escortLevel - 2); // 0, 0, 1
                     break;
             }
-            const missingUnits = this.getMissingUnits(gameApi, composition);
+            const missingUnits = this.getMissingUnits(game, composition);
             if (missingUnits.length > 0) {
                 return requestUnits(
                     missingUnits.map(([unitName]) => unitName),
@@ -96,14 +95,14 @@ export class EngineerMission extends Mission {
 
         if (
             this.state === EngineerMissionState.Capturing &&
-            gameApi.getCurrentTick() > this.lastCaptureAttemptTick + CAPTURE_COOLDOWN_TICKS
+            game.getCurrentTick() > this.lastCaptureAttemptTick + CAPTURE_COOLDOWN_TICKS
         ) {
             const engineer = engineers[0];
-            if (!canReachStructure(gameApi, engineer, target)) {
+            if (!canReachStructure(game, engineer, target)) {
                 return disbandMission(NO_PATH);
             }
             actionsApi.orderUnits([engineer.id], OrderType.Capture, this.captureTargetId);
-            const escortUnits = this.getUnitsOfTypes(gameApi, "DOG", "HTNK", "ADOG", "MTNK");
+            const escortUnits = this.getUnitsOfTypes(game, "DOG", "HTNK", "ADOG", "MTNK");
             if (escortUnits.length > 0) {
                 actionsApi.orderUnits(
                     escortUnits.map((u) => u.id),
@@ -112,7 +111,7 @@ export class EngineerMission extends Mission {
                 );
             }
             // Add a cooldown to deploy attempts.
-            this.lastCaptureAttemptTick = gameApi.getCurrentTick();
+            this.lastCaptureAttemptTick = game.getCurrentTick();
         }
         return noop();
     }
@@ -154,14 +153,13 @@ export class EngineerMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
-        const gameApi = context.game;
-        const actionsApi = context.player.actions;
-        const playerData = gameApi.getPlayerData(context.player.name);
-        if (!(gameApi.getCurrentTick() > this.lastCheckAt + TECH_CHECK_INTERVAL_TICKS)) {
+        const { game } = context;
+        const playerData = game.getPlayerData(context.player.name);
+        if (!(game.getCurrentTick() > this.lastCheckAt + TECH_CHECK_INTERVAL_TICKS)) {
             return;
         }
-        this.lastCheckAt = gameApi.getCurrentTick();
-        const eligibleTechBuildings = gameApi.getVisibleUnits(
+        this.lastCheckAt = game.getCurrentTick();
+        const eligibleTechBuildings = game.getVisibleUnits(
             playerData.name,
             "hostile",
             (r) => r.capturable && r.produceCashAmount > 0,

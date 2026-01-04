@@ -30,12 +30,12 @@ export class DefenceMission extends Mission<CombatSquad> {
     }
 
     _onAiUpdate(context: MissionContext): MissionAction {
-        const { game: gameApi, actionBatcher, matchAwareness } = context;
-        const playerData = gameApi.getPlayerData(context.player.name);
+        const { game, actionBatcher, matchAwareness } = context;
+        const playerData = game.getPlayerData(context.player.name);
         // Dispatch missions.
         const foundTargets = matchAwareness
             .getHostilesNearPoint2d(this.defenceArea, this.radius)
-            .map((unit) => gameApi.getUnitData(unit.unitId))
+            .map((unit) => game.getUnitData(unit.unitId))
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
         const update = this.squad.onAiUpdate(context, actionBatcher, this, matchAwareness, this.logger);
@@ -92,25 +92,25 @@ export class DefenceMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
-        const { game: gameApi, matchAwareness } = context;
-        const playerData = gameApi.getPlayerData(context.player.name);
-        if (gameApi.getCurrentTick() < this.lastDefenceCheckAt + DEFENCE_CHECK_TICKS) {
+        const { game, matchAwareness } = context;
+        const playerData = game.getPlayerData(context.player.name);
+        if (game.getCurrentTick() < this.lastDefenceCheckAt + DEFENCE_CHECK_TICKS) {
             return;
         }
-        this.lastDefenceCheckAt = gameApi.getCurrentTick();
+        this.lastDefenceCheckAt = game.getCurrentTick();
 
         const defendableRadius =
-            DEFENCE_STARTING_RADIUS + DEFENCE_RADIUS_INCREASE_PER_GAME_TICK * gameApi.getCurrentTick();
+            DEFENCE_STARTING_RADIUS + DEFENCE_RADIUS_INCREASE_PER_GAME_TICK * game.getCurrentTick();
         const enemiesNearSpawn = matchAwareness
             .getHostilesNearPoint2d(playerData.startLocation, defendableRadius)
-            .map((unit) => gameApi.getUnitData(unit.unitId))
+            .map((unit) => game.getUnitData(unit.unitId))
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
         if (enemiesNearSpawn.length > 0) {
             logger(
                 `Starting defence mission, ${
                     enemiesNearSpawn.length
-                } found in radius ${defendableRadius} (tick ${gameApi.getCurrentTick()})`,
+                } found in radius ${defendableRadius} (tick ${game.getCurrentTick()})`,
             );
             missionController.addMission(
                 new DefenceMission(

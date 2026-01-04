@@ -89,8 +89,8 @@ export class AttackMission extends Mission<AttackFailReason> {
     }
 
     private handlePreparingState(context: MissionContext) {
-        const { game: gameApi } = context;
-        const missingUnits = this.getMissingUnits(gameApi, this.composition);
+        const { game } = context;
+        const missingUnits = this.getMissingUnits(game, this.composition);
         if (missingUnits.length > 0) {
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
             return requestUnits(
@@ -105,10 +105,8 @@ export class AttackMission extends Mission<AttackFailReason> {
     }
 
     private handleAttackingState(context: MissionContext) {
-        const { game: gameApi } = context;
-        const playerData = gameApi.getPlayerData(context.player.name);
-        const matchAwareness = context.matchAwareness;
-        const actionBatcher = context.actionBatcher;
+        const { game, matchAwareness, actionBatcher } = context;
+        const playerData = game.getPlayerData(context.player.name);
         if (this.getUnitIds().length === 0) {
             // TODO: disband directly (we no longer retreat when losing)
             this.state = AttackMissionState.Retreating;
@@ -117,7 +115,7 @@ export class AttackMission extends Mission<AttackFailReason> {
 
         const foundTargets = matchAwareness
             .getHostilesNearPoint2d(this.attackArea, this.radius)
-            .map((unit) => gameApi.getUnitData(unit.unitId))
+            .map((unit) => game.getUnitData(unit.unitId))
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
         const update = this.squad.onAiUpdate(context, actionBatcher, this, matchAwareness, this.logger);
@@ -127,15 +125,15 @@ export class AttackMission extends Mission<AttackFailReason> {
         }
 
         if (foundTargets.length > 0) {
-            this.lastTargetSeenAt = gameApi.getCurrentTick();
+            this.lastTargetSeenAt = game.getCurrentTick();
             this.hasPickedNewTarget = false;
-        } else if (gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_IDLE_TIMEOUT_TICKS) {
+        } else if (game.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_IDLE_TIMEOUT_TICKS) {
             return disbandMission(AttackFailReason.NoTargets);
         } else if (
             !this.hasPickedNewTarget &&
-            gameApi.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_RETARGET_TICKS
+            game.getCurrentTick() > this.lastTargetSeenAt + NO_TARGET_RETARGET_TICKS
         ) {
-            const newTarget = generateTarget(gameApi, playerData, matchAwareness);
+            const newTarget = generateTarget(game, playerData, matchAwareness);
             if (newTarget) {
                 this.squad.setAttackArea(newTarget);
                 this.hasPickedNewTarget = true;
@@ -146,8 +144,8 @@ export class AttackMission extends Mission<AttackFailReason> {
     }
 
     private handleRetreatingState(context: MissionContext) {
-        const { game: gameApi, actionBatcher, matchAwareness } = context;
-        this.getUnits(gameApi).forEach((unitId) => {
+        const { game, actionBatcher, matchAwareness } = context;
+        this.getUnits(game).forEach((unitId) => {
             actionBatcher.push(manageMoveMicro(unitId, matchAwareness.getMainRallyPoint()));
         });
         return disbandMission();
@@ -243,10 +241,9 @@ export class AttackMissionFactory implements MissionFactory {
     }
 
     maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
-        const gameApi = context.game;
-        const playerData = gameApi.getPlayerData(context.player.name);
-        const matchAwareness = context.matchAwareness;
-        if (gameApi.getCurrentTick() < this.lastAttackAt + VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {
+        const { game, matchAwareness } = context;
+        const playerData = game.getPlayerData(context.player.name);
+        if (game.getCurrentTick() < this.lastAttackAt + VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {
             return;
         }
 
@@ -264,17 +261,17 @@ export class AttackMissionFactory implements MissionFactory {
 
         const attackRadius = 10;
 
-        const includeEnemyBases = gameApi.getCurrentTick() > this.lastAttackAt + BASE_ATTACK_COOLDOWN_TICKS;
+        const includeEnemyBases = game.getCurrentTick() > this.lastAttackAt + BASE_ATTACK_COOLDOWN_TICKS;
 
-        const attackArea = generateTarget(gameApi, playerData, matchAwareness, includeEnemyBases);
+        const attackArea = generateTarget(game, playerData, matchAwareness, includeEnemyBases);
 
         if (!attackArea) {
             return;
         }
 
-        const squadName = "attack_" + gameApi.getCurrentTick();
+        const squadName = "attack_" + game.getCurrentTick();
 
-        const composition: UnitComposition = calculateTargetComposition(gameApi, playerData, matchAwareness);
+        const composition: UnitComposition = calculateTargetComposition(game, playerData, matchAwareness);
 
         const tryAttack = missionController.addMission(
             new AttackMission(
@@ -288,7 +285,7 @@ export class AttackMissionFactory implements MissionFactory {
             ).then((unitIds, reason) => {
                 missionController.addMission(
                     new RetreatMission(
-                        "retreat-from-" + squadName + gameApi.getCurrentTick(),
+                        "retreat-from-" + squadName + game.getCurrentTick(),
                         matchAwareness.getMainRallyPoint(),
                         unitIds,
                         logger,
@@ -297,7 +294,7 @@ export class AttackMissionFactory implements MissionFactory {
             }),
         );
         if (tryAttack) {
-            this.lastAttackAt = gameApi.getCurrentTick();
+            this.lastAttackAt = game.getCurrentTick();
         }
     }
 

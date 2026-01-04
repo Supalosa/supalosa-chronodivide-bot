@@ -69,23 +69,21 @@ export class CombatSquad implements Squad {
         matchAwareness: MatchAwareness,
         logger: DebugLogger,
     ): MissionAction {
-        const gameApi = context.game;
-        const playerData = gameApi.getPlayerData(context.player.name);
+        const { game } = context;
+        const playerData = game.getPlayerData(context.player.name);
         if (
             mission.getUnitIds().length > 0 &&
-            (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
+            (!this.lastCommand || game.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
         ) {
-            this.lastCommand = gameApi.getCurrentTick();
+            this.lastCommand = game.getCurrentTick();
             const centerOfMass = mission.getCenterOfMass();
             const maxDistance = mission.getMaxDistanceToCenterOfMass();
-            const unitIds = mission.getUnitsMatchingByRule(gameApi, (r) => r.isSelectableCombatant);
-            const units = unitIds
-                .map((unitId) => gameApi.getUnitData(unitId))
-                .filter((unit): unit is UnitData => !!unit);
+            const unitIds = mission.getUnitsMatchingByRule(game, (r) => r.isSelectableCombatant);
+            const units = unitIds.map((unitId) => game.getUnitData(unitId)).filter((unit): unit is UnitData => !!unit);
 
             // Only use ground units for center of mass.
             const groundUnitIds = mission.getUnitsMatchingByRule(
-                gameApi,
+                game,
                 (r) =>
                     r.isSelectableCombatant &&
                     (r.movementZone === MovementZone.Infantry ||
@@ -98,7 +96,7 @@ export class CombatSquad implements Squad {
                 if (
                     centerOfMass &&
                     maxDistance &&
-                    gameApi.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
+                    game.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
                     maxDistance > requiredGatherRadius
                 ) {
                     units.forEach((unit) => {
@@ -114,7 +112,7 @@ export class CombatSquad implements Squad {
                 if (
                     centerOfMass &&
                     maxDistance &&
-                    gameApi.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
+                    game.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
                     maxDistance > requiredGatherRadius
                 ) {
                     // Switch back to gather mode
@@ -132,7 +130,7 @@ export class CombatSquad implements Squad {
                 // Find units within double the range of the leader.
                 const nearbyHostiles = matchAwareness
                     .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, ATTACK_SCAN_AREA)
-                    .map(({ unitId }) => gameApi.getUnitData(unitId))
+                    .map(({ unitId }) => game.getUnitData(unitId))
                     .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
                 for (const unit of units) {
