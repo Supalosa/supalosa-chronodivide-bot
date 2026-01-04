@@ -1,31 +1,8 @@
 // A sector is a uniform-sized segment of the map.
 
-import { Size } from "@chronodivide/game-api";
-import { BasicIncrementalGridCache, DiagonalMapBounds, IncrementalGridCache, IncrementalGridCell, SequentialScanStrategy, toHeatmapColor, toRGBNum } from "./incrementalGridCache.js";
-
-export const SECTOR_SIZE = 8;
-
-/**
- * A Sector is an 8x8 area of the map, grouped together for scouting purposes.
- */
-export type Sector = {
-    /**
-     * Null means there are no valid tiles in the sector.
-     */
-    sectorVisibilityRatio: number | null;
-    /**
-     * Raw threat level in the sector (based on actual observation)
-     */
-    threatLevel: number | null;
-    /**
-     * Derived threat level in the sector (based on diffusing the threat to neighbouring sectors)
-     */
-    diffuseThreatLevel: number | null;
-
-    totalMoney: number | null;
-
-    clearSpaceTiles: number; // number of clear, flat tiles (for base expansion)
-};
+import { MapApi, Size, SpeedType, Tile } from "@chronodivide/game-api";
+import { BasicIncrementalGridCache, DiagonalMapBounds, IncrementalGridCache, IncrementalGridCell, SequentialScanStrategy, StagedScanStrategy, toHeatmapColor, toRGBNum } from "./incrementalGridCache.js";
+import { getDirectionToSector, getNeighbourTiles, getSectorTilesInDirection, OPPOSITE_DIRECTION, Sector, SECTOR_SIZE, SectorAndDist } from "./sectorUtils.js";
 
 /**
  * Wrapper around IncrementalGridCache that handles scaling from tile coordinates to sectors (could probably also be refactored out)
@@ -36,7 +13,7 @@ export class SectorCache implements IncrementalGridCache<Sector> {
     constructor(private mapBounds: Size,
         diagonalMapBounds: DiagonalMapBounds,
         initFn: (startX: number, startY: number) => Sector,
-        updateFn: (startX: number, startY: number, size: number, currentValue: Sector, neighbors: Sector[]) => Sector) {
+        updateFn: (startX: number, startY: number, size: number, currentValue: Sector, neighbors: SectorAndDist[]) => Sector) {
         const sectorsX = Math.ceil(mapBounds.width / SECTOR_SIZE);
         const sectorsY = Math.ceil(mapBounds.height / SECTOR_SIZE);
 
@@ -71,30 +48,44 @@ export class SectorCache implements IncrementalGridCache<Sector> {
             xEnds: scaleBoundsArray(diagonalMapBounds.xEnds, false),
         };
 
-        let maxThreatColored = 1;
+        let minThreatColored = Number.MAX_VALUE;
+        let maxThreatColored = Number.MIN_VALUE;
+        let lastScanStage = -1;
         this.gridCache = new BasicIncrementalGridCache<Sector, number>(
             sectorsX,
             sectorsY,
             initFn,
-            (sectorX, sectorY, currentValue) => {
-                const neighbours: Sector[] = [];
+            (sectorX, sectorY, currentValue, scanStage) => {
+                const neighbours: SectorAndDist[] = [];
                 // send the neighbours as well, to allow for diffuse sector threat
                 this.gridCache.forEachInRadius(sectorX, sectorY, 1, (nX, nY, s) => {
                     if (nX !== sectorX || nY !== sectorY) {
-                        neighbours.push(s.value);
+                        const dist = (sectorX === nX || sectorY === nY ? 1 : 0.707);
+                        neighbours.push({sector: s.value, x: nX, y: nY, dist});
                     }
                 });
+                minThreatColored = Math.min(currentValue.diffuseThreatLevel ?? 0, minThreatColored);
                 maxThreatColored = Math.max(currentValue.diffuseThreatLevel ?? 0, maxThreatColored);
+                // decay the scale every full scan
+                if (scanStage !== lastScanStage) {
+                    lastScanStage = scanStage;
+                    minThreatColored = minThreatColored * 0.95;
+                    maxThreatColored = maxThreatColored * 0.95;
+                }
                 return updateFn(sectorX * SECTOR_SIZE, sectorY * SECTOR_SIZE, SECTOR_SIZE, currentValue, neighbours)
             },
-            new SequentialScanStrategy(null, scaledDiagonalMapBounds),
+            new StagedScanStrategy([
+                new SequentialScanStrategy(1, scaledDiagonalMapBounds),
+                new SequentialScanStrategy(1, scaledDiagonalMapBounds).setReverse()
+            ]).setRepeating(),
             // Function to determine what colour should be rendered in the debug grid for this heatmap.
             (sector) => {
                 // debug diffuse threat level:
-                return toHeatmapColor(sector.diffuseThreatLevel, 0, maxThreatColored);
+                return toHeatmapColor(sector.diffuseThreatLevel, minThreatColored, maxThreatColored);
                 // debug scouting:
                 //return toHeatmapColor(sector.sectorVisibilityRatio);
-                //return toHeatmapColor(sector.clearSpaceTiles, 0, 64);
+                // debug sector connectedness
+                //return toHeatmapColor(sector.connectedSectorIds.length > 0 ? 1 : 0, 0, 1);
             }
         );
     }
@@ -187,4 +178,42 @@ export class SectorCache implements IncrementalGridCache<Sector> {
     public _getCellDebug(tileX: number, tileY: number): (IncrementalGridCell<Sector> & { color: number; }) | null {
         return this.gridCache._getCellDebug(Math.floor(tileX / SECTOR_SIZE), Math.floor(tileY / SECTOR_SIZE));
     }
+}
+
+/**
+ * Computes which neighbour sectors can be pathed to from the sector starting at tileX,tileY. This is expensive, and therefore only calculated
+ * when the sector is dirty (the pathing is changed in some way).
+ */
+export function calculateConnectedSectorIds(mapApi: MapApi, tileX: number, tileY: number, neighbours: SectorAndDist[], speedType: SpeedType = SpeedType.Track) {
+    // Algorithm: If you can reach the edge towards another sector, from the opposite edge, that sector is connected.
+    // For diagonal connectivity we just test the corners for now.
+    const allTiles = mapApi.getTilesInRect({x: tileX, y: tileY, width: SECTOR_SIZE, height: SECTOR_SIZE});
+    const tiles = allTiles.filter((tile) => {
+        return mapApi.isPassableTile(tile, speedType, tile.onBridgeLandType ? true : false, true);
+    });
+    if (tiles.length === 0) {
+        return [];
+    }
+    const connectedSectors = neighbours.filter((neighbour) => {
+        const direction = getDirectionToSector(tileX, tileY, neighbour);
+        const goalTiles = new Set(getSectorTilesInDirection(tileX, tileY, tiles, OPPOSITE_DIRECTION[direction]));
+        const openList = getSectorTilesInDirection(tileX, tileY, tiles, direction);
+        const closedSet = new Set();
+        let head: Tile | undefined;
+        while (head = openList.shift()) {
+            const neighbourTiles = getNeighbourTiles(head.rx, head.ry, tiles);
+            for (const neighbour of neighbourTiles) {
+                if (goalTiles.has(neighbour)) {
+                    return true;
+                }
+                if (!closedSet.has(neighbour)) {
+                    closedSet.add(neighbour);
+                    openList.push(neighbour);
+                }
+            }
+        }
+        return false;
+    });
+    
+    return connectedSectors.map((s) => s.sector.id);
 }

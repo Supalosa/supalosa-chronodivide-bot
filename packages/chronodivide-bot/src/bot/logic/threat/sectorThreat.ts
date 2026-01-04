@@ -1,5 +1,5 @@
 import { Box2, GameApi, GameMath, MapApi, PlayerData, Vector2 } from "@chronodivide/game-api";
-import { Sector } from "../map/sector";
+import { Sector, SectorAndDist } from "../map/sectorUtils";
 
 export function calculateSectorThreat(startX: number, startY: number, sectorSize: number, gameApi: GameApi, playerData: PlayerData) {
     const unitsInArea = gameApi.getUnitsInArea(new Box2(new Vector2(startX, startY), new Vector2(startX + sectorSize, startY + sectorSize)));
@@ -26,12 +26,15 @@ export function calculateSectorThreat(startX: number, startY: number, sectorSize
     return threat;
 }
 
-export function calculateDiffuseSectorThreat(currentThreat: number, currentDiffuseThreat: number, neighbours: Sector[]) {
-    const totalNeighbourThreat = currentThreat + neighbours.reduce((acc, cV) => acc + (cV.threatLevel ?? 0), 0);
-    const totalNeighbourDiffuseThreat = currentDiffuseThreat + neighbours.reduce((acc, cV) => acc + (cV.diffuseThreatLevel ?? 0), 0);
-    // somewhere between the current (actual) threat and the neighbouring threat, but never less than the actual threat in neghbouring cells
-    const numNeighbours = neighbours.length;
-    return Math.max(totalNeighbourThreat, totalNeighbourThreat + totalNeighbourDiffuseThreat * (1/numNeighbours) * 0.99);
+export function calculateDiffuseSectorThreat(sector: Sector, neighbours: SectorAndDist[]) {
+    // the objective is for a cell's threat to slowly spread (diffuse) into its neighbouring cells.
+    const connectedSectorIds = new Set(sector.connectedSectorIds);
+    const totalNeighbourThreat = (sector.threatLevel ?? 0) + neighbours.reduce((acc, cV) => acc + (cV.sector.threatLevel ?? 0), 0);
+    // Based on the max of the closest _connected_ sectors
+    const maxOfNeighboursThreat = neighbours
+        .filter((n) => connectedSectorIds.has(n.sector.id))
+        .reduce((pV, cV) => Math.max(pV, (cV.sector.diffuseThreatLevel ?? 0) * cV.dist), 0);
+    return Math.max(totalNeighbourThreat, maxOfNeighboursThreat * 0.95);
 }
 
 export function calculateMoney(startX: number, startY: number, size: number, mapApi: MapApi) {

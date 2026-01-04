@@ -1,5 +1,5 @@
-import { GameApi, GameObjectData, MapApi, PlayerData, Size, Vector2 } from "@chronodivide/game-api";
-import { SectorCache } from "./map/sector.js";
+import { BotContext, GameApi, GameObjectData, MapApi, PathNode, PlayerData, Size, SpeedType, Vector2 } from "@chronodivide/game-api";
+import { calculateConnectedSectorIds, SectorCache } from "./map/sector.js";
 import { GlobalThreat } from "./threat/threat.js";
 import { calculateGlobalThreat } from "./threat/threatCalculator.js";
 import { calculateAreaVisibility, getPointTowardsOtherPoint } from "./map/map.js";
@@ -8,6 +8,7 @@ import { ScoutingManager } from "./common/scout.js";
 import { getDiagonalMapBounds, IncrementalGridCache } from "./map/incrementalGridCache.js";
 import { calculateDiffuseSectorThreat, calculateMoney, calculateSectorThreat } from "./threat/sectorThreat.js";
 import { BuildSpaceCache } from "./map/buildSpaceCache.js";
+import { getSectorId } from "./map/sectorUtils.js";
 
 export type UnitPositionQuery = { x: number; y: number; unitId: number };
 
@@ -48,10 +49,8 @@ export interface MatchAwareness {
 
     /**
      * Update the internal state of the Ai.
-     * @param gameApi
-     * @param playerData
      */
-    onAiUpdate(gameApi: GameApi, playerData: PlayerData): void;
+    onAiUpdate(context: BotContext): void;
 
     /**
      * True if the AI should initiate an attack.
@@ -60,7 +59,7 @@ export interface MatchAwareness {
 
     getScoutingManager(): ScoutingManager;
 
-    getNextExpansionPoint(): Vector2 | null;
+    getNextExpansionCandidates(): Vector2[];
 
     getGlobalDebugText(): string | undefined;
 }
@@ -94,7 +93,7 @@ export class MatchAwarenessImpl implements MatchAwareness {
     private sectorCache: SectorCache;
     private buildSpaceCache: BuildSpaceCache;
 
-    private expansionPoint: Vector2 | null = null;
+    private expansionCandidates: Vector2[] = [];
 
     constructor(
         gameApi: GameApi,
@@ -110,28 +109,33 @@ export class MatchAwarenessImpl implements MatchAwareness {
         this.sectorCache = new SectorCache(
             mapSize, 
             diagonalBounds,
-            () => ({
+            (x: number, y: number) => ({
+                id: getSectorId(x, y),
                 sectorVisibilityRatio: null,
                 threatLevel: null,
                 diffuseThreatLevel: null,
                 totalMoney: null,
-                clearSpaceTiles: 0,
+                connectedSectorsDirty: true,
+                connectedSectorIds: [],
             }),
             (startX, startY, size, currentValue, neighbours) => {
                 const sp = new Vector2(startX, startY);
                 const ep = new Vector2(sp.x + size, sp.y + size);
                 const visibility = calculateAreaVisibility(gameApi.mapApi, playerData, sp, ep);
                 const threatLevel = calculateSectorThreat(startX, startY, size, gameApi, playerData);
-                const diffuseThreatLevel = calculateDiffuseSectorThreat(threatLevel, currentValue.diffuseThreatLevel ?? 0, neighbours);
-                const totalMoney = calculateMoney(startX, startY, size, gameApi.mapApi)
+                const diffuseThreatLevel = calculateDiffuseSectorThreat(currentValue, neighbours);
+                const totalMoney = calculateMoney(startX, startY, size, gameApi.mapApi);
+                const connectedSectorIds = currentValue.connectedSectorsDirty ? calculateConnectedSectorIds(gameApi.mapApi, startX, startY, neighbours) : currentValue.connectedSectorIds;
                 return {
+                    ...currentValue,
                     sectorVisibilityRatio: visibility.validTiles > 0 ?
                         visibility.visibleTiles / visibility.validTiles :
                         null, 
                     threatLevel,
                     diffuseThreatLevel,
                     totalMoney,
-                    clearSpaceTiles: visibility.clearTiles,
+                    connectedSectorsDirty: false,
+                    connectedSectorIds
                 }
             }
         );
@@ -162,8 +166,8 @@ export class MatchAwarenessImpl implements MatchAwareness {
     getScoutingManager(): ScoutingManager {
         return this.scoutingManager;
     }
-    getNextExpansionPoint(): Vector2 | null {
-        return this.expansionPoint
+    getNextExpansionCandidates(): Vector2[] {
+        return this.expansionCandidates;
     }
     getBuildSpaceCache(): BuildSpaceCache {
         return this.buildSpaceCache;
@@ -189,8 +193,9 @@ export class MatchAwarenessImpl implements MatchAwareness {
         this.scoutingManager.onGameStart(gameApi, playerData, this.sectorCache);
     }
 
-    onAiUpdate(game: GameApi, playerData: PlayerData): void {
+    onAiUpdate({game, player}: BotContext): void {
         const sectorCache = this.sectorCache;
+        const playerData = player.getPlayerData();
 
         sectorCache.updateSectors(game.getCurrentTick(), SECTORS_TO_UPDATE_PER_CYCLE);
         this.buildSpaceCache.update(game.getCurrentTick());
@@ -263,40 +268,32 @@ export class MatchAwarenessImpl implements MatchAwareness {
 
         // Decide to expand or not
         if (this.buildSpaceCache.isFinished() && game.getCurrentTick() % EXPANSION_UPDATE_INTERVAL_TICKS === 0) {
-            // Find the sector with the least threat, decent money (enough to recoup refinery cost) and far enough away from existing refinery
-            let minThreat = Number.MAX_SAFE_INTEGER;
-            let bestCandidate: Vector2 | null = null;
             // don't expand somewhere near where we can already build
             const ownBuildingVectors = game
                 .getVisibleUnits(playerData.name, "self", (r) => r.baseNormal)
                 .map((id) => game.getGameObjectData(id)).filter((o): o is GameObjectData => !!o)
                 .map((r) => new Vector2(r.tile.rx, r.tile.ry));
-            const candidates = this.buildSpaceCache.findSpace(EXPANSION_MIN_CLEAR_SPACE_TILES);
-            for (const candidate of candidates) {
+            const rawCandidates = this.buildSpaceCache.findSpace(EXPANSION_MIN_CLEAR_SPACE_TILES);
+            this.expansionCandidates = rawCandidates.filter((candidate) => {
                 const cell = this.sectorCache.getCell(candidate.x, candidate.y);
                 if (!cell) {
-                    continue;
-                }
-                if (cell.value.clearSpaceTiles! < EXPANSION_MIN_CLEAR_SPACE_TILES) {
-                    continue;
+                    return false;
                 }
                 if (cell.value.totalMoney && cell.value.totalMoney < EXPANSION_MIN_MONEY) {
-                    continue;
+                    return false;
                 }
                 if (ownBuildingVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_BUILDABLE)) {
-                    continue;
+                    return false;
                 }
                 if (ownBuildingVectors.some((ref) => ref.distanceTo(candidate) < EXPANSION_MIN_DISTANCE_TO_BUILDABLE)) {
-                    continue;
+                    return false;
                 }
-                if (!cell.value.diffuseThreatLevel || cell.value.diffuseThreatLevel > minThreat) {
-                    continue;
+                const tile = game.map.getTile(candidate.x, candidate.y);
+                if (!tile) {
+                    return false;
                 }
-                minThreat = cell.value.diffuseThreatLevel;
-                bestCandidate = candidate;
-            }
-
-            this.expansionPoint = bestCandidate;
+                return true;
+            });
         }
     }
 

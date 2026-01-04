@@ -12,8 +12,19 @@ const MAP_SCALE = 8;
 export type VisualisedBotOpts = {
     outFolder: string;
     tickInterval: number;
+    /**
+     * Render a 'basemap', which shows all of the bot debug information and a representation of the game map.
+     * This is forced to true if any of the subsequent config requires a basemap.
+     */
     includeBaseMap: boolean;
+    /**
+     * Render each of the bot's heatmaps. See `composeHeatmapsOnBaseMap` for configuring how this is actually output.
+     */
     includeHeatmaps: boolean;
+    /**
+     * If true, draw the heatmaps on top of the basemaps. This is very slow as it must copy the base map to each heatmap.
+     */
+    composeHeatmapsOnBaseMap: boolean;
 }
 
 /**
@@ -56,6 +67,10 @@ export class VisualisedBot extends SupalosaBot {
         }
     }
 
+    private useFullScaleHeatmaps() {
+        return this.opts.composeHeatmapsOnBaseMap;
+    }
+
     override onGameTick(game: GameApi) {
         super.onGameTick(game);
 
@@ -70,59 +85,69 @@ export class VisualisedBot extends SupalosaBot {
         const player = game.getPlayerData(this.name);
 
         // Copy from base map canvas to canvas
-        const ctx = this.canvas.getContext("2d");
-        ctx.drawImage(this.baseMapCanvas, 0, 0);
+        const doDrawBaseMap = this.opts.includeBaseMap || this.opts.composeHeatmapsOnBaseMap;
 
-        ctx.font = "30px monospace";
-        ctx.fillStyle = "white";
-        ctx.fillText(`Tick ${game.getCurrentTick()} (${formatTimeDuration(game.getCurrentTick() / 15)})`, 0, 30);
+        if (doDrawBaseMap) {
+            const ctx = this.canvas.getContext("2d");
+            ctx.drawImage(this.baseMapCanvas, 0, 0);
 
-        ctx.fillStyle = "yellow";
-        ctx.fillText(`$${player.credits}, PWR ${player.power.drain} / ${player.power.total}`, 0, 60);
+            ctx.font = "30px monospace";
+            ctx.fillStyle = "white";
+            ctx.fillText(`Tick ${game.getCurrentTick()} (${formatTimeDuration(game.getCurrentTick() / 15)})`, 0, 30);
 
-        this.renderQueueInfo(ctx, game);
+            ctx.fillStyle = "yellow";
+            ctx.fillText(`$${player.credits}, PWR ${player.power.drain} / ${player.power.total}`, 0, 60);
 
-        this.renderResourceOverlay(ctx, game);
-        this.renderUnitInfo(ctx, game);
+            this.renderQueueInfo(ctx, game);
 
-        // draw logger messages
-        ctx.font = "10px monospace";
-        let y = this.yDebugMessagesStart;
-        const lastSeenMessageIndex = this.lastSeenMessage !== null ? this._debugMessages.indexOf(this.lastSeenMessage) : 0;
-        for (const [idx, message] of this._debugMessages.entries()) {
-            if (idx > lastSeenMessageIndex) {
-                ctx.fillStyle = "white";
-            } else {
-                ctx.fillStyle = "grey";
+            this.renderResourceOverlay(ctx, game);
+            this.renderUnitInfo(ctx, game);
+
+            // draw logger messages
+            ctx.font = "10px monospace";
+            let y = this.yDebugMessagesStart;
+            const lastSeenMessageIndex = this.lastSeenMessage !== null ? this._debugMessages.indexOf(this.lastSeenMessage) : 0;
+            for (const [idx, message] of this._debugMessages.entries()) {
+                if (idx > lastSeenMessageIndex) {
+                    ctx.fillStyle = "white";
+                } else {
+                    ctx.fillStyle = "grey";
+                }
+                ctx.fillText(message, 0, y);
+                y += 10;
             }
-            ctx.fillText(message, 0, y);
-            y += 10;
-        }
 
-        // draw debug text
-        ctx.save();
-        ctx.font = "12px monospace";
-        ctx.fillStyle = "white";
-        ctx.textAlign = "right";
-        ctx.fillText(this._globalDebugText, this.canvas.width, 10);
+            // draw debug text
+            ctx.save();
+            ctx.font = "12px monospace";
+            ctx.fillStyle = "white";
+            ctx.textAlign = "right";
+            ctx.fillText(this._globalDebugText, this.canvas.width, 10);
 
-        ctx.restore();
-
-        if (this.opts.includeBaseMap) {
+            ctx.restore();
             fs.writeFileSync(this.opts.outFolder + `tick-${game.getCurrentTick()}.png`, this.canvas.toBuffer("image/png"));
         }
 
         // repeat for any grid caches
         if (this.opts.includeHeatmaps) {
+            const { width: mapWidth, height: mapHeight } = game.mapApi.getRealMapSize();
+            const heatmapWidth = this.useFullScaleHeatmaps() ? this.canvas.width : mapWidth;
+            const heatmapHeight = this.useFullScaleHeatmaps() ? this.canvas.height : mapHeight;
             for (const { grid, tag }  of this._debugGridCaches) {
-                const gridCanvas = createCanvas(this.canvas.width, this.canvas.height);
+                const gridCanvas = createCanvas(heatmapWidth, heatmapHeight);
                 const gridCtx = gridCanvas.getContext('2d');
-                gridCtx.drawImage(this.canvas, 0, 0);
+                if (this.opts.composeHeatmapsOnBaseMap) {
+                    gridCtx.drawImage(this.canvas, 0, 0);
+                    gridCtx.font = "30px monospace";
+                    gridCtx.fillStyle = "white";
+                    gridCtx.fillText(tag, 300, 30);
+                } else {
+                    gridCtx.font = "10px monospace";
+                    gridCtx.fillStyle = "black";
+                    gridCtx.fillText(tag, 0, 10);
+                    gridCtx.fillText(`Tick ${game.getCurrentTick()} (${formatTimeDuration(game.getCurrentTick() / 15)})`, 0, 20);
+                }
                 
-                gridCtx.font = "30px monospace";
-                gridCtx.fillStyle = "white";
-                gridCtx.fillText(tag, 300, 30);
-
                 this.renderGridCache(gridCtx, game, grid);
                 fs.writeFileSync(this.opts.outFolder + `${tag}-tick-${game.getCurrentTick()}.png`, gridCanvas.toBuffer("image/png"));
             }
@@ -265,6 +290,9 @@ export class VisualisedBot extends SupalosaBot {
     private renderGridCache(ctx: CanvasRenderingContext2D, game: GameApi, gridCache: IncrementalGridCache<any>) {
         ctx.save();
 
+        // no need to scale if only drawing the heatmap
+        const pixelScale = this.opts.composeHeatmapsOnBaseMap ? MAP_SCALE: 1;
+
         const gridScale = gridCache._renderScale();
 
         gridCache.forEach((x, y, cell) => {
@@ -278,7 +306,7 @@ export class VisualisedBot extends SupalosaBot {
                 const [r, g, b] = fromRGBNum(debugCell.color);
                 ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
             }
-            ctx.fillRect(x * MAP_SCALE, y * MAP_SCALE, gridScale * MAP_SCALE, gridScale * MAP_SCALE);
+            ctx.fillRect(x * pixelScale, y * pixelScale, gridScale * pixelScale, gridScale * pixelScale);
         });
         ctx.restore();
     }

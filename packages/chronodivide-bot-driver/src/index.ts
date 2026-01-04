@@ -9,10 +9,11 @@ const MAX_GAME_LENGTH_SECONDS: number | null = 7200; // 7200 = two hours\
 
 const VISUAL_DEBUG_OPTS: VisualisedBotOpts = {
     outFolder: "debug/",
-    tickInterval: 15 * 30,
+    tickInterval: 15 * 60,
     includeHeatmaps: true,
     includeBaseMap: false,
-}
+    composeHeatmapsOnBaseMap: false,
+};
 
 async function main() {
     /*
@@ -76,9 +77,9 @@ async function main() {
         serverUrl: process.env.SERVER_URL!,
         clientUrl: process.env.CLIENT_URL!,
         agents: [
-            new SupalosaBot(process.env.ONLINE_BOT_NAME ?? botName1, Countries.USA),
+            new VisualisedBot(VISUAL_DEBUG_OPTS, process.env.ONLINE_BOT_NAME ?? botName1, Countries.USA),
             { name: process.env.PLAYER_NAME ?? botName2, country: Countries.FRANCE },
-        ] as [Bot, ...Agent[]],
+        ],
         botPassword: process.env.ONLINE_BOT_PASSWORD ?? "default",
     };
 

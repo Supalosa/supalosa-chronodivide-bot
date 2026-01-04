@@ -79,7 +79,7 @@ export class SupalosaBot extends Bot {
         if (game.getCurrentTick() % this.tickRatio! === 0) {
             const myPlayer = game.getPlayerData(this.name);
 
-            this.matchAwareness.onAiUpdate(game, myPlayer);
+            this.matchAwareness.onAiUpdate(this.context);
 
             // hacky resign condition
             const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
