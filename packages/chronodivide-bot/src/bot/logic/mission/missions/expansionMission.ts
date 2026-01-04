@@ -72,10 +72,10 @@ export class ExpansionMission extends Mission {
             }
             return requestUnits(mcvTypes, this.priority);
         }
-        // use the highest-hp MCV
 
+        // use the highest-hp MCV
         const selectedMcvUnit = maxBy(mcvs, (mcv) => mcv.hitPoints)!;
-        this.selectedMcvId = selectedMcvUnit.id ?? null;
+        this.selectedMcvId = selectedMcvUnit?.id ?? null;
 
         if (this.destination) {
             return this.moveMcvToDestination(
@@ -94,11 +94,15 @@ export class ExpansionMission extends Mission {
                 .filter((t) =>
                     reachabilityMap.isReachable(toPathNode(selectedMcvUnit.tile, false), toPathNode(t, false)),
                 );
-            this.destination = toVector2(
-                minBy(reachableCandidates, (candidate) => {
+            const closestReachableCandidate = minBy(reachableCandidates, (candidate) => {
                     return toVector2(selectedMcvUnit.tile).distanceTo(toVector2(candidate));
-                })!,
-            );
+                });
+            if (!closestReachableCandidate) {
+                // can't reach any candidates yet, return to start location
+                this.destination = playerData.startLocation;
+            } else {
+                this.destination = toVector2(closestReachableCandidate);
+            }
             return noop();
         }
     }

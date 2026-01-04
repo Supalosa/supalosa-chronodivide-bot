@@ -9,10 +9,11 @@ import {
     Vector2,
 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../awareness.js";
-import { DebugLogger } from "../common/utils.js";
+import { countBy, DebugLogger } from "../common/utils.js";
 import { ActionBatcher } from "./actionBatcher.js";
 import { getDistanceBetweenTileAndPoint } from "../map/map.js";
 import { getCachedTechnoRules } from "../common/rulesCache.js";
+import { UnitComposition } from "../composition/common.js";
 
 const calculateCenterOfMass: (unitTiles: Tile[]) => {
     centerOfMass: Vector2;
@@ -140,6 +141,15 @@ export abstract class Mission<FailureReasons = undefined> {
             .filter((entry): entry is ValidEntry => entry.rules !== null)
             .filter(({ rules }) => filter(rules))
             .map(({ unitId }) => unitId);
+    }
+
+    protected getMissingUnits(gameApi: GameApi, targetComposition: UnitComposition): [string, number][] {
+        const currentComposition: UnitComposition = countBy(this.getUnitsGameObjectData(gameApi), (unit) => unit.name);
+        return Object.entries(targetComposition)
+            .filter(([unitType, targetAmount]) => {
+                return !currentComposition[unitType] || currentComposition[unitType] < targetAmount;
+            })
+            .filter(([unitType, targetAmount]) => targetAmount > 0);
     }
 
     public getCenterOfMass() {
