@@ -3,6 +3,7 @@ import { ActionsApi, BotContext, GameApi, OrderType, PlayerData, Vector2 } from 
 import { Mission, MissionAction, disbandMission, requestSpecificUnits } from "../mission.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { MatchAwareness } from "../../awareness.js";
+import { MissionContext } from "../../common/context.js";
 
 export class RetreatMission extends Mission {
     private createdAt: number | null = null;
@@ -16,11 +17,7 @@ export class RetreatMission extends Mission {
         super(uniqueName, logger);
     }
 
-    public _onAiUpdate(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
+    public _onAiUpdate(context: MissionContext): MissionAction {
         const gameApi = context.game;
         const actionsApi = context.player.actions;
         if (!this.createdAt) {

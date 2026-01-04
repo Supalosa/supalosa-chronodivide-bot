@@ -20,6 +20,7 @@ import { getAdjacencyTiles } from "../../building/buildingRules.js";
 import { computeAdjacentRect, getAdjacentTiles } from "../../common/tileUtils.js";
 import { UnitComposition } from "../../composition/common.js";
 import { fail } from "assert";
+import { MissionContext, SupabotContext } from "../../common/context.js";
 
 const CAPTURE_COOLDOWN_TICKS = 30;
 
@@ -52,11 +53,7 @@ export class EngineerMission extends Mission {
         return this.captureTargetId;
     }
 
-    public _onAiUpdate(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
+    public _onAiUpdate(context: MissionContext): MissionAction {
         const gameApi = context.game;
         const actionsApi = context.player.actions;
         const playerData = gameApi.getPlayerData(context.player.name);
@@ -89,12 +86,18 @@ export class EngineerMission extends Mission {
             }
             const missingUnits = this.getMissingUnits(gameApi, composition);
             if (missingUnits.length > 0) {
-                return requestUnits(missingUnits.map(([unitName]) => unitName), this.priority);
+                return requestUnits(
+                    missingUnits.map(([unitName]) => unitName),
+                    this.priority,
+                );
             }
             this.state = EngineerMissionState.Capturing;
         }
-        
-        if (this.state === EngineerMissionState.Capturing && gameApi.getCurrentTick() > this.lastCaptureAttemptTick + CAPTURE_COOLDOWN_TICKS) {
+
+        if (
+            this.state === EngineerMissionState.Capturing &&
+            gameApi.getCurrentTick() > this.lastCaptureAttemptTick + CAPTURE_COOLDOWN_TICKS
+        ) {
             const engineer = engineers[0];
             if (!canReachStructure(gameApi, engineer, target)) {
                 return disbandMission(NO_PATH);
@@ -102,7 +105,11 @@ export class EngineerMission extends Mission {
             actionsApi.orderUnits([engineer.id], OrderType.Capture, this.captureTargetId);
             const escortUnits = this.getUnitsOfTypes(gameApi, "DOG", "HTNK", "ADOG", "MTNK");
             if (escortUnits.length > 0) {
-                actionsApi.orderUnits(escortUnits.map(u => u.id), OrderType.Guard, engineer.id);
+                actionsApi.orderUnits(
+                    escortUnits.map((u) => u.id),
+                    OrderType.Guard,
+                    engineer.id,
+                );
             }
             // Add a cooldown to deploy attempts.
             this.lastCaptureAttemptTick = gameApi.getCurrentTick();
@@ -146,12 +153,7 @@ export class EngineerMissionFactory implements MissionFactory {
         return "EngineerMissionFactory";
     }
 
-    maybeCreateMissions(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
+    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
         const gameApi = context.game;
         const actionsApi = context.player.actions;
         const playerData = gameApi.getPlayerData(context.player.name);
@@ -166,7 +168,10 @@ export class EngineerMissionFactory implements MissionFactory {
         );
 
         eligibleTechBuildings.forEach((techBuildingId) => {
-            if (this.lostEngineerCounts[techBuildingId] >= MAX_CAPTURE_ATTEMPT_COUNT || this.noPathCounts[techBuildingId] >= MAX_CAPTURE_ATTEMPT_COUNT) {
+            if (
+                this.lostEngineerCounts[techBuildingId] >= MAX_CAPTURE_ATTEMPT_COUNT ||
+                this.noPathCounts[techBuildingId] >= MAX_CAPTURE_ATTEMPT_COUNT
+            ) {
                 return;
             }
             const escortLevel = (this.lostEngineerCounts[techBuildingId] ?? 0) + 1;
@@ -177,8 +182,7 @@ export class EngineerMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         failedMission: Mission<any>,
         failureReason: any,
         missionController: MissionController,
@@ -187,7 +191,8 @@ export class EngineerMissionFactory implements MissionFactory {
             return;
         }
         if (failureReason === LOST_ENGINEER) {
-            this.lostEngineerCounts[failedMission.targetId] = (this.lostEngineerCounts[failedMission.targetId] ?? 0) + 1;
+            this.lostEngineerCounts[failedMission.targetId] =
+                (this.lostEngineerCounts[failedMission.targetId] ?? 0) + 1;
         } else if (failureReason === NO_PATH) {
             this.noPathCounts[failedMission.targetId] = (this.noPathCounts[failedMission.targetId] ?? 0) + 1;
         }

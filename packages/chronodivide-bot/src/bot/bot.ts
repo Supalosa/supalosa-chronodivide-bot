@@ -5,6 +5,7 @@ import { QueueController } from "./logic/building/queueController.js";
 import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { Countries, formatTimeDuration } from "./logic/common/utils.js";
 import { IncrementalGridCache } from "./logic/map/incrementalGridCache.js";
+import { SupabotContext } from "./logic/common/context.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -81,6 +82,11 @@ export class SupalosaBot extends Bot {
 
             this.matchAwareness.onAiUpdate(this.context);
 
+            const fullContext: SupabotContext = {
+                ...this.context,
+                matchAwareness: this.matchAwareness,
+            };
+
             // hacky resign condition
             const armyUnits = game.getVisibleUnits(this.name, "self", (r) => r.isSelectableCombatant);
             const mcvUnits = game.getVisibleUnits(
@@ -95,12 +101,12 @@ export class SupalosaBot extends Bot {
             );
             if (armyUnits.length == 0 && productionBuildings.length == 0 && mcvUnits.length == 0) {
                 this.logBotStatus(`No army or production left, quitting.`);
-                this.actionsApi.quitGame();
+                this.context.player.actions.quitGame();
             }
 
             // Mission logic every 3 ticks
-            if (this.gameApi.getCurrentTick() % 3 === 0) {
-                this.missionController.onAiUpdate(this.context, this.matchAwareness);
+            if (this.context.game.getCurrentTick() % 3 === 0) {
+                this.missionController.onAiUpdate(fullContext);
             }
 
             const unitTypeRequests = this.missionController.getRequestedUnitTypes();

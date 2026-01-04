@@ -21,6 +21,7 @@ import { DebugLogger, isTechnoRulesObject, maxBy, minBy, toPathNode, toVector2 }
 import { ActionBatcher } from "../actionBatcher.js";
 import { getCachedTechnoRules } from "../../common/rulesCache.js";
 import { canBuildOnTile } from "../../common/tileUtils.js";
+import { MissionContext, SupabotContext } from "../../common/context.js";
 
 const ORDER_COOLDOWN_TICKS = 60;
 
@@ -54,12 +55,8 @@ export class ExpansionMission extends Mission {
         }
     }
 
-    public _onAiUpdate(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
-        const gameApi = context.game;
+    public _onAiUpdate(context: MissionContext): MissionAction {
+        const { game: gameApi, matchAwareness, actionBatcher } = context;
         const actionsApi = context.player.actions;
         const playerData = context.game.getPlayerData(context.player.name);
         const mcvs = this.getUnitsOfTypes(gameApi, ...mcvTypes);
@@ -97,8 +94,8 @@ export class ExpansionMission extends Mission {
                     reachabilityMap.isReachable(toPathNode(selectedMcvUnit.tile, false), toPathNode(t, false)),
                 );
             const closestReachableCandidate = minBy(reachableCandidates, (candidate) => {
-                    return toVector2(selectedMcvUnit.tile).distanceTo(toVector2(candidate));
-                });
+                return toVector2(selectedMcvUnit.tile).distanceTo(toVector2(candidate));
+            });
             if (!closestReachableCandidate) {
                 // can't reach any candidates yet, return to start location
                 this.destination = playerData.startLocation;
@@ -237,11 +234,7 @@ export class PackConyardMission extends Mission {
         super(uniqueName, logger);
     }
 
-    public _onAiUpdate(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
+    public _onAiUpdate(context: MissionContext): MissionAction {
         const gameApi = context.game;
         const actionsApi = context.player.actions;
         const conyardOrMcv = gameApi.getGameObjectData(this.conyardId);
@@ -271,13 +264,8 @@ export class ExpansionMissionFactory implements MissionFactory {
         return "ExpansionMissionFactory";
     }
 
-    maybeCreateMissions(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        const { game: gameApi, player } = context;
+    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+        const { game: gameApi, player, matchAwareness } = context;
         const playerData = gameApi.getPlayerData(player.name);
         const mcvs = gameApi.getVisibleUnits(player.name, "self", (r) =>
             gameApi.getGeneralRules().baseUnit.includes(r.name),
@@ -340,8 +328,7 @@ export class ExpansionMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,

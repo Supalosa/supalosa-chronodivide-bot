@@ -1,7 +1,17 @@
 // Meta-controller for forming and controlling missions.
 // Missions are groups of zero or more units that aim to accomplish a particular goal.
 
-import { ActionsApi, Bot, BotContext, GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    Bot,
+    BotContext,
+    GameApi,
+    GameObjectData,
+    ObjectType,
+    PlayerData,
+    UnitData,
+    Vector2,
+} from "@chronodivide/game-api";
 import {
     Mission,
     MissionAction,
@@ -22,6 +32,7 @@ import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 import { ActionBatcher } from "./actionBatcher.js";
 import { countBy, isSelectableCombatant } from "../common/utils.js";
 import { Squad } from "./missions/squads/squad.js";
+import { MissionContext, SupabotContext } from "../common/context.js";
 
 // `missingUnitTypes` priority decays by this much every update loop.
 const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
@@ -65,10 +76,7 @@ export class MissionController {
         });
     }
 
-    public onAiUpdate(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-    ) {
+    public onAiUpdate(context: SupabotContext) {
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
 
@@ -77,10 +85,15 @@ export class MissionController {
         // Batch actions to reduce spamming of actions for larger armies.
         const actionBatcher = new ActionBatcher();
 
+        const missionContext = {
+            ...context,
+            actionBatcher,
+        } satisfies MissionContext;
+
         // Poll missions for requested actions.
         const missionActions: MissionWithAction<any>[] = this.missions.map((mission) => ({
             mission,
-            action: mission.onAiUpdate(context, matchAwareness, actionBatcher),
+            action: mission.onAiUpdate(missionContext),
         }));
 
         // Handle disbands and merges.
@@ -301,9 +314,9 @@ export class MissionController {
 
         // Create dynamic missions.
         this.missionFactories.forEach((missionFactory) => {
-            missionFactory.maybeCreateMissions(context, matchAwareness, this, this.logger);
+            missionFactory.maybeCreateMissions(context, this, this.logger);
             disbandedMissionsArray.forEach(({ reason, mission }) => {
-                missionFactory.onMissionFailed(context, matchAwareness, mission, reason, this, this.logger);
+                missionFactory.onMissionFailed(context, mission, reason, this, this.logger);
             });
         });
     }

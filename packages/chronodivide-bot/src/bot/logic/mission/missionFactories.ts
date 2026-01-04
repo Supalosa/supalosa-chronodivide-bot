@@ -8,6 +8,7 @@ import { MissionController } from "./missionController.js";
 import { DefenceMissionFactory } from "./missions/defenceMission.js";
 import { DebugLogger } from "../common/utils.js";
 import { EngineerMissionFactory } from "./missions/engineerMission.js";
+import { SupabotContext } from "../common/context.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -20,8 +21,7 @@ export interface MissionFactory {
      * @param missionController
      */
     maybeCreateMissions(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         missionController: MissionController,
         logger: DebugLogger,
     ): void;
@@ -30,8 +30,7 @@ export interface MissionFactory {
      * Called when any mission fails - can be used to trigger another mission in response.
      */
     onMissionFailed(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         failedMission: Mission<any>,
         failureReason: any,
         missionController: MissionController,

@@ -6,6 +6,7 @@ import { MissionFactory } from "../missionFactories.js";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { DebugLogger, isOwnedByNeutral } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
+import { MissionContext, SupabotContext } from "../../common/context.js";
 
 export const MAX_PRIORITY = 100;
 export const PRIORITY_INCREASE_PER_TICK_RATIO = 1.025;
@@ -28,12 +29,8 @@ export class DefenceMission extends Mission<CombatSquad> {
         this.squad = new CombatSquad(rallyArea, defenceArea, radius);
     }
 
-    _onAiUpdate(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
-        const gameApi = context.game;
+    _onAiUpdate(context: MissionContext): MissionAction {
+        const { game: gameApi, actionBatcher, matchAwareness } = context;
         const playerData = gameApi.getPlayerData(context.player.name);
         // Dispatch missions.
         const foundTargets = matchAwareness
@@ -41,13 +38,7 @@ export class DefenceMission extends Mission<CombatSquad> {
             .map((unit) => gameApi.getUnitData(unit.unitId))
             .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
-        const update = this.squad.onAiUpdate(
-            context,
-            actionBatcher,
-            this,
-            matchAwareness,
-            this.logger,
-        );
+        const update = this.squad.onAiUpdate(context, actionBatcher, this, matchAwareness, this.logger);
 
         if (update.type !== "noop") {
             return update;
@@ -100,13 +91,8 @@ export class DefenceMissionFactory implements MissionFactory {
         return "DefenceMissionFactory";
     }
 
-    maybeCreateMissions(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        const gameApi = context.game;
+    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+        const { game: gameApi, matchAwareness } = context;
         const playerData = gameApi.getPlayerData(context.player.name);
         if (gameApi.getCurrentTick() < this.lastDefenceCheckAt + DEFENCE_CHECK_TICKS) {
             return;
@@ -140,8 +126,7 @@ export class DefenceMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,

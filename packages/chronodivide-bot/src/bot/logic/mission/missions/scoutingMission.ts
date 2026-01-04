@@ -8,6 +8,7 @@ import { DebugLogger } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getDistanceBetweenTileAndPoint } from "../../map/map.js";
 import { PrioritisedScoutTarget } from "../../common/scout.js";
+import { MissionContext, SupabotContext } from "../../common/context.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -41,12 +42,8 @@ export class ScoutingMission extends Mission {
         super(uniqueName, logger);
     }
 
-    public _onAiUpdate(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
-        const gameApi = context.game;
+    public _onAiUpdate(context: MissionContext): MissionAction {
+        const { game: gameApi, matchAwareness } = context;
         const actionsApi = context.player.actions;
         const playerData = gameApi.getPlayerData(context.player.name);
         const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
@@ -146,15 +143,8 @@ export class ScoutingMissionFactory implements MissionFactory {
         return "ScoutingMissionFactory";
     }
 
-    maybeCreateMissions(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        const gameApi = context.game;
-        const actionsApi = context.player.actions;
-        const playerData = gameApi.getPlayerData(context.player.name);
+    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+        const { game: gameApi, matchAwareness } = context;
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
             return;
         }
@@ -167,14 +157,13 @@ export class ScoutingMissionFactory implements MissionFactory {
     }
 
     onMissionFailed(
-        context: BotContext,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
-        const gameApi = context.game;
+        const { game: gameApi, matchAwareness } = context;
         const actionsApi = context.player.actions;
         const playerData = gameApi.getPlayerData(context.player.name);
         if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
