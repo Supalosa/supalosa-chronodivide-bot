@@ -91,12 +91,7 @@ export class AttackMission extends Mission<AttackFailReason> {
         matchAwareness: MatchAwareness,
         actionBatcher: ActionBatcher,
     ) {
-        const currentComposition: UnitComposition = countBy(this.getUnitsGameObjectData(gameApi), (unit) => unit.name);
-
-        const missingUnits = Object.entries(this.composition).filter(([unitType, targetAmount]) => {
-            return !currentComposition[unitType] || currentComposition[unitType] < targetAmount;
-        });
-
+        const missingUnits = this.getMissingUnits(gameApi, this.composition);
         if (missingUnits.length > 0) {
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
             return requestUnits(
