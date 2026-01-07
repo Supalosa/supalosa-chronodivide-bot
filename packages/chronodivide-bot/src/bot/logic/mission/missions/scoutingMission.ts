@@ -1,4 +1,4 @@
-import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
@@ -8,6 +8,7 @@ import { DebugLogger } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { getDistanceBetweenTileAndPoint } from "../../map/map.js";
 import { PrioritisedScoutTarget } from "../../common/scout.js";
+import { MissionContext, SupabotContext } from "../../common/context.js";
 
 const SCOUT_MOVE_COOLDOWN_TICKS = 30;
 
@@ -41,15 +42,12 @@ export class ScoutingMission extends Mission {
         super(uniqueName, logger);
     }
 
-    public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
+    public _onAiUpdate(context: MissionContext): MissionAction {
+        const { game, matchAwareness } = context;
+        const actionsApi = context.player.actions;
+        const playerData = game.getPlayerData(context.player.name);
         const scoutNames = ["ADOG", "DOG", "E1", "E2", "FV", "HTK"];
-        const scouts = this.getUnitsOfTypes(gameApi, ...scoutNames);
+        const scouts = this.getUnitsOfTypes(game, ...scoutNames);
 
         if ((matchAwareness.getSectorCache().getOverallVisibility() || 0) > 0.9) {
             return disbandMission();
@@ -72,7 +70,7 @@ export class ScoutingMission extends Mission {
                     this.setScoutTarget(null, 0);
                     return noop();
                 }
-                if (gameApi.getCurrentTick() > this.scoutTargetRefreshedAt + MAX_TICKS_PER_TARGET) {
+                if (game.getCurrentTick() > this.scoutTargetRefreshedAt + MAX_TICKS_PER_TARGET) {
                     this.logger(
                         `Scout target ${this.scoutTarget.x},${this.scoutTarget.y} took too long, moving to next`,
                     );
@@ -80,12 +78,12 @@ export class ScoutingMission extends Mission {
                     return noop();
                 }
             }
-            const targetTile = gameApi.mapApi.getTile(this.scoutTarget.x, this.scoutTarget.y);
+            const targetTile = game.mapApi.getTile(this.scoutTarget.x, this.scoutTarget.y);
             if (!targetTile) {
                 throw new Error(`target tile ${this.scoutTarget.x},${this.scoutTarget.y} does not exist`);
             }
-            if (gameApi.getCurrentTick() > this.lastMoveCommandTick + SCOUT_MOVE_COOLDOWN_TICKS) {
-                this.lastMoveCommandTick = gameApi.getCurrentTick();
+            if (game.getCurrentTick() > this.lastMoveCommandTick + SCOUT_MOVE_COOLDOWN_TICKS) {
+                this.lastMoveCommandTick = game.getCurrentTick();
                 scouts.forEach((unit) => {
                     if (this.scoutTarget) {
                         actionsApi.orderUnits([unit.id], OrderType.AttackMove, this.scoutTarget.x, this.scoutTarget.y);
@@ -98,15 +96,15 @@ export class ScoutingMission extends Mission {
                     this.logger(
                         `Scout timeout refreshed because unit moved closer to point (${newMinDistance} < ${this.scoutMinDistance})`,
                     );
-                    this.scoutTargetRefreshedAt = gameApi.getCurrentTick();
+                    this.scoutTargetRefreshedAt = game.getCurrentTick();
                     this.scoutMinDistance = newMinDistance;
                 }
             }
-            if (gameApi.mapApi.isVisibleTile(targetTile, playerData.name)) {
+            if (game.mapApi.isVisibleTile(targetTile, playerData.name)) {
                 this.logger(
                     `Scout target ${this.scoutTarget.x},${this.scoutTarget.y} successfully scouted, moving to next`,
                 );
-                this.setScoutTarget(null, gameApi.getCurrentTick());
+                this.setScoutTarget(null, game.getCurrentTick());
             }
         } else {
             const nextScoutTarget = matchAwareness.getScoutingManager().getNewScoutTarget();
@@ -114,7 +112,7 @@ export class ScoutingMission extends Mission {
                 this.logger(`No more scouting targets available, disbanding.`);
                 return disbandMission();
             }
-            this.setScoutTarget(nextScoutTarget, gameApi.getCurrentTick());
+            this.setScoutTarget(nextScoutTarget, game.getCurrentTick());
         }
         return noop();
     }
@@ -145,34 +143,30 @@ export class ScoutingMissionFactory implements MissionFactory {
         return "ScoutingMissionFactory";
     }
 
-    maybeCreateMissions(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
+    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+        const { game, matchAwareness } = context;
+        if (game.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
             return;
         }
         if (!matchAwareness.getScoutingManager().hasScoutTargets()) {
             return;
         }
         if (!missionController.addMission(new ScoutingMission("globalScout", 10, logger))) {
-            this.lastScoutAt = gameApi.getCurrentTick();
+            this.lastScoutAt = game.getCurrentTick();
         }
     }
 
     onMissionFailed(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,
         logger: DebugLogger,
     ): void {
-        if (gameApi.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
+        const { game, matchAwareness } = context;
+        const actionsApi = context.player.actions;
+        const playerData = game.getPlayerData(context.player.name);
+        if (game.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
             return;
         }
         if (!matchAwareness.getScoutingManager().hasScoutTargets()) {
@@ -180,7 +174,7 @@ export class ScoutingMissionFactory implements MissionFactory {
         }
         if (failedMission instanceof AttackMission) {
             missionController.addMission(new ScoutingMission("globalScout", 10, logger));
-            this.lastScoutAt = gameApi.getCurrentTick();
+            this.lastScoutAt = game.getCurrentTick();
         }
     }
 }

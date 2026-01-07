@@ -1,7 +1,17 @@
 // Meta-controller for forming and controlling missions.
 // Missions are groups of zero or more units that aim to accomplish a particular goal.
 
-import { ActionsApi, GameApi, GameObjectData, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import {
+    ActionsApi,
+    Bot,
+    BotContext,
+    GameApi,
+    GameObjectData,
+    ObjectType,
+    PlayerData,
+    UnitData,
+    Vector2,
+} from "@chronodivide/game-api";
 import {
     Mission,
     MissionAction,
@@ -22,6 +32,7 @@ import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 import { ActionBatcher } from "./actionBatcher.js";
 import { countBy, isSelectableCombatant } from "../common/utils.js";
 import { Squad } from "./missions/squads/squad.js";
+import { MissionContext, SupabotContext } from "../common/context.js";
 
 // `missingUnitTypes` priority decays by this much every update loop.
 const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
@@ -46,7 +57,7 @@ export class MissionController {
         this.missionFactories = createMissionFactories();
     }
 
-    private updateUnitIds(gameApi: GameApi) {
+    private updateUnitIds(botContext: BotContext) {
         // Check for units in multiple missions, this shouldn't happen.
         this.unitIdToMission = new Map();
         this.missions.forEach((mission) => {
@@ -54,7 +65,7 @@ export class MissionController {
             mission.getUnitIds().forEach((unitId) => {
                 if (this.unitIdToMission.has(unitId)) {
                     this.logger(`WARNING: unit ${unitId} is in multiple missions, please debug.`);
-                } else if (!gameApi.getGameObjectData(unitId)) {
+                } else if (!botContext.game.getGameObjectData(unitId)) {
                     // say, if a unit was killed
                     toRemove.push(unitId);
                 } else {
@@ -65,24 +76,24 @@ export class MissionController {
         });
     }
 
-    public onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-    ) {
+    public onAiUpdate(context: SupabotContext) {
         // Remove inactive missions.
         this.missions = this.missions.filter((missions) => missions.isActive());
 
-        this.updateUnitIds(gameApi);
+        this.updateUnitIds(context);
 
         // Batch actions to reduce spamming of actions for larger armies.
         const actionBatcher = new ActionBatcher();
 
+        const missionContext = {
+            ...context,
+            actionBatcher,
+        } satisfies MissionContext;
+
         // Poll missions for requested actions.
         const missionActions: MissionWithAction<any>[] = this.missions.map((mission) => ({
             mission,
-            action: mission.onAiUpdate(gameApi, actionsApi, playerData, matchAwareness, actionBatcher),
+            action: mission.onAiUpdate(missionContext),
         }));
 
         // Handle disbands and merges.
@@ -94,7 +105,7 @@ export class MissionController {
             this.logger(`Mission ${a.mission.getUniqueName()} disbanding as requested.`);
             a.mission.getUnitIds().forEach((unitId) => {
                 this.unitIdToMission.delete(unitId);
-                actionsApi.setUnitDebugText(unitId, undefined);
+                context.player.actions.setUnitDebugText(unitId, undefined);
             });
             disbandedMissions.set(a.mission.getUniqueName(), (a.action as MissionActionDisband).reason);
         });
@@ -105,7 +116,7 @@ export class MissionController {
         missionActions.filter(isReleaseUnits).forEach((a) => {
             a.action.unitIds.forEach((unitId) => {
                 if (this.unitIdToMission.get(unitId)?.getUniqueName() === a.mission.getUniqueName()) {
-                    this.removeUnitFromMission(a.mission, unitId, actionsApi);
+                    this.removeUnitFromMission(a.mission, unitId, context.player.actions);
                 }
             });
         });
@@ -132,7 +143,7 @@ export class MissionController {
         const newMissionAssignments = Object.entries(unitIdToHighestRequest)
             .flatMap(([id, request]) => {
                 const unitId = Number.parseInt(id);
-                const unit = gameApi.getGameObjectData(unitId);
+                const unit = context.game.getGameObjectData(unitId);
                 const { mission: requestingMission } = request;
                 const missionName = requestingMission.getUniqueName();
                 if (!unit) {
@@ -140,7 +151,7 @@ export class MissionController {
                     return [];
                 }
                 if (!this.unitIdToMission.has(unitId)) {
-                    this.addUnitToMission(requestingMission, unit, actionsApi);
+                    this.addUnitToMission(requestingMission, unit, context.player.actions);
                     return [{ unitName: unit?.name, mission: requestingMission.getUniqueName() }];
                 }
                 return [];
@@ -188,14 +199,14 @@ export class MissionController {
         const grabRequests = missionActions.filter(isGrabCombatants);
 
         // Find un-assigned units and distribute them among all the requesting missions.
-        const unitIds = gameApi.getVisibleUnits(playerData.name, "self");
+        const unitIds = context.game.getVisibleUnits(context.player.name, "self");
         type UnitWithMission = {
             unit: GameObjectData;
             mission: Mission<any> | undefined;
         };
         // List of units that are unassigned or not in a locked mission.
         const freeUnits: UnitWithMission[] = unitIds
-            .map((unitId) => gameApi.getGameObjectData(unitId))
+            .map((unitId) => context.game.getGameObjectData(unitId))
             .filter((unit): unit is GameObjectData => !!unit)
             .map((unit) => ({
                 unit,
@@ -218,12 +229,12 @@ export class MissionController {
                         ) {
                             return [];
                         }
-                        this.removeUnitFromMission(donatingMission, freeUnit.id, actionsApi);
+                        this.removeUnitFromMission(donatingMission, freeUnit.id, context.player.actions);
                     }
                     this.logger(
                         `granting unit ${freeUnit.id}#${freeUnit.name} to mission ${requestingMission.getUniqueName()}`,
                     );
-                    this.addUnitToMission(requestingMission, freeUnit, actionsApi);
+                    this.addUnitToMission(requestingMission, freeUnit, context.player.actions);
                     delete unitTypeToHighestRequest[freeUnit.name];
                     return [
                         { unitName: freeUnit.name, missionName: requestingMission.getUniqueName(), method: "type" },
@@ -245,9 +256,9 @@ export class MissionController {
                             ) {
                                 return [];
                             }
-                            this.removeUnitFromMission(donatingMission, freeUnit.id, actionsApi);
+                            this.removeUnitFromMission(donatingMission, freeUnit.id, context.player.actions);
                         }
-                        this.addUnitToMission(grantedMission.mission, freeUnit, actionsApi);
+                        this.addUnitToMission(grantedMission.mission, freeUnit, context.player.actions);
                         return [
                             {
                                 unitName: freeUnit.name,
@@ -288,7 +299,7 @@ export class MissionController {
         this.updateRequestedUnitTypes(unitTypeToHighestRequest);
 
         // Send all actions that can be batched together.
-        actionBatcher.resolve(actionsApi);
+        actionBatcher.resolve(context.player.actions);
 
         // Remove disbanded and merged missions.
         this.missions
@@ -303,9 +314,9 @@ export class MissionController {
 
         // Create dynamic missions.
         this.missionFactories.forEach((missionFactory) => {
-            missionFactory.maybeCreateMissions(gameApi, playerData, matchAwareness, this, this.logger);
+            missionFactory.maybeCreateMissions(context, this, this.logger);
             disbandedMissionsArray.forEach(({ reason, mission }) => {
-                missionFactory.onMissionFailed(gameApi, playerData, matchAwareness, mission, reason, this, this.logger);
+                missionFactory.onMissionFailed(context, mission, reason, this, this.logger);
             });
         });
     }

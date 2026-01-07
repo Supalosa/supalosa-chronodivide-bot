@@ -1,4 +1,4 @@
-import { GameApi, PlayerData } from "@chronodivide/game-api";
+import { BotContext, GameApi, PlayerData } from "@chronodivide/game-api";
 import { ExpansionMissionFactory } from "./missions/expansionMission.js";
 import { Mission } from "./mission.js";
 import { MatchAwareness } from "../awareness.js";
@@ -8,6 +8,7 @@ import { MissionController } from "./missionController.js";
 import { DefenceMissionFactory } from "./missions/defenceMission.js";
 import { DebugLogger } from "../common/utils.js";
 import { EngineerMissionFactory } from "./missions/engineerMission.js";
+import { SupabotContext } from "../common/context.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -15,15 +16,12 @@ export interface MissionFactory {
     /**
      * Queries the factory for new missions to be spawned.
      *
-     * @param gameApi
-     * @param playerData
+     * @param context
      * @param matchAwareness
      * @param missionController
      */
     maybeCreateMissions(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         missionController: MissionController,
         logger: DebugLogger,
     ): void;
@@ -32,9 +30,7 @@ export interface MissionFactory {
      * Called when any mission fails - can be used to trigger another mission in response.
      */
     onMissionFailed(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         failedMission: Mission<any>,
         failureReason: any,
         missionController: MissionController,
@@ -48,4 +44,4 @@ export const createMissionFactories = () => [
     new AttackMissionFactory(),
     new DefenceMissionFactory(),
     new EngineerMissionFactory(),
-];
+] satisfies MissionFactory[];

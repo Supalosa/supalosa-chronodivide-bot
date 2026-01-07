@@ -1,5 +1,6 @@
 import {
     ActionsApi,
+    BotContext,
     Box2,
     GameApi,
     GameMath,
@@ -20,6 +21,7 @@ import { DebugLogger, isTechnoRulesObject, maxBy, minBy, toPathNode, toVector2 }
 import { ActionBatcher } from "../actionBatcher.js";
 import { getCachedTechnoRules } from "../../common/rulesCache.js";
 import { canBuildOnTile } from "../../common/tileUtils.js";
+import { MissionContext, SupabotContext } from "../../common/context.js";
 
 const ORDER_COOLDOWN_TICKS = 60;
 
@@ -53,21 +55,18 @@ export class ExpansionMission extends Mission {
         }
     }
 
-    public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
-        const mcvs = this.getUnitsOfTypes(gameApi, ...mcvTypes);
+    public _onAiUpdate(context: MissionContext): MissionAction {
+        const { game, matchAwareness, actionBatcher } = context;
+        const actionsApi = context.player.actions;
+        const playerData = context.game.getPlayerData(context.player.name);
+        const mcvs = this.getUnitsOfTypes(game, ...mcvTypes);
         if (mcvs.length === 0) {
             // Perhaps we deployed already (or the unit was destroyed), end the mission.
             if (this.lastOrderAt !== null) {
                 return disbandMission();
             }
             // We need an mcv!
-            if (this.selectedMcvId && !!gameApi.getUnitData(this.selectedMcvId)) {
+            if (this.selectedMcvId && !!game.getUnitData(this.selectedMcvId)) {
                 return requestSpecificUnits([this.selectedMcvId], this.priority);
             }
             return requestUnits(mcvTypes, this.priority);
@@ -79,7 +78,7 @@ export class ExpansionMission extends Mission {
 
         if (this.destination) {
             return this.moveMcvToDestination(
-                gameApi,
+                game,
                 actionsApi,
                 playerData,
                 matchAwareness,
@@ -87,16 +86,16 @@ export class ExpansionMission extends Mission {
                 selectedMcvUnit,
             );
         } else {
-            const reachabilityMap = gameApi.map.getReachabilityMap(selectedMcvUnit.rules.speedType!, false);
+            const reachabilityMap = game.map.getReachabilityMap(selectedMcvUnit.rules.speedType!, false);
             const reachableCandidates = this.candidates
-                .map((candidate) => gameApi.mapApi.getTile(candidate.x, candidate.y))
+                .map((candidate) => game.mapApi.getTile(candidate.x, candidate.y))
                 .filter((t): t is Tile => !!t)
                 .filter((t) =>
                     reachabilityMap.isReachable(toPathNode(selectedMcvUnit.tile, false), toPathNode(t, false)),
                 );
             const closestReachableCandidate = minBy(reachableCandidates, (candidate) => {
-                    return toVector2(selectedMcvUnit.tile).distanceTo(toVector2(candidate));
-                });
+                return toVector2(selectedMcvUnit.tile).distanceTo(toVector2(candidate));
+            });
             if (!closestReachableCandidate) {
                 // can't reach any candidates yet, return to start location
                 this.destination = playerData.startLocation;
@@ -235,14 +234,10 @@ export class PackConyardMission extends Mission {
         super(uniqueName, logger);
     }
 
-    public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
-        const conyardOrMcv = gameApi.getGameObjectData(this.conyardId);
+    public _onAiUpdate(context: MissionContext): MissionAction {
+        const { game } = context;
+        const actionsApi = context.player.actions;
+        const conyardOrMcv = game.getGameObjectData(this.conyardId);
         if (!conyardOrMcv) {
             // maybe it died, or unpacked already
             return disbandMission();
@@ -269,20 +264,14 @@ export class ExpansionMissionFactory implements MissionFactory {
         return "ExpansionMissionFactory";
     }
 
-    maybeCreateMissions(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        const mcvs = gameApi.getVisibleUnits(playerData.name, "self", (r) =>
-            gameApi.getGeneralRules().baseUnit.includes(r.name),
-        );
+    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+        const { game, player, matchAwareness } = context;
+        const playerData = game.getPlayerData(player.name);
+        const mcvs = game.getVisibleUnits(player.name, "self", (r) => game.getGeneralRules().baseUnit.includes(r.name));
         const expandToCandidates = matchAwareness.getNextExpansionCandidates();
 
         // This is used for deploying the initial MCV.
-        if (gameApi.getCurrentTick() < DO_NOT_EXPAND_BEFORE_TICKS) {
+        if (game.getCurrentTick() < DO_NOT_EXPAND_BEFORE_TICKS) {
             mcvs.forEach((mcv) => {
                 missionController.addMission(
                     new ExpansionMission("initial-deploy-mcv-" + mcv, 100, mcv, [playerData.startLocation], logger),
@@ -302,27 +291,27 @@ export class ExpansionMissionFactory implements MissionFactory {
         }
 
         if (
-            gameApi.getCurrentTick() < DO_NOT_EXPAND_BEFORE_TICKS ||
-            gameApi.getCurrentTick() < this.lastConyardPackAt + CONYARD_PACK_COOLDOWN
+            game.getCurrentTick() < DO_NOT_EXPAND_BEFORE_TICKS ||
+            game.getCurrentTick() < this.lastConyardPackAt + CONYARD_PACK_COOLDOWN
         ) {
             return;
         }
         // TODO: do not pack up if currently producing something from the conyard
 
         // if we have a war factory and at least 1 refinery, try expand
-        const conYards = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.constructionYard);
-        const warFactories = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.weaponsFactory);
+        const conYards = game.getVisibleUnits(player.name, "self", (r) => r.constructionYard);
+        const warFactories = game.getVisibleUnits(player.name, "self", (r) => r.weaponsFactory);
         const isSafeToExpand = threatCache.totalAvailableAntiGroundFirepower > threatCache.totalOffensiveLandThreat;
-        const refineries = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.refinery);
+        const refineries = game.getVisibleUnits(player.name, "self", (r) => r.refinery);
         if (conYards.length === 0 || warFactories.length === 0 || refineries.length === 0 || !isSafeToExpand) {
             return;
         }
-        const selectedConyard = gameApi.getGameObjectData(conYards[0])!;
-        const refineryNearconyard = gameApi
+        const selectedConyard = game.getGameObjectData(conYards[0])!;
+        const refineryNearconyard = game
             .getUnitsInArea(
                 new Box2(toVector2(selectedConyard.tile).subScalar(10), toVector2(selectedConyard.tile).addScalar(14)),
             )
-            .map((id) => gameApi.getGameObjectData(id))
+            .map((id) => game.getGameObjectData(id))
             .filter(isTechnoRulesObject)
             .filter((obj) => obj.rules.refinery);
         if (refineryNearconyard.length > 0) {
@@ -330,16 +319,14 @@ export class ExpansionMissionFactory implements MissionFactory {
                 new PackConyardMission("pack-up-" + selectedConyard.id, selectedConyard.id, logger),
             );
             logger("Time to pack the conyard and expand", false);
-            this.lastConyardPackAt = gameApi.getCurrentTick();
+            this.lastConyardPackAt = game.getCurrentTick();
         } else {
             logger("Not time to pack up, no refinery yet");
         }
     }
 
     onMissionFailed(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
+        context: SupabotContext,
         failedMission: Mission<any>,
         failureReason: undefined,
         missionController: MissionController,

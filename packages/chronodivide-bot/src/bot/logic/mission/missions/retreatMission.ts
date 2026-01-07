@@ -1,8 +1,9 @@
 import { DebugLogger } from "../../common/utils.js";
-import { ActionsApi, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, requestSpecificUnits } from "../mission.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { MatchAwareness } from "../../awareness.js";
+import { MissionContext } from "../../common/context.js";
 
 export class RetreatMission extends Mission {
     private createdAt: number | null = null;
@@ -16,15 +17,11 @@ export class RetreatMission extends Mission {
         super(uniqueName, logger);
     }
 
-    public _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
+    public _onAiUpdate(context: MissionContext): MissionAction {
+        const { game } = context;
+        const actionsApi = context.player.actions;
         if (!this.createdAt) {
-            this.createdAt = gameApi.getCurrentTick();
+            this.createdAt = game.getCurrentTick();
         }
         if (this.getUnitIds().length > 0) {
             // Only send the order once we have managed to claim some units.
@@ -36,7 +33,7 @@ export class RetreatMission extends Mission {
             );
             return disbandMission();
         }
-        if (this.createdAt && gameApi.getCurrentTick() > this.createdAt + 240) {
+        if (this.createdAt && game.getCurrentTick() > this.createdAt + 240) {
             // Disband automatically after 240 ticks in case we couldn't actually claim any units.
             return disbandMission();
         } else {

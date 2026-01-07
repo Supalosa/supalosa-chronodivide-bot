@@ -1,6 +1,7 @@
 import {
     ActionsApi,
     AttackState,
+    BotContext,
     GameApi,
     GameMath,
     MovementZone,
@@ -14,6 +15,7 @@ import { DebugLogger, isOwnedByNeutral, maxBy, minBy } from "../../../common/uti
 import { ActionBatcher, BatchableAction } from "../../actionBatcher.js";
 import { Squad } from "./squad.js";
 import { Mission, MissionAction, grabCombatants, noop } from "../../mission.js";
+import { MissionContext } from "../../../common/context.js";
 
 const TARGET_UPDATE_INTERVAL_TICKS = 10;
 
@@ -61,30 +63,22 @@ export class CombatSquad implements Squad {
         this.targetArea = targetArea;
     }
 
-    public onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        actionBatcher: ActionBatcher,
-        playerData: PlayerData,
-        mission: Mission<any>,
-        matchAwareness: MatchAwareness,
-        logger: DebugLogger,
-    ): MissionAction {
+    public onAiUpdate(context: MissionContext, mission: Mission<any>, logger: DebugLogger): MissionAction {
+        const { game, actionBatcher, matchAwareness } = context;
+        const playerData = game.getPlayerData(context.player.name);
         if (
             mission.getUnitIds().length > 0 &&
-            (!this.lastCommand || gameApi.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
+            (!this.lastCommand || game.getCurrentTick() > this.lastCommand + TARGET_UPDATE_INTERVAL_TICKS)
         ) {
-            this.lastCommand = gameApi.getCurrentTick();
+            this.lastCommand = game.getCurrentTick();
             const centerOfMass = mission.getCenterOfMass();
             const maxDistance = mission.getMaxDistanceToCenterOfMass();
-            const unitIds = mission.getUnitsMatchingByRule(gameApi, (r) => r.isSelectableCombatant);
-            const units = unitIds
-                .map((unitId) => gameApi.getUnitData(unitId))
-                .filter((unit): unit is UnitData => !!unit);
+            const unitIds = mission.getUnitsMatchingByRule(game, (r) => r.isSelectableCombatant);
+            const units = unitIds.map((unitId) => game.getUnitData(unitId)).filter((unit): unit is UnitData => !!unit);
 
             // Only use ground units for center of mass.
             const groundUnitIds = mission.getUnitsMatchingByRule(
-                gameApi,
+                game,
                 (r) =>
                     r.isSelectableCombatant &&
                     (r.movementZone === MovementZone.Infantry ||
@@ -97,7 +91,7 @@ export class CombatSquad implements Squad {
                 if (
                     centerOfMass &&
                     maxDistance &&
-                    gameApi.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
+                    game.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
                     maxDistance > requiredGatherRadius
                 ) {
                     units.forEach((unit) => {
@@ -113,7 +107,7 @@ export class CombatSquad implements Squad {
                 if (
                     centerOfMass &&
                     maxDistance &&
-                    gameApi.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
+                    game.mapApi.getTile(centerOfMass.x, centerOfMass.y) !== undefined &&
                     maxDistance > requiredGatherRadius
                 ) {
                     // Switch back to gather mode
@@ -131,7 +125,7 @@ export class CombatSquad implements Squad {
                 // Find units within double the range of the leader.
                 const nearbyHostiles = matchAwareness
                     .getHostilesNearPoint(attackLeader.tile.rx, attackLeader.tile.ry, ATTACK_SCAN_AREA)
-                    .map(({ unitId }) => gameApi.getUnitData(unitId))
+                    .map(({ unitId }) => game.getUnitData(unitId))
                     .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
                 for (const unit of units) {
@@ -150,8 +144,8 @@ export class CombatSquad implements Squad {
     }
 
     /**
-     * Sends an action to the acitonBatcher if and only if the action is different from the last action we submitted to it.
-     * Prevents spamming redundant orders, which affects performance and can also ccause the unit to sit around doing nothing.
+     * Sends an action to the actionBatcher if and only if the action is different from the last action we submitted to it.
+     * Prevents spamming redundant orders, which affects performance and can also cause the unit to sit around doing nothing.
      */
     private submitActionIfNew(actionBatcher: ActionBatcher, action: BatchableAction) {
         const lastAction = this.lastOrderGiven[action.unitId];

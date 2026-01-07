@@ -14,6 +14,7 @@ import { ActionBatcher } from "./actionBatcher.js";
 import { getDistanceBetweenTileAndPoint } from "../map/map.js";
 import { getCachedTechnoRules } from "../common/rulesCache.js";
 import { UnitComposition } from "../composition/common.js";
+import { MissionContext, SupabotContext } from "../common/context.js";
 
 const calculateCenterOfMass: (unitTiles: Tile[]) => {
     centerOfMass: Vector2;
@@ -69,25 +70,13 @@ export abstract class Mission<FailureReasons = undefined> {
         }
     }
 
-    public onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction {
-        this.updateCenterOfMass(gameApi);
-        return this._onAiUpdate(gameApi, actionsApi, playerData, matchAwareness, actionBatcher);
+    public onAiUpdate(context: MissionContext): MissionAction {
+        this.updateCenterOfMass(context.game);
+        return this._onAiUpdate(context);
     }
 
-    // TODO: fix this weird indirection
-    abstract _onAiUpdate(
-        gameApi: GameApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-        actionBatcher: ActionBatcher,
-    ): MissionAction;
+    // TODO: fix this weird indirection where we call onAiUpdate publically to call the implementation of the class.
+    abstract _onAiUpdate(context: MissionContext): MissionAction;
 
     isActive(): boolean {
         return this.active;
