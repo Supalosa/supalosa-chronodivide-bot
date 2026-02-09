@@ -2,6 +2,8 @@ name: Publish Package
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -20,9 +22,13 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
       - run: npm run build --if-present
-      - uses: tobysmith568/npm-publish-latest-tag@v1
-        id: latest_tag
-        with:
-          package-json: ./package.json
-      - run: npm publish --tag ${{ steps.latest_tag.outputs.latest-tag }}
+      - id: set_tag
+        run: |
+          echo "GITHUB_REF=${GITHUB_REF}"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+            echo "tag=next" >> $GITHUB_OUTPUT
+          fi
+      - run: npm publish --tag ${{ steps.set_tag.outputs.tag }}
         working-directory: ./packages/chronodivide-bot
