@@ -35,5 +35,3 @@ jobs:
           fi
       - run: npm publish --tag ${{ steps.set_tag.outputs.tag }}
         working-directory: ./packages/chronodivide-bot
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
