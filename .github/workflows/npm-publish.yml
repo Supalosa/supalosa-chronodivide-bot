@@ -29,6 +29,11 @@ jobs:
             echo "tag=latest" >> $GITHUB_OUTPUT
           else
             echo "tag=next" >> $GITHUB_OUTPUT
+            # Append commit SHA to version for non-tagged commits
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            npm version --no-git-tag-version "$(npm pkg get version | tr -d '"')-${SHORT_SHA}" --workspaces --include-workspace-root
           fi
       - run: npm publish --tag ${{ steps.set_tag.outputs.tag }}
         working-directory: ./packages/chronodivide-bot
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
