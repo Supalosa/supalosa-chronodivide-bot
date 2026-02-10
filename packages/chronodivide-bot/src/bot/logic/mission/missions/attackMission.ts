@@ -203,7 +203,7 @@ function generateTarget(
             const mapApi = gameApi.mapApi;
             const enemyPlayers = gameApi
                 .getPlayers()
-                .map(gameApi.getPlayerData)
+                .map((p) => gameApi.getPlayerData(p))
                 .filter((otherPlayer) => !gameApi.areAlliedPlayers(playerData.name, otherPlayer.name));
 
             const unexploredEnemyLocations = enemyPlayers.filter((otherPlayer) => {
