@@ -1,0 +1,34 @@
+name: Run Game Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Extract headless mix files
+      run: |
+        cd packages/chronodivide-bot-driver/data
+        unzip -q headless-mix.zip
+        ls -la
+
+    - name: Run game tests
+      run: npm run test -- --run
+      working-directory: packages/chronodivide-bot-driver
