@@ -10,7 +10,12 @@ packages/chronodivide-bot-driver/debug/
 *.log
 *.cpuprofile
 .env
-*.ini
-*.map
 *.mpr
 *.tsbuildinfo
+
+# extracted game files
+*.map
+*.ini
+*.mix
+*.bag
+*.idx
