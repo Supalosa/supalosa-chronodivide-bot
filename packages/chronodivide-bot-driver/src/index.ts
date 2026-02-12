@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { Agent, Bot, CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
+import { CreateBaseOpts, CreateOfflineOpts, CreateOnlineOpts, cdapi } from "@chronodivide/game-api";
 import { SupalosaBot } from "@supalosa/chronodivide-bot/dist/bot/bot.js";
 import { Countries } from "@supalosa/chronodivide-bot/dist/bot/logic/common/utils.js";
 import { VisualisedBot, VisualisedBotOpts } from "./visualisation/visualisedBot.js";
@@ -44,7 +44,8 @@ async function main() {
     offensedefense.map,ore2_startfixed.map,rekoool_fast_6players.mpr,rekoool_fast_8players.mpr,riverram.map,tourofegypt.map,unrepent.map,sinkswim_yr_port.map
     */
     //const mapName = "rekoool_fast_8players.mpr";
-    const mapName = "mp22s8.map"; // <- large flat 8 player map
+    //const mapName = "mp22s8.map"; // <- large flat 8 player map
+    const mapName = "mp06t2.map"; // small map for headless testing
     //const mapName = "mp01t4.map";
     // Bot names must be unique in online mode
     const timestamp = String(Date.now()).substr(-6);
@@ -53,7 +54,7 @@ async function main() {
     const botName3 = `Mike${timestamp}`;
     const botName4 = `Charlie${timestamp}`;
 
-    await cdapi.init(process.env.MIX_DIR || "./");
+    await cdapi.init(process.env.MIX_DIR || "./../../../ra2-headless-mix");
 
     console.log("Server URL: " + process.env.SERVER_URL!);
     console.log("Client URL: " + process.env.CLIENT_URL!);
