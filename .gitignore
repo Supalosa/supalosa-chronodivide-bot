@@ -14,8 +14,11 @@ packages/chronodivide-bot-driver/debug/
 *.tsbuildinfo
 
 # extracted game files
-*.map
 *.ini
 *.mix
 *.bag
 *.idx
+
+# maps - only allow maps directly in the test data 
+*.map
+!packages/chronodivide-bot-driver/data/*.map

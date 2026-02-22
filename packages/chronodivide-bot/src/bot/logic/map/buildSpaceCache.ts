@@ -1,5 +1,13 @@
 import { GameApi, LandType, Size, SpeedType, TechnoRules, TerrainType, Tile, Vector2 } from "@chronodivide/game-api";
-import { BasicIncrementalGridCache, DiagonalMapBounds, getDiagonalMapBounds, IncrementalGridCache, SequentialScanStrategy, StagedScanStrategy, toHeatmapColor } from "./incrementalGridCache.js";
+import {
+    BasicIncrementalGridCache,
+    DiagonalMapBounds,
+    getDiagonalMapBounds,
+    IncrementalGridCache,
+    SequentialScanStrategy,
+    StagedScanStrategy,
+    toHeatmapColor,
+} from "./incrementalGridCache.js";
 import { canBuildOnTile } from "../common/tileUtils.js";
 
 type BuildSpaceData = {

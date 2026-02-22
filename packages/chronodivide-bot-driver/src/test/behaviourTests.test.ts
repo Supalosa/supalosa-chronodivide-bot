@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from "vitest";
 import { CreateOfflineOpts, cdapi } from "@chronodivide/game-api";
 import { SupalosaBot } from "@supalosa/chronodivide-bot/dist/bot/bot.js";
 import { Countries } from "@supalosa/chronodivide-bot/dist/bot/logic/common/utils.js";
@@ -28,10 +28,7 @@ describe.concurrent("Behaviour tests", () => {
             superWeapons: false,
             unitCount: 0,
             online: false,
-            agents: [
-                new SupalosaBot(botName1, Countries.FRANCE, [botName2], true),
-                dummy
-            ],
+            agents: [new SupalosaBot(botName1, Countries.FRANCE, [botName2], true), dummy],
         };
 
         const game = await cdapi.createGame(gameSettings);
@@ -47,13 +44,14 @@ describe.concurrent("Behaviour tests", () => {
         while (!game.isFinished() && tickCount < maxTicks && !foundConyard) {
             await game.update();
             tickCount++;
-            const conYards = dummy.lastGameApi!.getAllUnits(r => r.constructionYard);
-            const botConyard = conYards.map((id) => dummy.lastGameApi!.getUnitData(id)).find(u => !!u && u.owner === botName1);
+            const conYards = dummy.lastGameApi!.getAllUnits((r) => r.constructionYard);
+            const botConyard = conYards
+                .map((id) => dummy.lastGameApi!.getUnitData(id))
+                .find((u) => !!u && u.owner === botName1);
             foundConyard = !!botConyard;
         }
-        
-        expect(foundConyard).toBe(true);
 
+        expect(foundConyard).toBe(true);
 
         game.dispose();
     }, 30000);
