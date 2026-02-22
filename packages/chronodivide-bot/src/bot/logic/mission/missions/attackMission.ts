@@ -21,6 +21,7 @@ import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
 import { UnitComposition } from "../../composition/common.js";
 import { manageMoveMicro } from "./squads/common.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
+import { Strategy } from "../../../strategy/strategy.js";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -35,20 +36,6 @@ enum AttackMissionState {
 
 const NO_TARGET_RETARGET_TICKS = 450;
 const NO_TARGET_IDLE_TIMEOUT_TICKS = 900;
-
-function calculateTargetComposition(
-    gameApi: GameApi,
-    playerData: PlayerData,
-    matchAwareness: MatchAwareness,
-): UnitComposition {
-    if (!playerData.country) {
-        throw new Error(`player ${playerData.name} has no country`);
-    } else if (playerData.country.side === SideType.Nod) {
-        return getSovietComposition(gameApi, playerData, matchAwareness);
-    } else {
-        return getAlliedCompositions(gameApi, playerData, matchAwareness);
-    }
-}
 
 const ATTACK_MISSION_PRIORITY_RAMP = 1.01;
 const ATTACK_MISSION_MAX_PRIORITY = 50;
@@ -234,7 +221,10 @@ const BASE_ATTACK_COOLDOWN_TICKS = 1800;
 const ATTACK_MISSION_INITIAL_PRIORITY = 1;
 
 export class AttackMissionFactory implements MissionFactory {
-    constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {}
+    constructor(
+        private strategy: Strategy,
+        private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS,
+    ) {}
 
     getName(): string {
         return "AttackMissionFactory";
@@ -271,7 +261,7 @@ export class AttackMissionFactory implements MissionFactory {
 
         const squadName = "attack_" + game.getCurrentTick();
 
-        const composition: UnitComposition = calculateTargetComposition(game, playerData, matchAwareness);
+        const composition: UnitComposition = this.strategy.getAttackUnitComposition(game, playerData, matchAwareness);
 
         const tryAttack = missionController.addMission(
             new AttackMission(

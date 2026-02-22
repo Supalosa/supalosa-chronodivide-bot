@@ -9,6 +9,7 @@ import { DefenceMissionFactory } from "./missions/defenceMission.js";
 import { DebugLogger } from "../common/utils.js";
 import { EngineerMissionFactory } from "./missions/engineerMission.js";
 import { SupabotContext } from "../common/context.js";
+import { Strategy } from "../../strategy/strategy.js";
 
 export interface MissionFactory {
     getName(): string;
@@ -20,11 +21,7 @@ export interface MissionFactory {
      * @param matchAwareness
      * @param missionController
      */
-    maybeCreateMissions(
-        context: SupabotContext,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void;
+    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void;
 
     /**
      * Called when any mission fails - can be used to trigger another mission in response.
@@ -38,10 +35,11 @@ export interface MissionFactory {
     ): void;
 }
 
-export const createMissionFactories = () => [
-    new ExpansionMissionFactory(),
-    new ScoutingMissionFactory(),
-    new AttackMissionFactory(),
-    new DefenceMissionFactory(),
-    new EngineerMissionFactory(),
-] satisfies MissionFactory[];
+export const createMissionFactories = (strategy: Strategy) =>
+    [
+        new ExpansionMissionFactory(),
+        new ScoutingMissionFactory(),
+        new AttackMissionFactory(strategy),
+        new DefenceMissionFactory(),
+        new EngineerMissionFactory(),
+    ] satisfies MissionFactory[];
