@@ -323,11 +323,4 @@ export class ExpansionMissionFactory {
             logger("Not time to pack up, no refinery yet");
         }
     }
-
-    onMissionFailed(
-        context: SupabotContext,
-        failedMission: Mission<any>,
-        failureReason: undefined,
-        missionController: MissionController,
-    ): void {}
 }

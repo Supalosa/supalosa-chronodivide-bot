@@ -98,7 +98,6 @@ export class MissionController {
 
         // Handle disbands and merges.
         const disbandedMissions: Map<string, any> = new Map();
-        const disbandedMissionsArray: { mission: Mission<any>; reason: any }[] = [];
         this.forceDisbandedMissions.forEach((name) => disbandedMissions.set(name, null));
         this.forceDisbandedMissions = [];
         missionActions.filter(isDisbandMission).forEach((a) => {
@@ -307,16 +306,12 @@ export class MissionController {
             .forEach((disbandedMission) => {
                 const reason = disbandedMissions.get(disbandedMission.getUniqueName());
                 this.logger(`mission disbanded: ${disbandedMission.getUniqueName()}, reason: ${reason}`);
-                disbandedMissionsArray.push({ mission: disbandedMission, reason });
                 disbandedMission.endMission(disbandedMissions.get(disbandedMission.getUniqueName()));
             });
         this.missions = this.missions.filter((missions) => !disbandedMissions.has(missions.getUniqueName()));
 
         // Create dynamic missions.
         this.strategy.maybeCreateMissions(context, this, this.logger);
-        disbandedMissionsArray.forEach(({ reason, mission }) => {
-            this.strategy.onMissionFailed(context, mission, reason, this, this.logger);
-        });
     }
 
     private updateRequestedUnitTypes(

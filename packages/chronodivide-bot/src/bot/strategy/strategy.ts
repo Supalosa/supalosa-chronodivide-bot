@@ -22,23 +22,6 @@ export interface Strategy {
     maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void;
 
     /**
-     * Handle a mission failure and potentially spawn follow-up or recovery missions.
-     *
-     * @param context Current game context
-     * @param failedMission The mission that failed
-     * @param failureReason The reason the mission failed
-     * @param missionController Controller to add new missions to
-     * @param logger Debug logger
-     */
-    onMissionFailed(
-        context: SupabotContext,
-        failedMission: Mission<any>,
-        failureReason: any,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void;
-
-    /**
      * Get the desired unit composition for the current game state.
      *
      * This is called when forming attack missions to determine what units

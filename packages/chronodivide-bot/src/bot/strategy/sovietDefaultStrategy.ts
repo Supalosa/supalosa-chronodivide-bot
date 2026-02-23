@@ -10,7 +10,6 @@ import { EngineerMissionFactory } from "../logic/mission/missions/engineerMissio
 import { SupabotContext } from "../logic/common/context.js";
 import { MissionController } from "../logic/mission/missionController.js";
 import { DebugLogger } from "../logic/common/utils.js";
-import { Mission } from "../logic/mission/mission.js";
 
 export class SovietDefaultStrategy implements Strategy {
     private expansionFactory = new ExpansionMissionFactory();
@@ -29,19 +28,6 @@ export class SovietDefaultStrategy implements Strategy {
 
         this.defenceFactory.maybeCreateMissions(context, missionController, logger);
         this.engineerFactory.maybeCreateMissions(context, missionController, logger);
-    }
-
-    onMissionFailed(
-        context: SupabotContext,
-        failedMission: Mission<any>,
-        failureReason: any,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        this.expansionFactory.onMissionFailed(context, failedMission, failureReason, missionController);
-        this.scoutingFactory.onMissionFailed(context, failedMission, failureReason, missionController, logger);
-        this.defenceFactory.onMissionFailed(context, failedMission, failureReason, missionController);
-        this.engineerFactory.onMissionFailed(context, failedMission, failureReason, missionController);
     }
 
     getAttackUnitComposition(

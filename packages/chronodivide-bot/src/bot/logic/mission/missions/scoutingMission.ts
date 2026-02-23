@@ -154,26 +154,4 @@ export class ScoutingMissionFactory {
             this.lastScoutAt = game.getCurrentTick();
         }
     }
-
-    onMissionFailed(
-        context: SupabotContext,
-        failedMission: Mission<any>,
-        failureReason: undefined,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        const { game, matchAwareness } = context;
-        const actionsApi = context.player.actions;
-        const playerData = game.getPlayerData(context.player.name);
-        if (game.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
-            return;
-        }
-        if (!matchAwareness.getScoutingManager().hasScoutTargets()) {
-            return;
-        }
-        if (failedMission instanceof AttackMission) {
-            missionController.addMission(new ScoutingMission("globalScout", 10, logger));
-            this.lastScoutAt = game.getCurrentTick();
-        }
-    }
 }

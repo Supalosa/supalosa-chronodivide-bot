@@ -123,11 +123,4 @@ export class DefenceMissionFactory {
             );
         }
     }
-
-    onMissionFailed(
-        context: SupabotContext,
-        failedMission: Mission<any>,
-        failureReason: undefined,
-        missionController: MissionController,
-    ): void {}
 }

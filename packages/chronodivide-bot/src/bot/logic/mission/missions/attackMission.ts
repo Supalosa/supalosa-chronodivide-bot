@@ -268,7 +268,7 @@ export class AttackMissionFactory {
                 attackRadius,
                 composition,
                 logger,
-            ).then((unitIds, reason) => {
+            ).withOnFinish((unitIds, reason) => {
                 missionController.addMission(
                     new RetreatMission(
                         "retreat-from-" + squadName + game.getCurrentTick(),
@@ -283,11 +283,4 @@ export class AttackMissionFactory {
             this.lastAttackAt = game.getCurrentTick();
         }
     }
-
-    onMissionFailed(
-        context: BotContext,
-        failedMission: Mission<any>,
-        failureReason: any,
-        missionController: MissionController,
-    ): void {}
 }

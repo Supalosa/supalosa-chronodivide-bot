@@ -162,7 +162,7 @@ export abstract class Mission<FailureReasons = undefined> {
     /**
      * Declare a callback that is executed when the mission is disbanded for whatever reason.
      */
-    then(onFinish: (unitIds: number[], reason: FailureReasons) => void): Mission<FailureReasons> {
+    withOnFinish(onFinish: (unitIds: number[], reason: FailureReasons) => void): Mission<FailureReasons> {
         this.onFinish = onFinish;
         return this;
     }
