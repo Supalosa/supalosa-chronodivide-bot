@@ -23,18 +23,14 @@ export class DefaultStrategy implements Strategy {
         this.scoutingFactory.maybeCreateMissions(context, missionController, logger);
 
         const playerData = context.game.getPlayerData(context.player.name);
-        const composition = this.getAttackUnitComposition(context.game, playerData, context.matchAwareness);
+        const composition = this.getAttackUnitComposition(context.game, playerData);
         this.attackFactory.maybeCreateMissions(context, missionController, logger, composition);
 
         this.defenceFactory.maybeCreateMissions(context, missionController, logger);
         this.engineerFactory.maybeCreateMissions(context, missionController, logger);
     }
 
-    getAttackUnitComposition(
-        gameApi: GameApi,
-        playerData: PlayerData,
-        matchAwareness: MatchAwareness,
-    ): UnitComposition {
+    getAttackUnitComposition(gameApi: GameApi, playerData: PlayerData): UnitComposition {
         const side = gameApi.getPlayerData(playerData.name).country?.side;
         if (side === SideType.Nod) {
             const hasWarFactory =
