@@ -53,11 +53,10 @@ export class SupalosaBot extends Bot {
             throw new Error(`Player ${this.name} has no country`);
         }
 
-        const resolvedStrategy = this.strategy ?? this.createDefaultStrategy(myPlayer.country.side);
-        this.missionController = new MissionController(
-            (message, sayInGame) => this.logBotStatus(message, sayInGame),
-            resolvedStrategy,
-        );
+        if (!this.strategy) {
+            this.strategy = this.createDefaultStrategy(myPlayer.country.side);
+        }
+        this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
 
         this.matchAwareness = new MatchAwarenessImpl(
             game,
@@ -88,7 +87,7 @@ export class SupalosaBot extends Bot {
     }
 
     override onGameTick(game: GameApi) {
-        if (!this.matchAwareness || !this.missionController) {
+        if (!this.matchAwareness || !this.missionController || !this.strategy) {
             return;
         }
 
@@ -128,6 +127,9 @@ export class SupalosaBot extends Bot {
             // Mission logic every 3 ticks
             if (this.context.game.getCurrentTick() % 3 === 0) {
                 this.missionController.onAiUpdate(fullContext);
+                this.strategy.maybeCreateMissions(fullContext, this.missionController, (message, sayInGame) =>
+                    this.logBotStatus(message, sayInGame),
+                );
             }
 
             const unitTypeRequests = this.missionController.getRequestedUnitTypes();

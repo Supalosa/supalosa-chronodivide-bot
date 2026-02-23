@@ -52,10 +52,7 @@ export class MissionController {
     // Tracks missions to be externally disbanded the next time the mission update loop occurs.
     private forceDisbandedMissions: string[] = [];
 
-    constructor(
-        private logger: (message: string, sayInGame?: boolean) => void,
-        private strategy: Strategy,
-    ) {}
+    constructor(private logger: (message: string, sayInGame?: boolean) => void) {}
 
     private updateUnitIds(botContext: BotContext) {
         // Check for units in multiple missions, this shouldn't happen.
@@ -309,9 +306,6 @@ export class MissionController {
                 disbandedMission.endMission(disbandedMissions.get(disbandedMission.getUniqueName()));
             });
         this.missions = this.missions.filter((missions) => !disbandedMissions.has(missions.getUniqueName()));
-
-        // Create dynamic missions.
-        this.strategy.maybeCreateMissions(context, this, this.logger);
     }
 
     private updateRequestedUnitTypes(
