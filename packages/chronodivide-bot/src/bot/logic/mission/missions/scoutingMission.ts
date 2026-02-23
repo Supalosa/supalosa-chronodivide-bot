@@ -1,5 +1,4 @@
 import { ActionsApi, BotContext, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
-import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { AttackMission } from "./attackMission.js";
@@ -136,7 +135,7 @@ export class ScoutingMission extends Mission {
 
 const SCOUT_COOLDOWN_TICKS = 300;
 
-export class ScoutingMissionFactory implements MissionFactory {
+export class ScoutingMissionFactory {
     constructor(private lastScoutAt: number = -SCOUT_COOLDOWN_TICKS) {}
 
     getName(): string {
@@ -152,28 +151,6 @@ export class ScoutingMissionFactory implements MissionFactory {
             return;
         }
         if (!missionController.addMission(new ScoutingMission("globalScout", 10, logger))) {
-            this.lastScoutAt = game.getCurrentTick();
-        }
-    }
-
-    onMissionFailed(
-        context: SupabotContext,
-        failedMission: Mission<any>,
-        failureReason: undefined,
-        missionController: MissionController,
-        logger: DebugLogger,
-    ): void {
-        const { game, matchAwareness } = context;
-        const actionsApi = context.player.actions;
-        const playerData = game.getPlayerData(context.player.name);
-        if (game.getCurrentTick() < this.lastScoutAt + SCOUT_COOLDOWN_TICKS) {
-            return;
-        }
-        if (!matchAwareness.getScoutingManager().hasScoutTargets()) {
-            return;
-        }
-        if (failedMission instanceof AttackMission) {
-            missionController.addMission(new ScoutingMission("globalScout", 10, logger));
             this.lastScoutAt = game.getCurrentTick();
         }
     }

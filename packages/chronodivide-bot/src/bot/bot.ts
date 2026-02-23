@@ -1,4 +1,4 @@
-import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, Size } from "@chronodivide/game-api";
+import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType } from "@chronodivide/game-api";
 
 import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
@@ -6,6 +6,8 @@ import { MatchAwareness, MatchAwarenessImpl } from "./logic/awareness.js";
 import { Countries, formatTimeDuration } from "./logic/common/utils.js";
 import { IncrementalGridCache } from "./logic/map/incrementalGridCache.js";
 import { SupabotContext } from "./logic/common/context.js";
+import { Strategy } from "./strategy/strategy.js";
+import { DefaultStrategy } from "./strategy/defaultStrategy.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -16,25 +18,25 @@ const NATURAL_TICK_RATE = 15;
 
 export class SupalosaBot extends Bot {
     private tickRatio?: number;
-    private missionController: MissionController;
     private queueController: QueueController;
     private tickOfLastAttackOrder: number = 0;
 
+    private missionController: MissionController | null = null;
     private matchAwareness: MatchAwareness | null = null;
 
     // Messages to display in visualisation mode only.
     public _debugMessages: string[] = [];
     public _globalDebugText: string = "";
-    public _debugGridCaches: {grid: IncrementalGridCache<any>, tag: string}[] = [];
+    public _debugGridCaches: { grid: IncrementalGridCache<any>; tag: string }[] = [];
 
     constructor(
         name: string,
         country: Countries,
         private tryAllyWith: string[] = [],
         private enableLogging = true,
+        private strategy: Strategy = new DefaultStrategy(),
     ) {
         super(name, country);
-        this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
         this.queueController = new QueueController();
     }
 
@@ -44,7 +46,12 @@ export class SupalosaBot extends Bot {
         const botRate = botApm / 60;
         this.tickRatio = Math.ceil(gameRate / botRate);
 
-        const myPlayer = game.getPlayerData(this.name);        
+        const myPlayer = game.getPlayerData(this.name);
+
+        if (!myPlayer.country) {
+            throw new Error(`Player ${this.name} has no country`);
+        }
+        this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
 
         this.matchAwareness = new MatchAwarenessImpl(
             game,
@@ -55,8 +62,8 @@ export class SupalosaBot extends Bot {
         );
 
         this._debugGridCaches = [
-            {grid: this.matchAwareness.getSectorCache(), tag: "sector-cache"},
-            {grid: this.matchAwareness.getBuildSpaceCache()._cache, tag: "build-cache"}
+            { grid: this.matchAwareness.getSectorCache(), tag: "sector-cache" },
+            { grid: this.matchAwareness.getBuildSpaceCache()._cache, tag: "build-cache" },
         ];
 
         this.matchAwareness.onGameStart(game, myPlayer);
@@ -67,7 +74,7 @@ export class SupalosaBot extends Bot {
     }
 
     override onGameTick(game: GameApi) {
-        if (!this.matchAwareness) {
+        if (!this.matchAwareness || !this.missionController || !this.strategy) {
             return;
         }
 
@@ -107,6 +114,9 @@ export class SupalosaBot extends Bot {
             // Mission logic every 3 ticks
             if (this.context.game.getCurrentTick() % 3 === 0) {
                 this.missionController.onAiUpdate(fullContext);
+                this.strategy.maybeCreateMissions(fullContext, this.missionController, (message, sayInGame) =>
+                    this.logBotStatus(message, sayInGame),
+                );
             }
 
             const unitTypeRequests = this.missionController.getRequestedUnitTypes();
@@ -141,7 +151,7 @@ export class SupalosaBot extends Bot {
     }
 
     private updateDebugState(game: GameApi) {
-        if (!this.getDebugMode()) {
+        if (!this.getDebugMode() || !this.missionController) {
             return;
         }
         // Update the global debug text.

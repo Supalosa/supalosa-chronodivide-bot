@@ -11,7 +11,6 @@ import {
     UnitData,
 } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, noop, releaseUnits, requestUnits } from "../mission.js";
-import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger, toPathNode, toVector2 } from "../../common/utils.js";
@@ -143,7 +142,7 @@ function canReachStructure(gameApi: GameApi, engineer: UnitData, target: GameObj
 const TECH_CHECK_INTERVAL_TICKS = 300;
 const MAX_CAPTURE_ATTEMPT_COUNT = 3;
 
-export class EngineerMissionFactory implements MissionFactory {
+export class EngineerMissionFactory {
     private lastCheckAt = 0;
     private lostEngineerCounts: { [buildingId: number]: number } = {};
     private noPathCounts: { [buildingId: number]: number } = {};
@@ -174,25 +173,17 @@ export class EngineerMissionFactory implements MissionFactory {
             }
             const escortLevel = (this.lostEngineerCounts[techBuildingId] ?? 0) + 1;
             missionController.addMission(
-                new EngineerMission("capture-" + techBuildingId, 100, techBuildingId, escortLevel, logger),
+                new EngineerMission("capture-" + techBuildingId, 100, techBuildingId, escortLevel, logger).withOnFinish(
+                    (unitIds, reason) => {
+                        if (reason === LOST_ENGINEER) {
+                            this.lostEngineerCounts[techBuildingId] =
+                                (this.lostEngineerCounts[techBuildingId] ?? 0) + 1;
+                        } else if (reason === NO_PATH) {
+                            this.noPathCounts[techBuildingId] = (this.noPathCounts[techBuildingId] ?? 0) + 1;
+                        }
+                    },
+                ),
             );
         });
-    }
-
-    onMissionFailed(
-        context: SupabotContext,
-        failedMission: Mission<any>,
-        failureReason: any,
-        missionController: MissionController,
-    ): void {
-        if (!(failedMission instanceof EngineerMission)) {
-            return;
-        }
-        if (failureReason === LOST_ENGINEER) {
-            this.lostEngineerCounts[failedMission.targetId] =
-                (this.lostEngineerCounts[failedMission.targetId] ?? 0) + 1;
-        } else if (failureReason === NO_PATH) {
-            this.noPathCounts[failedMission.targetId] = (this.noPathCounts[failedMission.targetId] ?? 0) + 1;
-        }
     }
 }

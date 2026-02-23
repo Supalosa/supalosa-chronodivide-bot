@@ -10,14 +10,11 @@ import {
 } from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
-import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { RetreatMission } from "./retreatMission.js";
 import { DebugLogger, countBy, isOwnedByNeutral, maxBy } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
-import { getSovietComposition } from "../../composition/sovietCompositions.js";
-import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
 import { UnitComposition } from "../../composition/common.js";
 import { manageMoveMicro } from "./squads/common.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
@@ -35,20 +32,6 @@ enum AttackMissionState {
 
 const NO_TARGET_RETARGET_TICKS = 450;
 const NO_TARGET_IDLE_TIMEOUT_TICKS = 900;
-
-function calculateTargetComposition(
-    gameApi: GameApi,
-    playerData: PlayerData,
-    matchAwareness: MatchAwareness,
-): UnitComposition {
-    if (!playerData.country) {
-        throw new Error(`player ${playerData.name} has no country`);
-    } else if (playerData.country.side === SideType.Nod) {
-        return getSovietComposition(gameApi, playerData, matchAwareness);
-    } else {
-        return getAlliedCompositions(gameApi, playerData, matchAwareness);
-    }
-}
 
 const ATTACK_MISSION_PRIORITY_RAMP = 1.01;
 const ATTACK_MISSION_MAX_PRIORITY = 50;
@@ -233,14 +216,19 @@ const BASE_ATTACK_COOLDOWN_TICKS = 1800;
 
 const ATTACK_MISSION_INITIAL_PRIORITY = 1;
 
-export class AttackMissionFactory implements MissionFactory {
+export class AttackMissionFactory {
     constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {}
 
     getName(): string {
         return "AttackMissionFactory";
     }
 
-    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+    maybeCreateMissions(
+        context: SupabotContext,
+        missionController: MissionController,
+        logger: DebugLogger,
+        composition: UnitComposition,
+    ): void {
         const { game, matchAwareness } = context;
         const playerData = game.getPlayerData(context.player.name);
         if (game.getCurrentTick() < this.lastAttackAt + VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {
@@ -271,8 +259,6 @@ export class AttackMissionFactory implements MissionFactory {
 
         const squadName = "attack_" + game.getCurrentTick();
 
-        const composition: UnitComposition = calculateTargetComposition(game, playerData, matchAwareness);
-
         const tryAttack = missionController.addMission(
             new AttackMission(
                 squadName,
@@ -282,7 +268,7 @@ export class AttackMissionFactory implements MissionFactory {
                 attackRadius,
                 composition,
                 logger,
-            ).then((unitIds, reason) => {
+            ).withOnFinish((unitIds, reason) => {
                 missionController.addMission(
                     new RetreatMission(
                         "retreat-from-" + squadName + game.getCurrentTick(),
@@ -297,11 +283,4 @@ export class AttackMissionFactory implements MissionFactory {
             this.lastAttackAt = game.getCurrentTick();
         }
     }
-
-    onMissionFailed(
-        context: BotContext,
-        failedMission: Mission<any>,
-        failureReason: any,
-        missionController: MissionController,
-    ): void {}
 }

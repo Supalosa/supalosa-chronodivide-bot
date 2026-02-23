@@ -14,7 +14,6 @@ import {
     Vector2,
 } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, noop, requestSpecificUnits, requestUnits } from "../mission.js";
-import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger, isTechnoRulesObject, maxBy, minBy, toPathNode, toVector2 } from "../../common/utils.js";
@@ -258,7 +257,7 @@ export class PackConyardMission extends Mission {
 const CONYARD_PACK_COOLDOWN = 15 * 60 * 6; // 6 mins
 const DO_NOT_EXPAND_BEFORE_TICKS = 15 * 60 * 6; // 6 minutes
 
-export class ExpansionMissionFactory implements MissionFactory {
+export class ExpansionMissionFactory {
     constructor(private lastConyardPackAt = Number.MIN_VALUE) {}
     getName(): string {
         return "ExpansionMissionFactory";
@@ -324,11 +323,4 @@ export class ExpansionMissionFactory implements MissionFactory {
             logger("Not time to pack up, no refinery yet");
         }
     }
-
-    onMissionFailed(
-        context: SupabotContext,
-        failedMission: Mission<any>,
-        failureReason: undefined,
-        missionController: MissionController,
-    ): void {}
 }

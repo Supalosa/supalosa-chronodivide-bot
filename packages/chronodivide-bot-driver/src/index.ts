@@ -89,7 +89,7 @@ async function main() {
         online: false,
         agents: [
             new VisualisedBot(VISUAL_DEBUG_OPTS, botName1, Countries.FRANCE, [botName2], true).setDebugMode(true),
-            new SupalosaBot(botName2, Countries.FRANCE, [botName1], false),
+            new SupalosaBot(botName2, Countries.IRAQ, [botName1], false),
         ],
     };
 
