@@ -28,7 +28,6 @@ import {
     isRequestUnits,
 } from "./mission.js";
 import { MatchAwareness } from "../awareness.js";
-import { MissionFactory, createMissionFactories } from "./missionFactories.js";
 import { ActionBatcher } from "./actionBatcher.js";
 import { countBy, isSelectableCombatant } from "../common/utils.js";
 import { Squad } from "./missions/squads/squad.js";
@@ -40,7 +39,6 @@ const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
 const MISSING_UNIT_TYPE_REQUEST_DECAY_FLAT_RATE = 1;
 
 export class MissionController {
-    private missionFactories: MissionFactory[];
     private missions: Mission<any>[] = [];
 
     // A mapping of unit IDs to the missions they are assigned to. This may contain units that are dead, but
@@ -56,10 +54,8 @@ export class MissionController {
 
     constructor(
         private logger: (message: string, sayInGame?: boolean) => void,
-        strategy: Strategy,
-    ) {
-        this.missionFactories = createMissionFactories(strategy);
-    }
+        private strategy: Strategy,
+    ) {}
 
     private updateUnitIds(botContext: BotContext) {
         // Check for units in multiple missions, this shouldn't happen.
@@ -317,11 +313,9 @@ export class MissionController {
         this.missions = this.missions.filter((missions) => !disbandedMissions.has(missions.getUniqueName()));
 
         // Create dynamic missions.
-        this.missionFactories.forEach((missionFactory) => {
-            missionFactory.maybeCreateMissions(context, this, this.logger);
-            disbandedMissionsArray.forEach(({ reason, mission }) => {
-                missionFactory.onMissionFailed(context, mission, reason, this, this.logger);
-            });
+        this.strategy.maybeCreateMissions(context, this, this.logger);
+        disbandedMissionsArray.forEach(({ reason, mission }) => {
+            this.strategy.onMissionFailed(context, mission, reason, this, this.logger);
         });
     }
 

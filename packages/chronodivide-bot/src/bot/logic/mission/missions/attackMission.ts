@@ -10,18 +10,14 @@ import {
 } from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
-import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { RetreatMission } from "./retreatMission.js";
 import { DebugLogger, countBy, isOwnedByNeutral, maxBy } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
-import { getSovietComposition } from "../../composition/sovietCompositions.js";
-import { getAlliedCompositions } from "../../composition/alliedCompositions.js";
 import { UnitComposition } from "../../composition/common.js";
 import { manageMoveMicro } from "./squads/common.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
-import { Strategy } from "../../../strategy/strategy.js";
 
 export enum AttackFailReason {
     NoTargets = 0,
@@ -220,17 +216,19 @@ const BASE_ATTACK_COOLDOWN_TICKS = 1800;
 
 const ATTACK_MISSION_INITIAL_PRIORITY = 1;
 
-export class AttackMissionFactory implements MissionFactory {
-    constructor(
-        private strategy: Strategy,
-        private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS,
-    ) {}
+export class AttackMissionFactory {
+    constructor(private lastAttackAt: number = -VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {}
 
     getName(): string {
         return "AttackMissionFactory";
     }
 
-    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+    maybeCreateMissions(
+        context: SupabotContext,
+        missionController: MissionController,
+        logger: DebugLogger,
+        composition: UnitComposition,
+    ): void {
         const { game, matchAwareness } = context;
         const playerData = game.getPlayerData(context.player.name);
         if (game.getCurrentTick() < this.lastAttackAt + VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {
@@ -260,8 +258,6 @@ export class AttackMissionFactory implements MissionFactory {
         }
 
         const squadName = "attack_" + game.getCurrentTick();
-
-        const composition: UnitComposition = this.strategy.getAttackUnitComposition(game, playerData, matchAwareness);
 
         const tryAttack = missionController.addMission(
             new AttackMission(

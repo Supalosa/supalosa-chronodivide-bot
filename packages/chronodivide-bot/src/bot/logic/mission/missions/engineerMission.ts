@@ -11,7 +11,6 @@ import {
     UnitData,
 } from "@chronodivide/game-api";
 import { Mission, MissionAction, disbandMission, noop, releaseUnits, requestUnits } from "../mission.js";
-import { MissionFactory } from "../missionFactories.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger, toPathNode, toVector2 } from "../../common/utils.js";
@@ -143,7 +142,7 @@ function canReachStructure(gameApi: GameApi, engineer: UnitData, target: GameObj
 const TECH_CHECK_INTERVAL_TICKS = 300;
 const MAX_CAPTURE_ATTEMPT_COUNT = 3;
 
-export class EngineerMissionFactory implements MissionFactory {
+export class EngineerMissionFactory {
     private lastCheckAt = 0;
     private lostEngineerCounts: { [buildingId: number]: number } = {};
     private noPathCounts: { [buildingId: number]: number } = {};

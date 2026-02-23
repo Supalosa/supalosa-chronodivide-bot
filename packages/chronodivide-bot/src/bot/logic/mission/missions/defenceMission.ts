@@ -2,7 +2,6 @@ import { ActionsApi, BotContext, GameApi, PlayerData, UnitData, Vector2 } from "
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { Mission, MissionAction, grabCombatants, noop, releaseUnits, requestUnits } from "../mission.js";
-import { MissionFactory } from "../missionFactories.js";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { DebugLogger, isOwnedByNeutral } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
@@ -82,7 +81,7 @@ const DEFENCE_STARTING_RADIUS = 10;
 // Every game tick, we increase the defendable area by this amount.
 const DEFENCE_RADIUS_INCREASE_PER_GAME_TICK = 0.001;
 
-export class DefenceMissionFactory implements MissionFactory {
+export class DefenceMissionFactory {
     private lastDefenceCheckAt = 0;
 
     constructor() {}

@@ -2,8 +2,48 @@ import { GameApi, PlayerData } from "@chronodivide/game-api";
 import { Strategy } from "./strategy.js";
 import { UnitComposition } from "../logic/composition/common.js";
 import { MatchAwareness } from "../logic/awareness.js";
+import { ExpansionMissionFactory } from "../logic/mission/missions/expansionMission.js";
+import { ScoutingMissionFactory } from "../logic/mission/missions/scoutingMission.js";
+import { AttackMissionFactory } from "../logic/mission/missions/attackMission.js";
+import { DefenceMissionFactory } from "../logic/mission/missions/defenceMission.js";
+import { EngineerMissionFactory } from "../logic/mission/missions/engineerMission.js";
+import { SupabotContext } from "../logic/common/context.js";
+import { MissionController } from "../logic/mission/missionController.js";
+import { DebugLogger } from "../logic/common/utils.js";
+import { Mission } from "../logic/mission/mission.js";
 
 export class AlliedDefaultStrategy implements Strategy {
+    private expansionFactory = new ExpansionMissionFactory();
+    private scoutingFactory = new ScoutingMissionFactory();
+    private attackFactory = new AttackMissionFactory();
+    private defenceFactory = new DefenceMissionFactory();
+    private engineerFactory = new EngineerMissionFactory();
+
+    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+        this.expansionFactory.maybeCreateMissions(context, missionController, logger);
+        this.scoutingFactory.maybeCreateMissions(context, missionController, logger);
+
+        const playerData = context.game.getPlayerData(context.player.name);
+        const composition = this.getAttackUnitComposition(context.game, playerData, context.matchAwareness);
+        this.attackFactory.maybeCreateMissions(context, missionController, logger, composition);
+
+        this.defenceFactory.maybeCreateMissions(context, missionController, logger);
+        this.engineerFactory.maybeCreateMissions(context, missionController, logger);
+    }
+
+    onMissionFailed(
+        context: SupabotContext,
+        failedMission: Mission<any>,
+        failureReason: any,
+        missionController: MissionController,
+        logger: DebugLogger,
+    ): void {
+        this.expansionFactory.onMissionFailed(context, failedMission, failureReason, missionController);
+        this.scoutingFactory.onMissionFailed(context, failedMission, failureReason, missionController, logger);
+        this.defenceFactory.onMissionFailed(context, failedMission, failureReason, missionController);
+        this.engineerFactory.onMissionFailed(context, failedMission, failureReason, missionController);
+    }
+
     getAttackUnitComposition(
         gameApi: GameApi,
         playerData: PlayerData,
