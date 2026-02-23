@@ -1,4 +1,4 @@
-import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, Size, SideType } from "@chronodivide/game-api";
+import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType } from "@chronodivide/game-api";
 
 import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
