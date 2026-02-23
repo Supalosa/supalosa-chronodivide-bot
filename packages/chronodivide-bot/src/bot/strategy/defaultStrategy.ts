@@ -1,7 +1,6 @@
 import { GameApi, PlayerData, SideType } from "@chronodivide/game-api";
 import { Strategy } from "./strategy.js";
 import { UnitComposition } from "../logic/composition/common.js";
-import { MatchAwareness } from "../logic/awareness.js";
 import { ExpansionMissionFactory } from "../logic/mission/missions/expansionMission.js";
 import { ScoutingMissionFactory } from "../logic/mission/missions/scoutingMission.js";
 import { AttackMissionFactory } from "../logic/mission/missions/attackMission.js";
@@ -31,7 +30,7 @@ export class DefaultStrategy implements Strategy {
     }
 
     getAttackUnitComposition(gameApi: GameApi, playerData: PlayerData): UnitComposition {
-        const side = gameApi.getPlayerData(playerData.name).country?.side;
+        const side = playerData.country?.side;
         if (side === SideType.Nod) {
             const hasWarFactory =
                 gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NAWEAP").length > 0;

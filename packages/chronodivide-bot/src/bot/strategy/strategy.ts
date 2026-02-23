@@ -1,7 +1,3 @@
-import { GameApi, PlayerData } from "@chronodivide/game-api";
-import { UnitComposition } from "../logic/composition/common.js";
-import { MatchAwareness } from "../logic/awareness.js";
-import { Mission } from "../logic/mission/mission.js";
 import { SupabotContext } from "../logic/common/context.js";
 import { MissionController } from "../logic/mission/missionController.js";
 import { DebugLogger } from "../logic/common/utils.js";
