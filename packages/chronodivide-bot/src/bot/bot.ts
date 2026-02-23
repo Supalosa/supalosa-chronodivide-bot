@@ -7,8 +7,7 @@ import { Countries, formatTimeDuration } from "./logic/common/utils.js";
 import { IncrementalGridCache } from "./logic/map/incrementalGridCache.js";
 import { SupabotContext } from "./logic/common/context.js";
 import { Strategy } from "./strategy/strategy.js";
-import { SovietDefaultStrategy } from "./strategy/sovietDefaultStrategy.js";
-import { AlliedDefaultStrategy } from "./strategy/alliedDefaultStrategy.js";
+import { DefaultStrategy } from "./strategy/defaultStrategy.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -35,7 +34,7 @@ export class SupalosaBot extends Bot {
         country: Countries,
         private tryAllyWith: string[] = [],
         private enableLogging = true,
-        private strategy?: Strategy,
+        private strategy: Strategy = new DefaultStrategy(),
     ) {
         super(name, country);
         this.queueController = new QueueController();
@@ -51,10 +50,6 @@ export class SupalosaBot extends Bot {
 
         if (!myPlayer.country) {
             throw new Error(`Player ${this.name} has no country`);
-        }
-
-        if (!this.strategy) {
-            this.strategy = this.createDefaultStrategy(myPlayer.country.side);
         }
         this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
 
@@ -76,14 +71,6 @@ export class SupalosaBot extends Bot {
         this.tryAllyWith
             .filter((playerName) => playerName !== this.name)
             .forEach((playerName) => this.actionsApi.toggleAlliance(playerName, true));
-    }
-
-    private createDefaultStrategy(side: SideType): Strategy {
-        if (side === SideType.Nod) {
-            return new SovietDefaultStrategy();
-        } else {
-            return new AlliedDefaultStrategy();
-        }
     }
 
     override onGameTick(game: GameApi) {
