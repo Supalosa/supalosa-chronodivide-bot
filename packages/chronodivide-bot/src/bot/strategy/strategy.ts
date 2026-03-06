@@ -2,6 +2,10 @@ import { SupabotContext } from "../logic/common/context.js";
 import { MissionController } from "../logic/mission/missionController.js";
 import { DebugLogger } from "../logic/common/utils.js";
 
+export type UnitComposition = {
+    [unitType: string]: number;
+};
+
 /**
  * Defines how the bot builds units, selects missions,
  * and makes high-level tactical decisions.

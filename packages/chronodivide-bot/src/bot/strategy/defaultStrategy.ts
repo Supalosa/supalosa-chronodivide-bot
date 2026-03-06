@@ -1,6 +1,5 @@
 import { GameApi, PlayerData, SideType } from "@chronodivide/game-api";
-import { Strategy } from "./strategy.js";
-import { UnitComposition } from "../logic/composition/common.js";
+import { Strategy, UnitComposition } from "./strategy.js";
 import { ExpansionMissionFactory } from "../logic/mission/missions/expansionMission.js";
 import { ScoutingMissionFactory } from "../logic/mission/missions/scoutingMission.js";
 import { AttackMissionFactory } from "../logic/mission/missions/attackMission.js";

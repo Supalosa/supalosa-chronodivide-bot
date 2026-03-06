@@ -1,23 +1,13 @@
-import {
-    ActionsApi,
-    BotContext,
-    GameApi,
-    ObjectType,
-    PlayerData,
-    SideType,
-    UnitData,
-    Vector2,
-} from "@chronodivide/game-api";
+import { GameApi, ObjectType, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { CombatSquad } from "./squads/combatSquad.js";
 import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { RetreatMission } from "./retreatMission.js";
-import { DebugLogger, countBy, isOwnedByNeutral, maxBy } from "../../common/utils.js";
-import { ActionBatcher } from "../actionBatcher.js";
-import { UnitComposition } from "../../composition/common.js";
+import { DebugLogger, isOwnedByNeutral, maxBy } from "../../common/utils.js";
 import { manageMoveMicro } from "./squads/common.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
+import { UnitComposition } from "../../../strategy/strategy.js";
 
 export enum AttackFailReason {
     NoTargets = 0,

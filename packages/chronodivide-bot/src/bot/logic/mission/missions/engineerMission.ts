@@ -1,24 +1,10 @@
-import {
-    ActionsApi,
-    Bot,
-    BotContext,
-    GameApi,
-    GameObjectData,
-    OrderType,
-    PlayerData,
-    SideType,
-    SpeedType,
-    UnitData,
-} from "@chronodivide/game-api";
-import { Mission, MissionAction, disbandMission, noop, releaseUnits, requestUnits } from "../mission.js";
-import { MatchAwareness } from "../../awareness.js";
+import { GameApi, GameObjectData, OrderType, SideType, SpeedType, UnitData } from "@chronodivide/game-api";
+import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger, toPathNode, toVector2 } from "../../common/utils.js";
-import { ActionBatcher } from "../actionBatcher.js";
-import { getAdjacencyTiles } from "../../building/buildingRules.js";
 import { computeAdjacentRect, getAdjacentTiles } from "../../common/tileUtils.js";
-import { UnitComposition } from "../../composition/common.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
+import { UnitComposition } from "../../../strategy/strategy.js";
 
 const CAPTURE_COOLDOWN_TICKS = 30;
 
