@@ -1,11 +1,12 @@
-import { ActionsApi, BotContext, GameApi, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, GameObjectData, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { Mission, MissionAction, grabCombatants, noop, releaseUnits, requestUnits } from "../mission.js";
 import { CombatSquad } from "./squads/combatSquad.js";
-import { DebugLogger, isOwnedByNeutral } from "../../common/utils.js";
+import { DebugLogger, isOwnedByNeutral, toVector2 } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
+import { match } from "assert";
 
 export const MAX_PRIORITY = 100;
 export const PRIORITY_INCREASE_PER_TICK_RATIO = 1.025;
@@ -98,29 +99,46 @@ export class DefenceMissionFactory {
         }
         this.lastDefenceCheckAt = game.getCurrentTick();
 
+        const defendablePoints = this.getDefendablePoints(context);
+
         const defendableRadius =
             DEFENCE_STARTING_RADIUS + DEFENCE_RADIUS_INCREASE_PER_GAME_TICK * game.getCurrentTick();
-        const enemiesNearSpawn = matchAwareness
-            .getHostilesNearPoint2d(playerData.startLocation, defendableRadius)
-            .map((unit) => game.getUnitData(unit.unitId))
-            .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
+        for (const defendablePoint of defendablePoints) {
+            const enemiesNearPoint = matchAwareness
+                .getHostilesNearPoint2d(defendablePoint, defendableRadius)
+                .map((unit) => game.getUnitData(unit.unitId))
+                .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
-        if (enemiesNearSpawn.length > 0) {
-            logger(
-                `Starting defence mission, ${
-                    enemiesNearSpawn.length
-                } found in radius ${defendableRadius} (tick ${game.getCurrentTick()})`,
-            );
-            missionController.addMission(
-                new DefenceMission(
-                    "globalDefence",
-                    10,
-                    matchAwareness.getMainRallyPoint(),
-                    playerData.startLocation,
-                    defendableRadius * 1.2,
-                    logger,
-                ),
-            );
+            if (enemiesNearPoint.length > 0) {
+                logger(
+                    `Starting defence mission, ${
+                        enemiesNearPoint.length
+                    } found in radius ${defendableRadius} (tick ${game.getCurrentTick()})`,
+                );
+                missionController.addMission(
+                    new DefenceMission(
+                        "globalDefence",
+                        10,
+                        matchAwareness.getMainRallyPoint(),
+                        defendablePoint,
+                        defendableRadius * 1.2,
+                        logger,
+                    ),
+                );
+            }
         }
+    }
+
+    getDefendablePoints(context: SupabotContext) {
+        const { game, player } = context;
+        return game
+            .getVisibleUnits(
+                player.name,
+                "self",
+                (r) => r.constructionYard || r.harvester || r.name === "AMCV" || r.name === "SMCV",
+            )
+            .map((unitId) => game.getGameObjectData(unitId))
+            .filter((unit): unit is GameObjectData => unit != null)
+            .map((unit) => toVector2(unit.tile));
     }
 }
