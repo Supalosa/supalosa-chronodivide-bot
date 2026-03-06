@@ -8,7 +8,6 @@
     "main": "dist/index.js",
     "scripts": {
         "build": "tsc -p .",
-        "build:bot": "webpack --config webpack.bot.js",
         "start": "node . --es-module-specifier-resolution=node",
         "test": "vitest"
     },
