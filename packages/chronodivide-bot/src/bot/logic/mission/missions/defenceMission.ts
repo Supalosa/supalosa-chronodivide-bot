@@ -78,9 +78,9 @@ export class DefenceMission extends Mission<CombatSquad> {
 const DEFENCE_CHECK_TICKS = 30;
 
 // Starting radius around the player's base to trigger defense.
-const DEFENCE_STARTING_RADIUS = 10;
+const DEFENCE_STARTING_RADIUS = 6;
 // Every game tick, we increase the defendable area by this amount.
-const DEFENCE_RADIUS_INCREASE_PER_GAME_TICK = 0.001;
+const DEFENCE_RADIUS_INCREASE_PER_GAME_TICK = 0.0001;
 
 export class DefenceMissionFactory {
     private lastDefenceCheckAt = 0;
@@ -117,11 +117,11 @@ export class DefenceMissionFactory {
                 );
                 missionController.addMission(
                     new DefenceMission(
-                        "globalDefence",
+                        `globalDefence.${defendablePoint.x}.${defendablePoint.y}`,
                         10,
                         matchAwareness.getMainRallyPoint(),
                         defendablePoint,
-                        defendableRadius * 1.2,
+                        defendableRadius,
                         logger,
                     ),
                 );

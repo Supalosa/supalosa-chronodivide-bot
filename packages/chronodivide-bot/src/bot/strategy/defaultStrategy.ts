@@ -33,6 +33,11 @@ export class DefaultStrategy implements Strategy {
     getAttackUnitComposition(gameApi: GameApi, playerData: PlayerData): UnitComposition {
         const side = playerData.country?.side;
         if (side === SideType.Nod) {
+            const hasRefinery = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NAREFN").length > 0;
+            if (!hasRefinery) {
+                return {};
+            }
+
             const hasWarFactory =
                 gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NAWEAP").length > 0;
             const hasRadar = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NARADR").length > 0;
@@ -41,12 +46,17 @@ export class DefaultStrategy implements Strategy {
 
             const includeInfantry = !hasBattleLab;
             return {
-                ...(includeInfantry && { E2: 10 }),
+                ...(includeInfantry && { E2: 5 }),
                 ...(hasWarFactory && { HTNK: 3, HTK: 2 }),
                 ...(hasRadar && { V3: 1 }),
                 ...(hasBattleLab && { APOC: 2 }),
             };
         } else if (side === SideType.GDI) {
+            const hasRefinery = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAREFN").length > 0;
+            if (!hasRefinery) {
+                return {};
+            }
+
             const hasWarFactory =
                 gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAWEAP").length > 0;
             const hasAirforce =
