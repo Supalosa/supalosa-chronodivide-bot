@@ -111,10 +111,10 @@ export class SupalosaBot extends Bot {
                 this.context.player.actions.quitGame();
             }
 
-            // Mission logic every 3 ticks
+            // Mission/strategy logic every 3 ticks
             if (this.context.game.getCurrentTick() % 3 === 0) {
                 this.missionController.onAiUpdate(fullContext);
-                this.strategy.maybeCreateMissions(fullContext, this.missionController, (message, sayInGame) =>
+                this.strategy = this.strategy.onAiUpdate(fullContext, this.missionController, (message, sayInGame) =>
                     this.logBotStatus(message, sayInGame),
                 );
             }

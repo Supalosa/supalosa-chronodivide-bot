@@ -18,6 +18,7 @@ export interface Strategy {
      * @param context Current game context
      * @param missionController Controller to add missions to
      * @param logger Debug logger
+     * @return Strategy This strategy, or a new one to replace it.
      */
-    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void;
+    onAiUpdate(context: SupabotContext, missionController: MissionController, logger: DebugLogger): Strategy;
 }

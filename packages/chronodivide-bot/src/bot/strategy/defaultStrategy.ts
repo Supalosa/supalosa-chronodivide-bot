@@ -16,7 +16,7 @@ export class DefaultStrategy implements Strategy {
     private defenceFactory = new DefenceMissionFactory();
     private engineerFactory = new EngineerMissionFactory();
 
-    maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
+    onAiUpdate(context: SupabotContext, missionController: MissionController, logger: DebugLogger) {
         this.expansionFactory.maybeCreateMissions(context, missionController, logger);
         this.scoutingFactory.maybeCreateMissions(context, missionController, logger);
 
@@ -26,6 +26,8 @@ export class DefaultStrategy implements Strategy {
 
         this.defenceFactory.maybeCreateMissions(context, missionController, logger);
         this.engineerFactory.maybeCreateMissions(context, missionController, logger);
+
+        return this;
     }
 
     getAttackUnitComposition(gameApi: GameApi, playerData: PlayerData): UnitComposition {
