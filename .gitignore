@@ -2,9 +2,11 @@
 .vscode/
 .idea/
 dist/
+game-client/
 node_modules/
 replays/
 packages/chronodivide-bot-driver/debug/
+packages/chronodivide-bot-launcher/
 *.tgz
 *.rpl
 *.log
