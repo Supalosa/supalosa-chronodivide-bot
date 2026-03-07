@@ -96,13 +96,11 @@ export class DefaultStrategy implements Strategy {
     private defenceFactory = new DefenceMissionFactory();
     private engineerFactory = new EngineerMissionFactory();
 
-    constructor() {}
-
     onAiUpdate(context: SupabotContext, missionController: MissionController, logger: DebugLogger) {
         this.expansionFactory.maybeCreateMissions(context, missionController, logger);
         this.scoutingFactory.maybeCreateMissions(context, missionController, logger);
 
-        const composition = this.selectRandomAttackComposition(context);
+        const composition = this.selectRandomAttackComposition(context, logger);
         if (composition) {
             this.attackFactory.maybeCreateMissions(context, missionController, logger, composition);
         }
@@ -113,7 +111,7 @@ export class DefaultStrategy implements Strategy {
         return this;
     }
 
-    selectRandomAttackComposition(context: SupabotContext): SideComposition | null {
+    private selectRandomAttackComposition(context: SupabotContext, logger: DebugLogger): SideComposition | null {
         const playerData = context.game.getPlayerData(context.player.name);
         const side = playerData.country?.side;
         if (side === undefined) {
@@ -126,7 +124,7 @@ export class DefaultStrategy implements Strategy {
             return null;
         }
 
-        console.log("Valid compositions:", validCompositions);
+        logger(`Valid compositions: ${validCompositions.join(", ")}`);
 
         const randomIndex = context.game.generateRandomInt(0, validCompositions.length - 1);
         const compositionId = validCompositions[randomIndex];
