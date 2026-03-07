@@ -1,20 +1,9 @@
-import {
-    ActionsApi,
-    GameApi,
-    GameObjectData,
-    PlayerData,
-    TechnoRules,
-    Tile,
-    UnitData,
-    Vector2,
-} from "@chronodivide/game-api";
-import { MatchAwareness } from "../awareness.js";
+import { GameApi, GameObjectData, TechnoRules, Tile, UnitData, Vector2 } from "@chronodivide/game-api";
 import { countBy, DebugLogger } from "../common/utils.js";
-import { ActionBatcher } from "./actionBatcher.js";
 import { getDistanceBetweenTileAndPoint } from "../map/map.js";
 import { getCachedTechnoRules } from "../common/rulesCache.js";
-import { UnitComposition } from "../composition/common.js";
-import { MissionContext, SupabotContext } from "../common/context.js";
+import { MissionContext } from "../common/context.js";
+import { UnitComposition } from "../../strategy/strategy.js";
 
 const calculateCenterOfMass: (unitTiles: Tile[]) => {
     centerOfMass: Vector2;
@@ -195,8 +184,7 @@ export type MissionActionDisband = {
 
 export type MissionActionRequestUnits = {
     type: "request";
-    unitNames: string[];
-    priority: number;
+    unitNameToPriority: Record<string, number>;
 };
 
 export type MissionActionRequestSpecificUnits = {
@@ -225,8 +213,13 @@ export const disbandMission = (reason?: any) => ({ type: "disband", reason }) as
 export const isDisbandMission = (a: MissionWithAction<MissionAction>): a is MissionWithAction<MissionActionDisband> =>
     a.action.type === "disband";
 
-export const requestUnits = (unitNames: string[], priority: number) =>
-    ({ type: "request", unitNames, priority }) as MissionActionRequestUnits;
+export const requestUnits = (unitNameToPriority: Record<string, number>) =>
+    ({ type: "request", unitNameToPriority }) as MissionActionRequestUnits;
+export const requestUnitsWithSamePriority = (unitNames: string[], priority: number) =>
+    ({
+        type: "request",
+        unitNameToPriority: Object.fromEntries(unitNames.map((name) => [name, priority])),
+    }) as MissionActionRequestUnits;
 export const isRequestUnits = (
     a: MissionWithAction<MissionAction>,
 ): a is MissionWithAction<MissionActionRequestUnits> => a.action.type === "request";

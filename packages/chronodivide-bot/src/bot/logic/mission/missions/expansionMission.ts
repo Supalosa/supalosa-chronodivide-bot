@@ -13,7 +13,15 @@ import {
     UnitData,
     Vector2,
 } from "@chronodivide/game-api";
-import { Mission, MissionAction, disbandMission, noop, requestSpecificUnits, requestUnits } from "../mission.js";
+import {
+    Mission,
+    MissionAction,
+    disbandMission,
+    noop,
+    requestSpecificUnits,
+    requestUnits,
+    requestUnitsWithSamePriority,
+} from "../mission.js";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger, isTechnoRulesObject, maxBy, minBy, toPathNode, toVector2 } from "../../common/utils.js";
@@ -68,7 +76,7 @@ export class ExpansionMission extends Mission {
             if (this.selectedMcvId && !!game.getUnitData(this.selectedMcvId)) {
                 return requestSpecificUnits([this.selectedMcvId], this.priority);
             }
-            return requestUnits(mcvTypes, this.priority);
+            return requestUnitsWithSamePriority(mcvTypes, this.priority);
         }
 
         // use the highest-hp MCV

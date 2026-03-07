@@ -1,9 +1,9 @@
-import { ActionsApi, BotContext, GameApi, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, GameObjectData, PlayerData, UnitData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
 import { MissionController } from "../missionController.js";
 import { Mission, MissionAction, grabCombatants, noop, releaseUnits, requestUnits } from "../mission.js";
 import { CombatSquad } from "./squads/combatSquad.js";
-import { DebugLogger, isOwnedByNeutral } from "../../common/utils.js";
+import { DebugLogger, isOwnedByNeutral, toVector2 } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
 
@@ -29,8 +29,7 @@ export class DefenceMission extends Mission<CombatSquad> {
     }
 
     _onAiUpdate(context: MissionContext): MissionAction {
-        const { game, actionBatcher, matchAwareness } = context;
-        const playerData = game.getPlayerData(context.player.name);
+        const { game, matchAwareness } = context;
         // Dispatch missions.
         const foundTargets = matchAwareness
             .getHostilesNearPoint2d(this.defenceArea, this.radius)
@@ -51,18 +50,16 @@ export class DefenceMission extends Mission<CombatSquad> {
             } else {
                 return noop();
             }
-        } else {
-            const targetUnit = foundTargets[0];
-            this.logger(
-                `(Defence Mission ${this.getUniqueName()}): Focused on target ${targetUnit?.name} (${
-                    foundTargets.length
-                } found in area ${this.radius})`,
-            );
-            this.squad.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
-            this.priority = MAX_PRIORITY; // Math.min(MAX_PRIORITY, this.priority * PRIORITY_INCREASE_PER_TICK_RATIO);
-            return grabCombatants(playerData.startLocation, this.priority);
         }
-        //return requestUnits(["E1", "E2", "FV", "HTK", "MTNK", "HTNK"], this.priority);
+        const targetUnit = foundTargets[0];
+        this.logger(
+            `(Defence Mission ${this.getUniqueName()}): Focused on target ${targetUnit?.name} (${
+                foundTargets.length
+            } found in area ${this.radius})`,
+        );
+        this.squad.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
+        this.priority = MAX_PRIORITY;
+        return grabCombatants(this.defenceArea, this.priority);
     }
 
     public getGlobalDebugText(): string | undefined {
@@ -77,9 +74,9 @@ export class DefenceMission extends Mission<CombatSquad> {
 const DEFENCE_CHECK_TICKS = 30;
 
 // Starting radius around the player's base to trigger defense.
-const DEFENCE_STARTING_RADIUS = 10;
+const DEFENCE_STARTING_RADIUS = 6;
 // Every game tick, we increase the defendable area by this amount.
-const DEFENCE_RADIUS_INCREASE_PER_GAME_TICK = 0.001;
+const DEFENCE_RADIUS_INCREASE_PER_GAME_TICK = 0.0001;
 
 export class DefenceMissionFactory {
     private lastDefenceCheckAt = 0;
@@ -92,35 +89,47 @@ export class DefenceMissionFactory {
 
     maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
         const { game, matchAwareness } = context;
-        const playerData = game.getPlayerData(context.player.name);
         if (game.getCurrentTick() < this.lastDefenceCheckAt + DEFENCE_CHECK_TICKS) {
             return;
         }
         this.lastDefenceCheckAt = game.getCurrentTick();
 
+        const defendablePoints = this.getDefendablePoints(context);
+
         const defendableRadius =
             DEFENCE_STARTING_RADIUS + DEFENCE_RADIUS_INCREASE_PER_GAME_TICK * game.getCurrentTick();
-        const enemiesNearSpawn = matchAwareness
-            .getHostilesNearPoint2d(playerData.startLocation, defendableRadius)
-            .map((unit) => game.getUnitData(unit.unitId))
-            .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
+        for (const defendablePoint of defendablePoints) {
+            const enemiesNearPoint = matchAwareness
+                .getHostilesNearPoint2d(defendablePoint, defendableRadius)
+                .map((unit) => game.getUnitData(unit.unitId))
+                .filter((unit) => !isOwnedByNeutral(unit)) as UnitData[];
 
-        if (enemiesNearSpawn.length > 0) {
-            logger(
-                `Starting defence mission, ${
-                    enemiesNearSpawn.length
-                } found in radius ${defendableRadius} (tick ${game.getCurrentTick()})`,
-            );
-            missionController.addMission(
-                new DefenceMission(
-                    "globalDefence",
-                    10,
-                    matchAwareness.getMainRallyPoint(),
-                    playerData.startLocation,
-                    defendableRadius * 1.2,
-                    logger,
-                ),
-            );
+            if (enemiesNearPoint.length > 0) {
+                logger(
+                    `Starting defence mission, ${
+                        enemiesNearPoint.length
+                    } found in radius ${defendableRadius} (tick ${game.getCurrentTick()})`,
+                );
+                missionController.addMission(
+                    new DefenceMission(
+                        `globalDefence.${defendablePoint.x}.${defendablePoint.y}`,
+                        10,
+                        matchAwareness.getMainRallyPoint(),
+                        defendablePoint,
+                        defendableRadius,
+                        logger,
+                    ),
+                );
+            }
         }
+    }
+
+    private getDefendablePoints(context: SupabotContext) {
+        const { game, player } = context;
+        return game
+            .getVisibleUnits(player.name, "self", (r) => r.constructionYard || r.name === "AMCV" || r.name === "SMCV")
+            .map((unitId) => game.getGameObjectData(unitId))
+            .filter((unit): unit is GameObjectData => unit != null)
+            .map((unit) => toVector2(unit.tile));
     }
 }

@@ -1,24 +1,17 @@
+import { GameApi, GameObjectData, OrderType, SideType, SpeedType, UnitData } from "@chronodivide/game-api";
 import {
-    ActionsApi,
-    Bot,
-    BotContext,
-    GameApi,
-    GameObjectData,
-    OrderType,
-    PlayerData,
-    SideType,
-    SpeedType,
-    UnitData,
-} from "@chronodivide/game-api";
-import { Mission, MissionAction, disbandMission, noop, releaseUnits, requestUnits } from "../mission.js";
-import { MatchAwareness } from "../../awareness.js";
+    Mission,
+    MissionAction,
+    disbandMission,
+    noop,
+    requestUnits,
+    requestUnitsWithSamePriority,
+} from "../mission.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger, toPathNode, toVector2 } from "../../common/utils.js";
-import { ActionBatcher } from "../actionBatcher.js";
-import { getAdjacencyTiles } from "../../building/buildingRules.js";
 import { computeAdjacentRect, getAdjacentTiles } from "../../common/tileUtils.js";
-import { UnitComposition } from "../../composition/common.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
+import { UnitComposition } from "../../../strategy/strategy.js";
 
 const CAPTURE_COOLDOWN_TICKS = 30;
 
@@ -84,7 +77,7 @@ export class EngineerMission extends Mission {
             }
             const missingUnits = this.getMissingUnits(game, composition);
             if (missingUnits.length > 0) {
-                return requestUnits(
+                return requestUnitsWithSamePriority(
                     missingUnits.map(([unitName]) => unitName),
                     this.priority,
                 );

@@ -123,7 +123,7 @@ export class MissionController {
                 const { unitIds } = missionWithAction.action;
                 unitIds.forEach((unitId) => {
                     if (prev.hasOwnProperty(unitId)) {
-                        if (prev[unitId].action.priority > prev[unitId].action.priority) {
+                        if (missionWithAction.action.priority > prev[unitId].action.priority) {
                             prev[unitId] = missionWithAction;
                         }
                     } else {
@@ -176,19 +176,25 @@ export class MissionController {
         // Request units by type - store the highest priority mission for each unit type.
         const unitTypeToHighestRequest = missionActions.filter(isRequestUnits).reduce(
             (prev, missionWithAction) => {
-                const { unitNames } = missionWithAction.action;
-                unitNames.forEach((unitName) => {
+                const { unitNameToPriority } = missionWithAction.action;
+                Object.entries(unitNameToPriority).forEach(([unitName, requestedPriority]) => {
                     if (prev.hasOwnProperty(unitName)) {
-                        if (prev[unitName].action.priority > prev[unitName].action.priority) {
-                            prev[unitName] = missionWithAction;
+                        if (requestedPriority > prev[unitName].priority) {
+                            prev[unitName] = {
+                                mission: missionWithAction.mission,
+                                priority: requestedPriority,
+                            };
                         }
                     } else {
-                        prev[unitName] = missionWithAction;
+                        prev[unitName] = {
+                            mission: missionWithAction.mission,
+                            priority: requestedPriority,
+                        };
                     }
                 });
                 return prev;
             },
-            {} as Record<string, MissionWithAction<MissionActionRequestUnits>>,
+            {} as Record<string, { mission: Mission<any>; priority: number }>,
         );
 
         // Request combat-capable units in an area
@@ -217,12 +223,10 @@ export class MissionController {
         const newAssignmentsByType = freeUnits
             .flatMap(({ unit: freeUnit, mission: donatingMission }) => {
                 if (unitTypeToHighestRequest.hasOwnProperty(freeUnit.name)) {
-                    const { mission: requestingMission } = unitTypeToHighestRequest[freeUnit.name];
+                    const { mission: requestingMission, priority: requestedPriority } =
+                        unitTypeToHighestRequest[freeUnit.name];
                     if (donatingMission) {
-                        if (
-                            donatingMission === requestingMission ||
-                            donatingMission.getPriority() > requestingMission.getPriority()
-                        ) {
+                        if (donatingMission === requestingMission || donatingMission.getPriority() > requestedPriority) {
                             return [];
                         }
                         this.removeUnitFromMission(donatingMission, freeUnit.id, context.player.actions);
@@ -309,7 +313,7 @@ export class MissionController {
     }
 
     private updateRequestedUnitTypes(
-        missingUnitTypeToHighestRequest: Record<string, MissionWithAction<MissionActionRequestUnits>>,
+        missingUnitTypeToHighestRequest: Record<string, { mission: Mission<any>; priority: number }>,
     ) {
         // Decay the priority over time.
         const currentUnitTypes = Array.from(this.requestedUnitTypes.keys());
@@ -328,7 +332,7 @@ export class MissionController {
             const currentPriority = this.requestedUnitTypes.get(unitType);
             this.requestedUnitTypes.set(
                 unitType,
-                currentPriority ? Math.max(currentPriority, request.action.priority) : request.action.priority,
+                currentPriority ? Math.max(currentPriority, request.priority) : request.priority,
             );
         });
     }
