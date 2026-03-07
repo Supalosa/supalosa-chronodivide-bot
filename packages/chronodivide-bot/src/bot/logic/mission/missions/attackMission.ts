@@ -80,10 +80,15 @@ export class AttackMission extends Mission<AttackFailReason> {
         const missingUnits = this.getMissingUnits(game, desiredComposition);
         if (missingUnits.length > 0) {
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
-            return requestUnits(
-                missingUnits.map(([unitName]) => unitName),
-                this.priority,
+            // distribute the priority among the amount of missing units of each type
+            const totalMissingUnits = missingUnits.reduce((sum, [, numMissing]) => sum + numMissing, 0);
+            const unitPriorities = Object.fromEntries(
+                missingUnits.map(([unitName, numMissing]) => [
+                    unitName,
+                    (this.priority * numMissing) / totalMissingUnits,
+                ]),
             );
+            return requestUnits(unitPriorities);
         } else {
             this.priority = ATTACK_MISSION_INITIAL_PRIORITY;
             this.state = AttackMissionState.Attacking;

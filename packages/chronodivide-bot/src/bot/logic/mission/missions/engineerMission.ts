@@ -1,5 +1,12 @@
 import { GameApi, GameObjectData, OrderType, SideType, SpeedType, UnitData } from "@chronodivide/game-api";
-import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
+import {
+    Mission,
+    MissionAction,
+    disbandMission,
+    noop,
+    requestUnits,
+    requestUnitsWithSamePriority,
+} from "../mission.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger, toPathNode, toVector2 } from "../../common/utils.js";
 import { computeAdjacentRect, getAdjacentTiles } from "../../common/tileUtils.js";
@@ -70,7 +77,7 @@ export class EngineerMission extends Mission {
             }
             const missingUnits = this.getMissingUnits(game, composition);
             if (missingUnits.length > 0) {
-                return requestUnits(
+                return requestUnitsWithSamePriority(
                     missingUnits.map(([unitName]) => unitName),
                     this.priority,
                 );

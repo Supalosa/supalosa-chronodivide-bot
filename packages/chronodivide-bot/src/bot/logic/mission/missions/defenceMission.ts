@@ -30,8 +30,7 @@ export class DefenceMission extends Mission<CombatSquad> {
     }
 
     _onAiUpdate(context: MissionContext): MissionAction {
-        const { game, actionBatcher, matchAwareness } = context;
-        const playerData = game.getPlayerData(context.player.name);
+        const { game, matchAwareness } = context;
         // Dispatch missions.
         const foundTargets = matchAwareness
             .getHostilesNearPoint2d(this.defenceArea, this.radius)
@@ -52,18 +51,16 @@ export class DefenceMission extends Mission<CombatSquad> {
             } else {
                 return noop();
             }
-        } else {
-            const targetUnit = foundTargets[0];
-            this.logger(
-                `(Defence Mission ${this.getUniqueName()}): Focused on target ${targetUnit?.name} (${
-                    foundTargets.length
-                } found in area ${this.radius})`,
-            );
-            this.squad.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
-            this.priority = MAX_PRIORITY; // Math.min(MAX_PRIORITY, this.priority * PRIORITY_INCREASE_PER_TICK_RATIO);
-            return grabCombatants(this.defenceArea, this.priority);
         }
-        //return requestUnits(["E1", "E2", "FV", "HTK", "MTNK", "HTNK"], this.priority);
+        const targetUnit = foundTargets[0];
+        this.logger(
+            `(Defence Mission ${this.getUniqueName()}): Focused on target ${targetUnit?.name} (${
+                foundTargets.length
+            } found in area ${this.radius})`,
+        );
+        this.squad.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
+        this.priority = MAX_PRIORITY;
+        return grabCombatants(this.defenceArea, this.priority);
     }
 
     public getGlobalDebugText(): string | undefined {

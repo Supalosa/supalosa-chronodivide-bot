@@ -1,6 +1,13 @@
 import { ActionsApi, BotContext, GameApi, OrderType, PlayerData, Vector2 } from "@chronodivide/game-api";
 import { MatchAwareness } from "../../awareness.js";
-import { Mission, MissionAction, disbandMission, noop, requestUnits } from "../mission.js";
+import {
+    Mission,
+    MissionAction,
+    disbandMission,
+    noop,
+    requestUnits,
+    requestUnitsWithSamePriority,
+} from "../mission.js";
 import { AttackMission } from "./attackMission.js";
 import { MissionController } from "../missionController.js";
 import { DebugLogger } from "../../common/utils.js";
@@ -58,7 +65,7 @@ export class ScoutingMission extends Mission {
                 this.attemptsOnCurrentTarget++;
                 this.hadUnit = false;
             }
-            return requestUnits(scoutNames, this.priority);
+            return requestUnitsWithSamePriority(scoutNames, this.priority);
         } else if (this.scoutTarget) {
             this.hadUnit = true;
             if (!this.scoutTargetIsPermanent) {

@@ -184,8 +184,7 @@ export type MissionActionDisband = {
 
 export type MissionActionRequestUnits = {
     type: "request";
-    unitNames: string[];
-    priority: number;
+    unitNameToPriority: Record<string, number>;
 };
 
 export type MissionActionRequestSpecificUnits = {
@@ -214,8 +213,13 @@ export const disbandMission = (reason?: any) => ({ type: "disband", reason }) as
 export const isDisbandMission = (a: MissionWithAction<MissionAction>): a is MissionWithAction<MissionActionDisband> =>
     a.action.type === "disband";
 
-export const requestUnits = (unitNames: string[], priority: number) =>
-    ({ type: "request", unitNames, priority }) as MissionActionRequestUnits;
+export const requestUnits = (unitNameToPriority: Record<string, number>) =>
+    ({ type: "request", unitNameToPriority }) as MissionActionRequestUnits;
+export const requestUnitsWithSamePriority = (unitNames: string[], priority: number) =>
+    ({
+        type: "request",
+        unitNameToPriority: Object.fromEntries(unitNames.map((name) => [name, priority])),
+    }) as MissionActionRequestUnits;
 export const isRequestUnits = (
     a: MissionWithAction<MissionAction>,
 ): a is MissionWithAction<MissionActionRequestUnits> => a.action.type === "request";
