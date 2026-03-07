@@ -1,4 +1,4 @@
-import { BotContext, SideType } from "@chronodivide/game-api";
+import { BotContext } from "@chronodivide/game-api";
 import { UnitComposition } from "./strategy";
 
 export type SideComposition = {

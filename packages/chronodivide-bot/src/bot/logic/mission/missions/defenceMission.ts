@@ -6,7 +6,6 @@ import { CombatSquad } from "./squads/combatSquad.js";
 import { DebugLogger, isOwnedByNeutral, toVector2 } from "../../common/utils.js";
 import { ActionBatcher } from "../actionBatcher.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
-import { match } from "assert";
 
 export const MAX_PRIORITY = 100;
 export const PRIORITY_INCREASE_PER_TICK_RATIO = 1.025;
@@ -125,7 +124,7 @@ export class DefenceMissionFactory {
         }
     }
 
-    getDefendablePoints(context: SupabotContext) {
+    private getDefendablePoints(context: SupabotContext) {
         const { game, player } = context;
         return game
             .getVisibleUnits(player.name, "self", (r) => r.constructionYard || r.name === "AMCV" || r.name === "SMCV")

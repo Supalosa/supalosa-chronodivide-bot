@@ -313,10 +313,10 @@ export class AttackMissionFactory {
                 composition,
                 logger,
             ).withOnFinish((unitIds, reason) => {
-                console.log(
+                logger(
                     `Attack ${squadName} (${JSON.stringify(composition)}) with ${
                         unitIds.length
-                    } units failed with reason: ${AttackFailReason[reason]}`,
+                    } units finished with reason: ${reason}`,
                 );
                 missionController.addMission(
                     new RetreatMission(
