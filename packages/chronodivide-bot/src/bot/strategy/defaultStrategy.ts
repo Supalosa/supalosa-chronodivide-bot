@@ -1,5 +1,4 @@
-import { GameApi, PlayerData, SideType } from "@chronodivide/game-api";
-import { Strategy, UnitComposition } from "./strategy.js";
+import { Strategy } from "./strategy.js";
 import { ExpansionMissionFactory } from "../logic/mission/missions/expansionMission.js";
 import { ScoutingMissionFactory } from "../logic/mission/missions/scoutingMission.js";
 import { AttackMissionFactory } from "../logic/mission/missions/attackMission.js";
@@ -8,6 +7,55 @@ import { EngineerMissionFactory } from "../logic/mission/missions/engineerMissio
 import { SupabotContext } from "../logic/common/context.js";
 import { MissionController } from "../logic/mission/missionController.js";
 import { DebugLogger } from "../logic/common/utils.js";
+import { Compositions, getValidCompositions, SideComposition } from "./compositionUtils.js";
+
+// These could be loaded from ai.ini
+const DEFAULT_COMPOSITIONS: Compositions = {
+    conscripts: {
+        composition: {
+            E2: 1,
+        },
+        minimumUnits: 5,
+        maximumUnits: 10,
+    },
+    gis: {
+        composition: {
+            E1: 1,
+        },
+        minimumUnits: 5,
+        maximumUnits: 10,
+    },
+    sovietTanks: {
+        composition: {
+            HTNK: 5,
+            HTK: 1,
+        },
+        minimumUnits: 4,
+        maximumUnits: 20,
+    },
+    alliedTanks: {
+        composition: {
+            MTNK: 5,
+            FV: 1,
+        },
+        minimumUnits: 4,
+        maximumUnits: 20,
+    },
+    kirovs: {
+        composition: {
+            KIROV: 1,
+        },
+        minimumUnits: 1,
+        maximumUnits: 3,
+    },
+    rocketeers: {
+        composition: {
+            JUMPJET: 1,
+        },
+        minimumUnits: 3,
+        maximumUnits: 6,
+    },
+};
 
 export class DefaultStrategy implements Strategy {
     private expansionFactory = new ExpansionMissionFactory();
@@ -16,13 +64,16 @@ export class DefaultStrategy implements Strategy {
     private defenceFactory = new DefenceMissionFactory();
     private engineerFactory = new EngineerMissionFactory();
 
+    constructor() {}
+
     onAiUpdate(context: SupabotContext, missionController: MissionController, logger: DebugLogger) {
         this.expansionFactory.maybeCreateMissions(context, missionController, logger);
         this.scoutingFactory.maybeCreateMissions(context, missionController, logger);
 
-        const playerData = context.game.getPlayerData(context.player.name);
-        const composition = this.getAttackUnitComposition(context.game, playerData);
-        this.attackFactory.maybeCreateMissions(context, missionController, logger, composition);
+        const composition = this.selectRandomAttackComposition(context);
+        if (composition) {
+            this.attackFactory.maybeCreateMissions(context, missionController, logger, composition);
+        }
 
         this.defenceFactory.maybeCreateMissions(context, missionController, logger);
         this.engineerFactory.maybeCreateMissions(context, missionController, logger);
@@ -30,50 +81,21 @@ export class DefaultStrategy implements Strategy {
         return this;
     }
 
-    getAttackUnitComposition(gameApi: GameApi, playerData: PlayerData): UnitComposition {
+    selectRandomAttackComposition(context: SupabotContext): SideComposition | null {
+        const playerData = context.game.getPlayerData(context.player.name);
         const side = playerData.country?.side;
-        if (side === SideType.Nod) {
-            const hasRefinery = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NAREFN").length > 0;
-            if (!hasRefinery) {
-                return {};
-            }
-
-            const hasWarFactory =
-                gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NAWEAP").length > 0;
-            const hasRadar = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NARADR").length > 0;
-            const hasBattleLab =
-                gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "NATECH").length > 0;
-
-            const includeInfantry = !hasBattleLab;
-            return {
-                ...(includeInfantry && { E2: 5 }),
-                ...(hasWarFactory && { HTNK: 3, HTK: 2 }),
-                ...(hasRadar && { V3: 1 }),
-                ...(hasBattleLab && { APOC: 2 }),
-            };
-        } else if (side === SideType.GDI) {
-            const hasRefinery = gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAREFN").length > 0;
-            if (!hasRefinery) {
-                return {};
-            }
-
-            const hasWarFactory =
-                gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAWEAP").length > 0;
-            const hasAirforce =
-                gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GAAIRC" || r.name === "AMRADR")
-                    .length > 0;
-            const hasBattleLab =
-                gameApi.getVisibleUnits(playerData.name, "self", (r) => r.name === "GATECH").length > 0;
-
-            const includeInfantry = !hasAirforce && !hasBattleLab;
-            return {
-                ...(includeInfantry && { E1: 5 }),
-                ...(hasWarFactory && { MTNK: 3, FV: 2 }),
-                ...(hasAirforce && { JUMPJET: 6 }),
-                ...(hasBattleLab && { SREF: 2, MGTK: 3 }),
-            };
-        } else {
-            throw new Error(`Unknown side type ${side} (country: ${playerData.country?.name})`);
+        if (side === undefined) {
+            return null;
         }
+
+        const validCompositions = getValidCompositions(context, DEFAULT_COMPOSITIONS);
+
+        if (validCompositions.length === 0) {
+            return null;
+        }
+
+        const randomIndex = context.game.generateRandomInt(0, validCompositions.length - 1);
+        const compositionId = validCompositions[randomIndex];
+        return DEFAULT_COMPOSITIONS[compositionId];
     }
 }

@@ -61,7 +61,7 @@ export class DefenceMission extends Mission<CombatSquad> {
             );
             this.squad.setAttackArea(new Vector2(foundTargets[0].tile.rx, foundTargets[0].tile.ry));
             this.priority = MAX_PRIORITY; // Math.min(MAX_PRIORITY, this.priority * PRIORITY_INCREASE_PER_TICK_RATIO);
-            return grabCombatants(playerData.startLocation, this.priority);
+            return grabCombatants(this.defenceArea, this.priority);
         }
         //return requestUnits(["E1", "E2", "FV", "HTK", "MTNK", "HTNK"], this.priority);
     }
@@ -93,7 +93,6 @@ export class DefenceMissionFactory {
 
     maybeCreateMissions(context: SupabotContext, missionController: MissionController, logger: DebugLogger): void {
         const { game, matchAwareness } = context;
-        const playerData = game.getPlayerData(context.player.name);
         if (game.getCurrentTick() < this.lastDefenceCheckAt + DEFENCE_CHECK_TICKS) {
             return;
         }
@@ -132,11 +131,7 @@ export class DefenceMissionFactory {
     getDefendablePoints(context: SupabotContext) {
         const { game, player } = context;
         return game
-            .getVisibleUnits(
-                player.name,
-                "self",
-                (r) => r.constructionYard || r.harvester || r.name === "AMCV" || r.name === "SMCV",
-            )
+            .getVisibleUnits(player.name, "self", (r) => r.constructionYard || r.name === "AMCV" || r.name === "SMCV")
             .map((unitId) => game.getGameObjectData(unitId))
             .filter((unit): unit is GameObjectData => unit != null)
             .map((unit) => toVector2(unit.tile));

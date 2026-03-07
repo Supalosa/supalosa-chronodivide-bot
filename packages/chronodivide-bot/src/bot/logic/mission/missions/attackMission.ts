@@ -8,10 +8,13 @@ import { DebugLogger, isOwnedByNeutral, maxBy } from "../../common/utils.js";
 import { manageMoveMicro } from "./squads/common.js";
 import { MissionContext, SupabotContext } from "../../common/context.js";
 import { UnitComposition } from "../../../strategy/strategy.js";
+import { SideComposition } from "../../../strategy/compositionUtils.js";
 
 export enum AttackFailReason {
-    NoTargets = 0,
-    DefenceTooStrong = 1,
+    NoTargets = "NoTargets",
+    DefenceTooStrong = "DefenceTooStrong",
+    UnableToAcquireUnits = "UnableToAcquireUnits",
+    OutOfUnits = "OutOfUnits",
 }
 
 enum AttackMissionState {
@@ -25,6 +28,8 @@ const NO_TARGET_IDLE_TIMEOUT_TICKS = 900;
 
 const ATTACK_MISSION_PRIORITY_RAMP = 1.01;
 const ATTACK_MISSION_MAX_PRIORITY = 50;
+// While preparing the squad, how many ticks to wait before dropping one unit from the desired squad size. If the squad size drops below the minimum, the attack mission is aborted.
+const REQUESTED_UNIT_COUNT_DECAY_TICKS = 240;
 
 /**
  * A mission that tries to attack a certain area.
@@ -36,6 +41,8 @@ export class AttackMission extends Mission<AttackFailReason> {
     private hasPickedNewTarget: boolean = false;
 
     private state: AttackMissionState = AttackMissionState.Preparing;
+    private requestedUnitCount: number;
+    private lastRequestedUnitCountDecayAt: number | null = null;
 
     constructor(
         uniqueName: string,
@@ -43,11 +50,12 @@ export class AttackMission extends Mission<AttackFailReason> {
         rallyArea: Vector2,
         private attackArea: Vector2,
         private radius: number,
-        private composition: UnitComposition,
+        private composition: SideComposition,
         logger: DebugLogger,
     ) {
         super(uniqueName, logger);
         this.squad = new CombatSquad(rallyArea, attackArea, radius);
+        this.requestedUnitCount = composition.maximumUnits;
     }
 
     _onAiUpdate(context: MissionContext): MissionAction {
@@ -63,7 +71,13 @@ export class AttackMission extends Mission<AttackFailReason> {
 
     private handlePreparingState(context: MissionContext) {
         const { game } = context;
-        const missingUnits = this.getMissingUnits(game, this.composition);
+        this.decayDesiredCompositionIfNeeded(game);
+        if (this.requestedUnitCount < this.composition.minimumUnits) {
+            return disbandMission(AttackFailReason.UnableToAcquireUnits);
+        }
+
+        const desiredComposition = this.getDesiredComposition();
+        const missingUnits = this.getMissingUnits(game, desiredComposition);
         if (missingUnits.length > 0) {
             this.priority = Math.min(this.priority * ATTACK_MISSION_PRIORITY_RAMP, ATTACK_MISSION_MAX_PRIORITY);
             return requestUnits(
@@ -121,7 +135,8 @@ export class AttackMission extends Mission<AttackFailReason> {
         this.getUnits(game).forEach((unitId) => {
             actionBatcher.push(manageMoveMicro(unitId, matchAwareness.getMainRallyPoint()));
         });
-        return disbandMission();
+        // Note: probably should just disband rather than have a retreating state
+        return disbandMission(AttackFailReason.OutOfUnits);
     }
 
     public getGlobalDebugText(): string | undefined {
@@ -139,6 +154,36 @@ export class AttackMission extends Mission<AttackFailReason> {
 
     public getPriority() {
         return this.priority;
+    }
+
+    private decayDesiredCompositionIfNeeded(game: GameApi): void {
+        const currentTick = game.getCurrentTick();
+        if (this.lastRequestedUnitCountDecayAt === null) {
+            this.lastRequestedUnitCountDecayAt = currentTick;
+            return;
+        }
+
+        if (currentTick <= this.lastRequestedUnitCountDecayAt + REQUESTED_UNIT_COUNT_DECAY_TICKS) {
+            return;
+        }
+
+        this.lastRequestedUnitCountDecayAt = currentTick;
+        this.requestedUnitCount--;
+    }
+
+    private getDesiredComposition(): UnitComposition {
+        const compositionWeights = this.composition.composition;
+        const totalWeights = Object.values(compositionWeights).reduce((a, b) => a + b, 0);
+        if (totalWeights <= 0) {
+            return {};
+        }
+
+        return Object.fromEntries(
+            Object.entries(compositionWeights).map(([unitName, weight]) => [
+                unitName,
+                Math.round((weight * this.requestedUnitCount) / totalWeights),
+            ]),
+        );
     }
 }
 
@@ -217,10 +262,14 @@ export class AttackMissionFactory {
         context: SupabotContext,
         missionController: MissionController,
         logger: DebugLogger,
-        composition: UnitComposition,
+        composition: SideComposition,
     ): void {
         const { game, matchAwareness } = context;
         const playerData = game.getPlayerData(context.player.name);
+        if (!composition) {
+            return;
+        }
+
         if (game.getCurrentTick() < this.lastAttackAt + VISIBLE_TARGET_ATTACK_COOLDOWN_TICKS) {
             return;
         }
@@ -259,6 +308,11 @@ export class AttackMissionFactory {
                 composition,
                 logger,
             ).withOnFinish((unitIds, reason) => {
+                console.log(
+                    `Attack ${squadName} (${JSON.stringify(composition)}) with ${
+                        unitIds.length
+                    } units failed with reason: ${AttackFailReason[reason]}`,
+                );
                 missionController.addMission(
                     new RetreatMission(
                         "retreat-from-" + squadName + game.getCurrentTick(),
