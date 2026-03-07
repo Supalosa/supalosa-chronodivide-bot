@@ -55,6 +55,38 @@ const DEFAULT_COMPOSITIONS: Compositions = {
         minimumUnits: 3,
         maximumUnits: 6,
     },
+    heavySovietTanks: {
+        composition: {
+            APOC: 2,
+            HTNK: 1,
+        },
+        minimumUnits: 3,
+        maximumUnits: 10,
+    },
+    heavyAlliedTanks: {
+        composition: {
+            MTNK: 2,
+            MGTK: 1,
+        },
+        minimumUnits: 3,
+        maximumUnits: 10,
+    },
+    sovietArtillery: {
+        composition: {
+            V3: 2,
+            HTNK: 1,
+        },
+        minimumUnits: 4,
+        maximumUnits: 10,
+    },
+    alliedArtillery: {
+        composition: {
+            SREF: 2,
+            MTNK: 1,
+        },
+        minimumUnits: 4,
+        maximumUnits: 10,
+    },
 };
 
 export class DefaultStrategy implements Strategy {
@@ -93,6 +125,8 @@ export class DefaultStrategy implements Strategy {
         if (validCompositions.length === 0) {
             return null;
         }
+
+        console.log("Valid compositions:", validCompositions);
 
         const randomIndex = context.game.generateRandomInt(0, validCompositions.length - 1);
         const compositionId = validCompositions[randomIndex];
