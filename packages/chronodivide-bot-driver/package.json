@@ -12,7 +12,7 @@
         "test": "vitest"
     },
     "peerDependencies": {
-        "@chronodivide/game-api": "^0.75.0"
+        "@chronodivide/game-api": "^0.76.0"
     },
     "devDependencies": {
         "typescript": "^4.3.5",

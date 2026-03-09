@@ -49,6 +49,7 @@ export class VisualisedBot extends SupalosaBot {
 
     override onGameStart(game: GameApi) {
         super.onGameStart(game);
+        fs.mkdirSync(this.opts.outFolder, { recursive: true });
 
         const { width: mapWidth, height: mapHeight } = game.mapApi.getRealMapSize();
         const width = Math.max(mapWidth * MAP_SCALE, 800);
