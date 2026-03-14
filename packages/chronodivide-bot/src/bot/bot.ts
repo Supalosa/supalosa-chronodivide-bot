@@ -1,4 +1,4 @@
-import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType } from "@chronodivide/game-api";
+import { ApiEventType, Bot, GameApi, ApiEvent, ObjectType, FactoryType, QueueType } from "@chronodivide/game-api";
 
 import { MissionController } from "./logic/mission/missionController.js";
 import { QueueController } from "./logic/building/queueController.js";
@@ -8,6 +8,7 @@ import { IncrementalGridCache } from "./logic/map/incrementalGridCache.js";
 import { SupabotContext } from "./logic/common/context.js";
 import { Strategy } from "./strategy/strategy.js";
 import { DefaultStrategy } from "./strategy/defaultStrategy.js";
+import { BaseBuildingMission } from "./logic/mission/missions/baseBuildingMission.js";
 
 const DEBUG_STATE_UPDATE_INTERVAL_SECONDS = 6;
 
@@ -52,6 +53,16 @@ export class SupalosaBot extends Bot {
             throw new Error(`Player ${this.name} has no country`);
         }
         this.missionController = new MissionController((message, sayInGame) => this.logBotStatus(message, sayInGame));
+
+        // TODO: Strategy should have an onGameStart call which sets up the initial missions.
+        this.missionController.addMission(
+            new BaseBuildingMission(QueueType.Structures, (message, sayInGame) =>
+                this.logBotStatus(message, sayInGame),
+            ),
+        );
+        this.missionController.addMission(
+            new BaseBuildingMission(QueueType.Armory, (message, sayInGame) => this.logBotStatus(message, sayInGame)),
+        );
 
         this.matchAwareness = new MatchAwarenessImpl(
             game,
@@ -111,7 +122,7 @@ export class SupalosaBot extends Bot {
                 this.context.player.actions.quitGame();
             }
 
-            // Mission/strategy logic every 3 ticks
+            // Mission/strategy logic every 3 ticks.
             if (this.context.game.getCurrentTick() % 3 === 0) {
                 this.missionController.onAiUpdate(fullContext);
                 this.strategy = this.strategy.onAiUpdate(fullContext, this.missionController, (message, sayInGame) =>
@@ -121,15 +132,9 @@ export class SupalosaBot extends Bot {
 
             const unitTypeRequests = this.missionController.getRequestedUnitTypes();
 
-            // Build logic.
-            this.queueController.onAiUpdate(
-                game,
-                this.productionApi,
-                this.actionsApi,
-                myPlayer,
-                threatCache,
-                unitTypeRequests,
-                (message) => this.logBotStatus(message),
+            // Queue-controller logic.
+            this.queueController.onAiUpdate(fullContext, threatCache, unitTypeRequests, (message) =>
+                this.logBotStatus(message),
             );
         }
     }

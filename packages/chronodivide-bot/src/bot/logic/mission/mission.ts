@@ -204,6 +204,13 @@ export type MissionActionReleaseUnits = {
     unitIds: number[];
 };
 
+export type MissionActionBuildStructureAtLocation = {
+    type: "buildStructureAtLocation";
+    rulesName: string;
+    rx: number;
+    ry: number;
+};
+
 export const noop = () =>
     ({
         type: "noop",
@@ -241,10 +248,17 @@ export const isReleaseUnits = (
     a: MissionWithAction<MissionAction>,
 ): a is MissionWithAction<MissionActionReleaseUnits> => a.action.type === "releaseUnits";
 
+export const buildStructureAtLocation = (rulesName: string, rx: number, ry: number) =>
+    ({ type: "buildStructureAtLocation", rulesName, rx, ry }) satisfies MissionActionBuildStructureAtLocation;
+export const isBuildStructureAtLocation = (
+    a: MissionWithAction<MissionAction>,
+): a is MissionWithAction<MissionActionBuildStructureAtLocation> => a.action.type === "buildStructureAtLocation";
+
 export type MissionAction =
     | MissionActionNoop
     | MissionActionDisband
     | MissionActionRequestUnits
     | MissionActionRequestSpecificUnits
     | MissionActionGrabFreeCombatants
-    | MissionActionReleaseUnits;
+    | MissionActionReleaseUnits
+    | MissionActionBuildStructureAtLocation;
