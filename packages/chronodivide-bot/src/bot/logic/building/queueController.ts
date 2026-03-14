@@ -8,13 +8,9 @@ import {
     TechnoRules,
 } from "@chronodivide/game-api";
 import { GlobalThreat } from "../threat/threat.js";
-import {
-    TechnoRulesWithPriority,
-    BUILDING_NAME_TO_RULES,
-    DEFAULT_BUILDING_PRIORITY,
-    getDefaultPlacementLocation,
-} from "./buildingRules.js";
-import { DebugLogger } from "../common/utils.js";
+import { TechnoRulesWithPriority } from "./buildingRules.js";
+import { SupabotContext } from "../common/context.js";
+import { UnitRequest } from "../mission/missionController.js";
 
 export const QUEUES = [
     QueueType.Structures,
@@ -24,6 +20,10 @@ export const QUEUES = [
     QueueType.Aircrafts,
     QueueType.Ships,
 ];
+
+function isBuildingQueue(queueType: QueueType): boolean {
+    return queueType === QueueType.Structures || queueType === QueueType.Armory;
+}
 
 export const queueTypeToName = (queue: QueueType) => {
     switch (queue) {
@@ -60,24 +60,17 @@ export class QueueController {
     constructor() {}
 
     public onAiUpdate(
-        game: GameApi,
-        productionApi: ProductionApi,
-        actionsApi: ActionsApi,
-        playerData: PlayerData,
+        context: SupabotContext,
         threatCache: GlobalThreat | null,
-        unitTypeRequests: Map<string, number>,
+        unitTypeRequests: Map<string, UnitRequest>,
         logger: (message: string) => void,
     ) {
+        const { game, player } = context;
+        const { production: productionApi, actions: actionsApi } = player;
+        const playerData = game.getPlayerData(player.name);
         this.queueStates = QUEUES.map((queueType) => {
             const options = productionApi.getAvailableObjects(queueType);
-            const items = this.getPrioritiesForBuildingOptions(
-                game,
-                options,
-                threatCache,
-                playerData,
-                unitTypeRequests,
-                logger,
-            );
+            const items = QueueController.getPrioritiesForBuildingOptions(options, unitTypeRequests);
             const topItem = items.length > 0 ? items[items.length - 1] : undefined;
             return {
                 queue: queueType,
@@ -100,6 +93,7 @@ export class QueueController {
                 actionsApi,
                 playerData,
                 threatCache,
+                unitTypeRequests,
                 decision.queue,
                 decision.topItem,
                 totalWeightAcrossQueues,
@@ -129,6 +123,7 @@ export class QueueController {
         actionsApi: ActionsApi,
         playerData: PlayerData,
         threatCache: GlobalThreat | null,
+        unitTypeRequests: Map<string, UnitRequest>,
         queueType: QueueType,
         decision: TechnoRulesWithPriority | undefined,
         totalWeightAcrossQueues: number,
@@ -145,37 +140,36 @@ export class QueueController {
                 actionsApi.queueForProduction(queueType, decision.unit.name, decision.unit.type, 1);
             }
         } else if (queueData.status == QueueStatus.Ready && queueData.items.length > 0) {
-            // Consider placing it.
-            const objectReady: TechnoRules = queueData.items[0].rules;
-            if (queueType == QueueType.Structures || queueType == QueueType.Armory) {
-                let location: { rx: number; ry: number } | undefined = this.getBestLocationForStructure(
-                    game,
-                    playerData,
-                    objectReady,
-                );
-                if (location !== undefined) {
-                    logger(
-                        `Completed: ${queueTypeToName(queueType)}: ${objectReady.name}, placing at ${location.rx},${
-                            location.ry
-                        }`,
-                    );
-                    actionsApi.placeBuilding(objectReady.name, location.rx, location.ry);
-                } else {
-                    logger(`Completed: ${queueTypeToName(queueType)}: ${objectReady.name} but nowhere to place it`);
+            if (isBuildingQueue(queueType)) {
+                const readyUnit = queueData.items[0].rules;
+                const currentRequest = unitTypeRequests.get(readyUnit.name);
+                if (!currentRequest) {
+                    // No one is requesting this anymore, cancel
+                    logger(`Cancelling ready ${readyUnit.name} because no one is requesting anymore`);
+                    actionsApi.unqueueFromProduction(queueType, readyUnit.name, readyUnit.type, 1);
+                    return;
                 }
+                if (!currentRequest.specificLocation) {
+                    // No one is requesting this anymore, cancel
+                    logger(`Cancelling ready ${readyUnit.name} because location is unspecified`);
+                    actionsApi.unqueueFromProduction(queueType, readyUnit.name, readyUnit.type, 1);
+                    return;
+                }
+                actionsApi.placeBuilding(
+                    readyUnit.name,
+                    currentRequest.specificLocation.x,
+                    currentRequest.specificLocation.y,
+                );
             }
         } else if (queueData.status == QueueStatus.Active && queueData.items.length > 0 && decision != null) {
             // Consider cancelling if something else is significantly higher priority than what is currently being produced.
+
             const currentProduction = queueData.items[0].rules;
             if (decision.unit != currentProduction) {
                 // Changing our mind.
-                let currentItemPriority = this.getPriorityForBuildingOption(
-                    currentProduction,
-                    game,
-                    playerData,
-                    threatCache,
-                );
-                let newItemPriority = decision.priority;
+                const currentRequest = unitTypeRequests.get(currentProduction.name);
+                const currentItemPriority = currentRequest ? currentRequest.priority : 0;
+                const newItemPriority = decision.priority;
                 if (newItemPriority > currentItemPriority * 2) {
                     logger(
                         `Dequeueing queue ${queueTypeToName(queueData.type)} unit ${currentProduction.name} because ${
@@ -211,60 +205,20 @@ export class QueueController {
         }
     }
 
-    private getPrioritiesForBuildingOptions(
-        game: GameApi,
+    private static getPrioritiesForBuildingOptions(
         options: TechnoRules[],
-        threatCache: GlobalThreat | null,
-        playerData: PlayerData,
-        unitTypeRequests: Map<string, number>,
-        logger: DebugLogger,
+        unitTypeRequests: Map<string, UnitRequest>,
     ): TechnoRulesWithPriority[] {
         let priorityQueue: TechnoRulesWithPriority[] = [];
         options.forEach((option) => {
-            const calculatedPriority = this.getPriorityForBuildingOption(option, game, playerData, threatCache);
-            // Get the higher of the dynamic and the mission priority for the unit.
-            const actualPriority = Math.max(
-                calculatedPriority,
-                unitTypeRequests.get(option.name) ?? calculatedPriority,
-            );
-            if (actualPriority > 0) {
-                priorityQueue.push({ unit: option, priority: actualPriority });
+            const priority = unitTypeRequests.get(option.name)?.priority ?? 0;
+            if (priority > 0) {
+                priorityQueue.push({ unit: option, priority });
             }
         });
 
         priorityQueue = priorityQueue.sort((a, b) => a.priority - b.priority);
         return priorityQueue;
-    }
-
-    private getPriorityForBuildingOption(
-        option: TechnoRules,
-        game: GameApi,
-        playerStatus: PlayerData,
-        threatCache: GlobalThreat | null,
-    ) {
-        if (BUILDING_NAME_TO_RULES.has(option.name)) {
-            let logic = BUILDING_NAME_TO_RULES.get(option.name)!;
-            return logic.getPriority(game, playerStatus, option, threatCache);
-        } else {
-            // Fallback priority when there are no rules.
-            return (
-                DEFAULT_BUILDING_PRIORITY - game.getVisibleUnits(playerStatus.name, "self", (r) => r == option).length
-            );
-        }
-    }
-
-    private getBestLocationForStructure(
-        game: GameApi,
-        playerData: PlayerData,
-        objectReady: TechnoRules,
-    ): { rx: number; ry: number } | undefined {
-        if (BUILDING_NAME_TO_RULES.has(objectReady.name)) {
-            let logic = BUILDING_NAME_TO_RULES.get(objectReady.name)!;
-            return logic.getPlacementLocation(game, playerData, objectReady);
-        } else {
-            // fallback placement logic
-            return getDefaultPlacementLocation(game, playerData, playerData.startLocation, objectReady);
-        }
     }
 
     public getGlobalDebugText(gameApi: GameApi, productionApi: ProductionApi) {
