@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "watch": "tsc --build --watch"
+    "watch": "tsc --build --watch",
+    "clean": "tsc --build --clean"
   }
 }
