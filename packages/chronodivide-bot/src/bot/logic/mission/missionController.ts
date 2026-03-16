@@ -1,42 +1,33 @@
 // Meta-controller for forming and controlling missions.
 // Missions are groups of zero or more units that aim to accomplish a particular goal.
 
-import {
-    ActionsApi,
-    Bot,
-    BotContext,
-    GameApi,
-    GameObjectData,
-    ObjectType,
-    PlayerData,
-    UnitData,
-    Vector2,
-} from "@chronodivide/game-api";
+import { ActionsApi, BotContext, GameApi, GameObjectData, Vector2 } from "@chronodivide/game-api";
 import {
     Mission,
-    MissionAction,
     MissionActionDisband,
-    MissionActionGrabFreeCombatants,
-    MissionActionReleaseUnits,
     MissionActionRequestSpecificUnits,
-    MissionActionRequestUnits,
     MissionWithAction,
+    isBuildStructureAtLocation,
     isDisbandMission,
     isGrabCombatants,
     isReleaseUnits,
     isRequestSpecificUnits,
     isRequestUnits,
 } from "./mission.js";
-import { MatchAwareness } from "../awareness.js";
 import { ActionBatcher } from "./actionBatcher.js";
 import { countBy, isSelectableCombatant } from "../common/utils.js";
-import { Squad } from "./missions/squads/squad.js";
 import { MissionContext, SupabotContext } from "../common/context.js";
-import { Strategy } from "../../strategy/strategy.js";
 
 // `missingUnitTypes` priority decays by this much every update loop.
 const MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE = 0.75;
 const MISSING_UNIT_TYPE_REQUEST_DECAY_FLAT_RATE = 1;
+
+export type UnitRequest = {
+    priority: number;
+    // Relevant for structures only.
+    specificLocation: Vector2 | null;
+};
+type UnitRequestWithMission = { mission: Mission<any> } & UnitRequest;
 
 export class MissionController {
     private missions: Mission<any>[] = [];
@@ -47,7 +38,7 @@ export class MissionController {
 
     // A mapping of unit types to the highest priority requested for a mission.
     // This decays over time if requests are not 'refreshed' by mission.
-    private requestedUnitTypes: Map<string, number> = new Map();
+    private requestedUnitTypes: Map<string, UnitRequest> = new Map();
 
     // Tracks missions to be externally disbanded the next time the mission update loop occurs.
     private forceDisbandedMissions: string[] = [];
@@ -183,18 +174,20 @@ export class MissionController {
                             prev[unitName] = {
                                 mission: missionWithAction.mission,
                                 priority: requestedPriority,
+                                specificLocation: null,
                             };
                         }
                     } else {
                         prev[unitName] = {
                             mission: missionWithAction.mission,
                             priority: requestedPriority,
+                            specificLocation: null,
                         };
                     }
                 });
                 return prev;
             },
-            {} as Record<string, { mission: Mission<any>; priority: number }>,
+            {} as Record<string, UnitRequestWithMission>,
         );
 
         // Request combat-capable units in an area
@@ -226,7 +219,10 @@ export class MissionController {
                     const { mission: requestingMission, priority: requestedPriority } =
                         unitTypeToHighestRequest[freeUnit.name];
                     if (donatingMission) {
-                        if (donatingMission === requestingMission || donatingMission.getPriority() > requestedPriority) {
+                        if (
+                            donatingMission === requestingMission ||
+                            donatingMission.getPriority() > requestedPriority
+                        ) {
                             return [];
                         }
                         this.removeUnitFromMission(donatingMission, freeUnit.id, context.player.actions);
@@ -296,6 +292,27 @@ export class MissionController {
             );
         });
 
+        // Handle structure requests.
+        missionActions.filter(isBuildStructureAtLocation).forEach((a) => {
+            const { rulesName, rx, ry } = a.action;
+            if (rulesName in unitTypeToHighestRequest) {
+                const currentPriority = unitTypeToHighestRequest[rulesName].priority;
+                if (a.mission.getPriority() > currentPriority) {
+                    unitTypeToHighestRequest[rulesName] = {
+                        mission: a.mission,
+                        priority: a.action.priority,
+                        specificLocation: new Vector2(rx, ry),
+                    };
+                }
+            } else {
+                unitTypeToHighestRequest[rulesName] = {
+                    mission: a.mission,
+                    priority: a.action.priority,
+                    specificLocation: new Vector2(rx, ry),
+                };
+            }
+        });
+
         this.updateRequestedUnitTypes(unitTypeToHighestRequest);
 
         // Send all actions that can be batched together.
@@ -312,27 +329,31 @@ export class MissionController {
         this.missions = this.missions.filter((missions) => !disbandedMissions.has(missions.getUniqueName()));
     }
 
-    private updateRequestedUnitTypes(
-        missingUnitTypeToHighestRequest: Record<string, { mission: Mission<any>; priority: number }>,
-    ) {
+    private updateRequestedUnitTypes(missingUnitTypeToHighestRequest: Record<string, UnitRequestWithMission>) {
         // Decay the priority over time.
-        const currentUnitTypes = Array.from(this.requestedUnitTypes.keys());
-        for (const unitType of currentUnitTypes) {
+        for (const [unitType, currentRequest] of this.requestedUnitTypes.entries()) {
             const newPriority =
-                this.requestedUnitTypes.get(unitType)! * MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE -
+                currentRequest.priority * MISSING_UNIT_TYPE_REQUEST_DECAY_MULT_RATE -
                 MISSING_UNIT_TYPE_REQUEST_DECAY_FLAT_RATE;
             if (newPriority > 0.5) {
-                this.requestedUnitTypes.set(unitType, newPriority);
+                this.requestedUnitTypes.set(unitType, {
+                    ...currentRequest,
+                    priority: newPriority,
+                });
             } else {
                 this.requestedUnitTypes.delete(unitType);
             }
         }
         // Add the new missing units to the priority set, if the request is higher than the existing value.
         Object.entries(missingUnitTypeToHighestRequest).forEach(([unitType, request]) => {
-            const currentPriority = this.requestedUnitTypes.get(unitType);
+            const currentRequest = this.requestedUnitTypes.get(unitType);
+            if (!currentRequest) {
+                this.requestedUnitTypes.set(unitType, request);
+                return;
+            }
             this.requestedUnitTypes.set(
                 unitType,
-                currentPriority ? Math.max(currentPriority, request.priority) : request.priority,
+                request.priority > currentRequest.priority ? request : currentRequest,
             );
         });
     }
@@ -342,7 +363,7 @@ export class MissionController {
      *
      * @returns A map of unit type to the highest priority for that unit type.
      */
-    public getRequestedUnitTypes(): Map<string, number> {
+    public getRequestedUnitTypes(): Map<string, UnitRequest> {
         return this.requestedUnitTypes;
     }
 
