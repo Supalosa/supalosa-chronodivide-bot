@@ -300,14 +300,14 @@ export class MissionController {
                 if (a.mission.getPriority() > currentPriority) {
                     unitTypeToHighestRequest[rulesName] = {
                         mission: a.mission,
-                        priority: a.mission.getPriority(),
+                        priority: a.action.priority,
                         specificLocation: new Vector2(rx, ry),
                     };
                 }
             } else {
                 unitTypeToHighestRequest[rulesName] = {
                     mission: a.mission,
-                    priority: a.mission.getPriority(),
+                    priority: a.action.priority,
                     specificLocation: new Vector2(rx, ry),
                 };
             }

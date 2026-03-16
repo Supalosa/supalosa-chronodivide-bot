@@ -2,10 +2,10 @@
     "files": [],
     "references": [
         {
-            "path": "./packages/chronodivide-bot-driver"
+            "path": "./packages/chronodivide-bot"
         },
         {
-            "path": "./packages/chronodivide-bot"
+            "path": "./packages/chronodivide-bot-driver"
         }
     ]
 }

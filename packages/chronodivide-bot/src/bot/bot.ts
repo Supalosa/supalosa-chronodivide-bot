@@ -96,8 +96,6 @@ export class SupalosaBot extends Bot {
         }
 
         if (game.getCurrentTick() % this.tickRatio! === 0) {
-            const myPlayer = game.getPlayerData(this.name);
-
             this.matchAwareness.onAiUpdate(this.context);
 
             const fullContext: SupabotContext = {

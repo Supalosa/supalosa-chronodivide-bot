@@ -1,14 +1,14 @@
 import { GameApi, PlayerData, QueueType, TechnoRules } from "@chronodivide/game-api";
-import { MissionContext } from "../../common/context";
-import { DebugLogger, maxBy } from "../../common/utils";
-import { buildStructureAtLocation, Mission, MissionAction, noop } from "../mission";
-import { GlobalThreat } from "../../threat/threat";
+import { MissionContext } from "../../common/context.js";
+import { DebugLogger, maxBy } from "../../common/utils.js";
+import { buildStructureAtLocation, Mission, MissionAction, noop } from "../mission.js";
+import { GlobalThreat } from "../../threat/threat.js";
 import {
     BUILDING_NAME_TO_RULES,
     DEFAULT_BUILDING_PRIORITY,
     getDefaultPlacementLocation,
-} from "../../building/buildingRules";
-import { queueTypeToName } from "../../building/queueController";
+} from "../../building/buildingRules.js";
+import { queueTypeToName } from "../../building/queueController.js";
 
 // Legacy mission encompassing the old "build queue" logic.
 export class BaseBuildingMission extends Mission {
@@ -29,21 +29,26 @@ export class BaseBuildingMission extends Mission {
         const { game, matchAwareness } = context;
         const threatCache = matchAwareness.getThreatCache();
 
-        const bestOption = maxBy(options, (option) => {
-            return this.getPriorityForBuildingOption(option, game, playerData, threatCache);
+        const optionWithPriority = options.map((option) => {
+            return {
+                option,
+                priority: this.getPriorityForBuildingOption(option, game, playerData, threatCache),
+            };
         });
 
-        if (!bestOption) {
+        const bestOption = maxBy(optionWithPriority, (option) => option.priority);
+
+        if (!bestOption || bestOption.priority === 0) {
             return noop();
         }
 
-        const bestLocation = this.getBestLocationForStructure(game, playerData, bestOption);
+        const bestLocation = this.getBestLocationForStructure(game, playerData, bestOption.option);
 
         if (!bestLocation) {
             return noop();
         }
 
-        return buildStructureAtLocation(bestOption.name, bestLocation.rx, bestLocation.ry);
+        return buildStructureAtLocation(bestOption.option.name, bestOption.priority, bestLocation.rx, bestLocation.ry);
     }
 
     getGlobalDebugText(): string | undefined {
@@ -51,7 +56,7 @@ export class BaseBuildingMission extends Mission {
     }
 
     getPriority(): number {
-        return 1000;
+        return 0;
     }
 
     private getPriorityForBuildingOption(
